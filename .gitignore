@@ -13,12 +13,24 @@ service-account*.json
 # Python
 __pycache__/
 *.pyc
+*.pyo
 .venv/
 venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
 # Node
 node_modules/
 .npm
+frontend/.next/
+frontend/out/
+
+# Artifacts
+artifacts/
 
 # OS
 .DS_Store

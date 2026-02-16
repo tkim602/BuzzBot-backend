@@ -1,0 +1,14 @@
+User question: {{QUERY}}
+
+User context: {{USER_CONTEXT}}
+
+Retrieved sources:
+{{CONTEXT}}
+
+Instructions:
+- Answer the question using ONLY the retrieved sources above.
+- Include citations with exact quotes from the sources.
+- Output strict JSON with keys: answer, citations, confidence, notes.
+- Each citation must have: url, title (or null), fetched_at (or null), quote.
+- The quote must be a short snippet (1-2 sentences) that directly supports your answer.
+- Set confidence between 0.0-1.0 based on how well the sources answer the question.

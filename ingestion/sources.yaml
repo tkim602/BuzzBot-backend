@@ -1,0 +1,51 @@
+# BuzzBot — Source registry
+# Each source must have allowed: true to be ingested.
+# Policy gates: set allowed: false + reason to block a source.
+
+sources:
+  - name: gt-registrar
+    base_url: https://registrar.gatech.edu
+    allowed: true
+    reason: "Official Georgia Tech registrar — public academic calendar and policies."
+    sitemap_url: https://registrar.gatech.edu/sitemap.xml
+    include_patterns:
+      - "/calendar"
+      - "/registration"
+      - "/info"
+      - "/students"
+    exclude_patterns:
+      - "/node/"
+    max_urls: 100
+    refresh_policy:
+      schedule: daily
+      method: sitemap_incremental
+
+  - name: gt-catalog
+    base_url: https://catalog.gatech.edu
+    allowed: true
+    reason: "Official Georgia Tech course catalog — course descriptions and degree policies."
+    sitemap_url: https://catalog.gatech.edu/sitemap.xml
+    include_patterns:
+      - "/courses-"
+      - "/programs"
+      - "/coursesaz"
+    exclude_patterns: []
+    max_urls: 200
+    refresh_policy:
+      schedule: weekly
+      method: sitemap_incremental
+
+  - name: ratemyprofessors
+    base_url: https://www.ratemyprofessors.com
+    allowed: false
+    reason: >
+      RateMyProfessors ToS prohibit automated scraping.
+      BuzzBot supports user-provided mode only — paste an excerpt
+      and the system will summarize it. No crawling or spidering.
+    sitemap_url: null
+    include_patterns: []
+    exclude_patterns: ["*"]
+    max_urls: 0
+    refresh_policy:
+      schedule: never
+      method: none
