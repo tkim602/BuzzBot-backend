@@ -48,8 +48,17 @@ def test_empty_citations():
     assert notes == []
 
 
-def test_empty_quote_passes():
+def test_empty_quote_removed():
     chunks = [_make_chunk("Some text.")]
     citations = [{"url": "https://example.com", "quote": ""}]
     valid, notes = check_grounding(citations, chunks)
-    assert len(valid) == 1
+    assert len(valid) == 0
+    assert len(notes) == 1
+
+
+def test_url_not_in_retrieved_chunks_removed():
+    chunks = [_make_chunk("Registration opens on January 8.", url="https://a.example")]
+    citations = [{"url": "https://b.example", "quote": "Registration opens on January 8"}]
+    valid, notes = check_grounding(citations, chunks)
+    assert len(valid) == 0
+    assert len(notes) == 1

@@ -9,6 +9,7 @@ from pathlib import Path
 import structlog
 
 from app.core.config import settings
+from app.core.usage import check_limit_or_raise, record_usage
 from app.rag.retrieval import RetrievedChunk
 
 logger = structlog.get_logger(__name__)
@@ -87,6 +88,9 @@ async def generate_answer(
 
 async def _call_llm(system: str, user: str) -> str:
     """Call the configured LLM provider."""
+    # Check usage limit before API call
+    check_limit_or_raise()
+    
     provider = settings.llm_provider
 
     if provider == "openai":
@@ -102,6 +106,12 @@ async def _call_llm(system: str, user: str) -> str:
             temperature=0.2,
             max_tokens=1500,
         )
+        
+        # Record usage
+        if resp.usage:
+            record_usage(settings.openai_model, resp.usage.prompt_tokens, "input")
+            record_usage(settings.openai_model, resp.usage.completion_tokens, "output")
+        
         return resp.choices[0].message.content or ""
 
     elif provider == "anthropic":
@@ -114,6 +124,12 @@ async def _call_llm(system: str, user: str) -> str:
             system=system,
             messages=[{"role": "user", "content": user}],
         )
+        
+        # Record usage
+        if hasattr(resp, 'usage'):
+            record_usage(settings.anthropic_model, resp.usage.input_tokens, "input")
+            record_usage(settings.anthropic_model, resp.usage.output_tokens, "output")
+        
         return resp.content[0].text
 
     elif provider == "ollama":

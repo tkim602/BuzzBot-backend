@@ -294,7 +294,7 @@ graph LR
     Embed --> Vector[pgvector<br/>코사인 유사도<br/>Top-K]
     FTS --> TextSearch[PostgreSQL<br/>tsvector/tsquery<br/>Top-K/2]
 
-    Vector --> Merge[병합 + 중복 제거]
+    Vector --> Merge[RRF 융합]
     TextSearch --> Merge
 
     Merge --> Context[최종 컨텍스트]
@@ -305,12 +305,26 @@ graph LR
 - **FTS만**: 키워드 매칭에 강하지만 동의어/의미적 유사성 처리 불가
 - **하이브리드**: 두 방법의 장점을 결합, 특히 과목 코드(CS 1332)나 고유명사에 강력
 
+### 최근 개선점 (정확도 + 속도)
+
+1. **라우팅 보강**: `CS4400`, `Spring 2025`, `offered/개설` 패턴은 `gt-scheduler`로 우선 라우팅  
+2. **메타데이터 필터**: 스케줄 질의에서 `course_code`, `term_name`을 JSON metadata 조건으로 직접 필터  
+3. **RRF 융합**: 벡터/FTS 결과를 단순 concat 대신 Reciprocal Rank Fusion으로 결합  
+4. **FTS 최적화**: 고신호 토큰만 남기고 `websearch_to_tsquery('simple', ...)` 사용  
+5. **DB 인덱스 최적화**:
+   - `embeddings.embedding` IVFFlat(cosine) 인덱스
+   - `to_tsvector('simple', chunk_text)` GIN 인덱스
+   - `(source_id, upper(course_code), lower(term_name))` 표현식 인덱스
+6. **Exact schedule fast-path**: course+term이 모두 있으면 벡터+메타데이터 결과가 충분할 때 FTS 생략
+
 ### 근거 검증 (Grounding Check)
 
 1. 각 인용구(quote)가 검색된 청크 텍스트의 **부분 문자열**인지 확인
 2. 정확한 부분 문자열이 아니면 **단어 오버랩 비율** 계산 (50% 이상 필요)
-3. 검증 실패한 인용구는 제거
-4. 모든 인용구가 실패하면 **1회 재생성** 시도 (무한 루프 방지)
+3. **빈 quote 인용은 제거**
+4. **인용 URL이 실제 검색 컨텍스트 URL에 없으면 제거**
+5. 검증 실패한 인용구는 제거
+6. 필요 시에만(설정값) 1회 재생성 시도
 
 ---
 
@@ -356,12 +370,25 @@ graph LR
 2. **컨텍스트 제한**: `RAG_MAX_CONTEXT_TOKENS=3000` — 불필요하게 긴 컨텍스트 방지
 3. **Top-K 제한**: `RAG_TOP_K=8` — 검색 결과 수 제한
 4. **JSON 응답 강제**: 불필요한 텍스트 생성 방지
+5. **검색 결과 0건이면 LLM 호출 생략**: 헛비용/환각 감소
 
 ### 임베딩 비용 제어
 
 1. **변경 감지**: content_hash로 변경된 문서만 재임베딩
 2. **배치 처리**: 32개 청크씩 배치 임베딩 요청
 3. **로컬 옵션**: `sentence-transformers` (CPU)로 무료 임베딩 가능
+4. **질의 임베딩 캐시**: 동일 질문 반복 시 임베딩 API 재호출 방지
+
+### 악성 트래픽 방어 (Usage Limit 추가 방어층)
+
+`USAGE_LIMIT`과 별개로 다음 방어를 적용:
+
+1. **클라이언트별 슬라이딩 윈도우 제한**: 분/시간/일 요청 상한
+2. **중복 질문 쿨다운**: 동일 질의 연속 호출 차단
+3. **동시성 상한**: 비싼 chat 파이프라인 동시 실행 수 제한
+4. **응답 캐시**: 동일 indexed 질의는 캐시 반환
+
+이 구조는 `USAGE_LIMIT`을 올려도 동작하므로, 반복 호출 기반 비용 증폭을 추가로 완화함.
 
 ### 수집 비용 제어
 
@@ -426,9 +453,9 @@ graph LR
 1. **검색 품질**: 하이브리드 검색으로 관련 없는 청크 유입 최소화
 2. **프롬프트 설계**: "컨텍스트에 없으면 모른다고 말해라" 지시
 3. **JSON 강제**: 구조화된 출력으로 자유 생성 제한
-4. **근거 검증**: 인용구가 실제 청크에 있는지 자동 검사
+4. **근거 검증**: 인용구가 실제 청크/URL에 있는지 자동 검사
 5. **신뢰도 점수**: 낮으면 "공식 사이트 확인" 권장
-6. **재생성**: 모든 인용 실패 시 1회 재시도
+6. **빈 검색 단락 처리**: 컨텍스트가 없으면 LLM 호출 자체를 생략
 
 ### Q3: "청킹 크기 500 토큰의 근거는?"
 
@@ -477,7 +504,9 @@ graph LR
 **A:**
 - **단위 테스트**: URL 정규화, 청킹 경계, 근거 검증, 라우터 규칙
 - **통합 테스트**: API 엔드포인트 (TestClient + 모의 DB)
-- **RAG 평가**: 샘플 질문으로 의도 분류 정확도, 인용 유효율, 응답 지연시간 측정
+- **RAG 평가**:
+  - `eval/retrieval_regression.py`로 라우팅/검색 회귀 테스트
+  - `eval/retrieval_perf.py`로 검색 지연시간 측정
 - **CI**: GitHub Actions로 lint + test 자동화
 
 ### Q9: "이 프로젝트에서 가장 어려웠던 기술적 도전은?"
@@ -496,6 +525,7 @@ graph LR
 - **입력 검증**: Pydantic으로 모든 요청 검증 (길이 제한 포함)
 - **SQL 인젝션**: SQLAlchemy ORM 사용으로 방어
 - **요청 ID**: 구조화된 로그로 추적 가능
+- **요청 Guardrail**: per-client rate limit + duplicate cooldown + concurrency cap
 - **robots.txt**: 크롤링 규칙 준수
 
 ---
@@ -505,7 +535,7 @@ graph LR
 ### 단기 (1-2개월)
 - [ ] 스트리밍 응답 (SSE) 적용 — 사용자 체감 지연 감소
 - [ ] 대화 히스토리 지원 — 다중 턴 대화
-- [ ] 임베딩 캐시 (Redis) — 자주 묻는 질문 빠른 응답
+- [ ] 분산 캐시 (Redis) — 멀티 인스턴스 환경에서 캐시 공유
 - [ ] 소스별 신뢰도 가중치 — 공식 소스 우선
 
 ### 중기 (3-6개월)
@@ -526,3 +556,12 @@ graph LR
 
 > 이 문서는 BuzzBot 프로젝트의 설계 의도와 기술적 결정을 면접 관점에서 정리한 것입니다.
 > 실제 면접에서는 자신의 경험과 연결하여 답변하세요.
+
+---
+
+## 참고 자료 (추후 학습용)
+
+1. Patrick Lewis et al. (2020), **Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks** (NeurIPS). https://arxiv.org/abs/2005.11401  
+2. Gordon V. Cormack, Charles L. A. Clarke, Stefan Buettcher (2009), **Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods** (SIGIR). https://doi.org/10.1145/1571941.1572114  
+3. PostgreSQL 공식 문서, **Text Search**. https://www.postgresql.org/docs/current/textsearch.html  
+4. pgvector 공식 저장소/문서. https://github.com/pgvector/pgvector

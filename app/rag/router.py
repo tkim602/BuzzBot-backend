@@ -6,9 +6,10 @@ import re
 from dataclasses import dataclass
 
 CALENDAR_KEYWORDS = [
-    "deadline", "registration", "calendar", "semester", "drop", "add",
+    "deadline", "registration", "calendar", "drop", "add",
     "withdrawal", "final exam", "commencement", "holiday", "break",
-    "spring", "summer", "fall", "midterm", "schedule",
+    "midterm", "academic year", "tentative", "exam matrix",
+    "학사일정", "등록", "수강신청", "마감", "기말고사", "졸업식",
 ]
 CATALOG_KEYWORDS = [
     "course", "class", "credit", "prerequisite", "degree", "major",
@@ -22,12 +23,41 @@ RMP_KEYWORDS = [
 FRESHNESS_KEYWORDS = [
     "deadline", "when", "date", "current", "this semester", "upcoming",
     "next", "today", "tomorrow", "registration date",
+    "언제", "오늘", "내일", "현재", "최신",
 ]
+SCHEDULE_KEYWORDS = [
+    "offer", "offered", "offering", "available", "availability",
+    "section", "sections", "crn", "seat", "seats", "waitlist",
+    "instructor", "professor", "time", "times", "location", "schedule",
+    "개설", "열리", "강의", "수업", "시간표", "좌석", "담당교수",
+]
+TERM_KEYWORDS = [
+    "spring", "summer", "fall", "semester", "term",
+    "봄", "여름", "가을", "학기",
+]
+COURSE_CODE_RE = re.compile(r"\b([a-z]{2,4})\s*-?\s*(\d{4}[a-z]?)\b", re.IGNORECASE)
+COURSE_CODE_STOPWORDS = {
+    "spring", "summer", "fall", "term", "year", "this", "next", "last", "the",
+}
+LIBRARY_KEYWORDS = [
+    "library", "libraries", "interlibrary", "study room", "borrow", "loan",
+    "도서관", "대출", "스터디룸",
+]
+
+
+def _extract_course_code(query: str) -> str | None:
+    m = COURSE_CODE_RE.search(query)
+    if not m:
+        return None
+    dept = m.group(1).lower()
+    if dept in COURSE_CODE_STOPWORDS:
+        return None
+    return f"{m.group(1).upper()} {m.group(2).upper()}"
 
 
 @dataclass
 class RouterResult:
-    intent: str  # registrar_calendar | catalog_course | rmp_user_provided | general | unknown
+    intent: str  # registrar_calendar | catalog_course | course_schedule_sections | rmp_user_provided | general | unknown
     freshness_strategy: str  # indexed | live_fetch | hybrid
     source_filter: str | None = None  # source name filter for retrieval
 
@@ -44,6 +74,24 @@ def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
             source_filter=None,
         )
 
+    # Explicit course schedule intent (prefer gt-scheduler over registrar pages)
+    has_course_code = bool(_extract_course_code(q))
+    has_schedule_keyword = any(kw in q for kw in SCHEDULE_KEYWORDS)
+    has_term_keyword = any(kw in q for kw in TERM_KEYWORDS)
+    if has_course_code and (has_schedule_keyword or has_term_keyword):
+        return RouterResult(
+            intent="course_schedule_sections",
+            freshness_strategy="indexed",
+            source_filter="gt-scheduler",
+        )
+
+    if any(kw in q for kw in LIBRARY_KEYWORDS):
+        return RouterResult(
+            intent="general",
+            freshness_strategy="indexed",
+            source_filter="gt-library",
+        )
+
     # Calendar / registrar
     cal_score = sum(1 for kw in CALENDAR_KEYWORDS if kw in q)
     cat_score = sum(1 for kw in CATALOG_KEYWORDS if kw in q)
@@ -58,6 +106,14 @@ def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
         )
 
     if cat_score > 0:
+        return RouterResult(
+            intent="catalog_course",
+            freshness_strategy="indexed",
+            source_filter="gt-catalog",
+        )
+
+    # Course code query without explicit schedule terms usually targets catalog facts.
+    if has_course_code:
         return RouterResult(
             intent="catalog_course",
             freshness_strategy="indexed",

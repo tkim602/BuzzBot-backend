@@ -38,7 +38,13 @@ def check_grounding(
         url = cit.get("url", "")
 
         if not quote:
-            valid.append(cit)
+            notes.append("Citation dropped because quote is empty.")
+            logger.warning("empty citation quote", url=url)
+            continue
+
+        if url and url not in chunk_texts:
+            notes.append(f"Citation URL not found in retrieved contexts: {url}")
+            logger.warning("citation url not in retrieved chunks", url=url)
             continue
 
         # Check if quote is substring of any chunk text
@@ -53,7 +59,7 @@ def check_grounding(
 
         # Fallback: check all chunks
         if not grounded:
-            if _is_grounded(quote, all_text, min_overlap_ratio):
+            if (not url) and _is_grounded(quote, all_text, min_overlap_ratio):
                 grounded = True
 
         if grounded:

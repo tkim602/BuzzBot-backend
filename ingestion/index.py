@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 import os
+import sys
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 import structlog
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from db.models import Chunk, Document, Embedding, FetchState, Source
+
+# Add app to path for usage tracking
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from app.core.usage import check_limit_or_raise, record_usage, UsageLimitExceeded
 
 logger = structlog.get_logger(__name__)
 
@@ -26,7 +32,15 @@ def get_embedding_function():
         model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 
         def embed_texts(texts: list[str]) -> list[list[float]]:
+            # Check usage limit before API call
+            check_limit_or_raise()
+            
             resp = client.embeddings.create(input=texts, model=model)
+            
+            # Record usage
+            total_tokens = resp.usage.total_tokens
+            record_usage(model, total_tokens, "embedding")
+            
             return [item.embedding for item in resp.data]
 
         return embed_texts

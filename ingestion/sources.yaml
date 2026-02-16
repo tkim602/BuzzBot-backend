@@ -8,14 +8,10 @@ sources:
     allowed: true
     reason: "Official Georgia Tech registrar — public academic calendar and policies."
     sitemap_url: https://registrar.gatech.edu/sitemap.xml
-    include_patterns:
-      - "/calendar"
-      - "/registration"
-      - "/info"
-      - "/students"
+    include_patterns: [] # Empty = all URLs from sitemap
     exclude_patterns:
       - "/node/"
-    max_urls: 100
+    max_urls: 500
     refresh_policy:
       schedule: daily
       method: sitemap_incremental
@@ -25,12 +21,21 @@ sources:
     allowed: true
     reason: "Official Georgia Tech course catalog — course descriptions and degree policies."
     sitemap_url: https://catalog.gatech.edu/sitemap.xml
-    include_patterns:
-      - "/courses-"
-      - "/programs"
-      - "/coursesaz"
+    include_patterns: [] # Empty = all URLs from sitemap
     exclude_patterns: []
-    max_urls: 200
+    max_urls: 1000
+    refresh_policy:
+      schedule: weekly
+      method: sitemap_incremental
+
+  - name: gt-library
+    base_url: https://library.gatech.edu
+    allowed: true
+    reason: "Georgia Tech Library — research resources, study spaces, services."
+    sitemap_url: https://library.gatech.edu/sitemap.xml
+    include_patterns: []
+    exclude_patterns: []
+    max_urls: 1000
     refresh_policy:
       schedule: weekly
       method: sitemap_incremental

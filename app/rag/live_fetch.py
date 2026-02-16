@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import os
+import re
 from datetime import datetime, timezone
 
 import httpx
 import structlog
 
+from app.core.config import settings
 from app.rag.retrieval import RetrievedChunk
 from ingestion.extract import extract_content
 from ingestion.chunk import chunk_text
@@ -26,6 +27,17 @@ LIVE_FETCH_TARGETS = {
 }
 
 USER_AGENT = "BuzzBot/1.0 (+educational; polite single-page fetch)"
+_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+
+
+def _overlap_score(query: str, text: str) -> float:
+    q_tokens = set(_TOKEN_RE.findall(query.lower()))
+    if not q_tokens:
+        return 0.0
+    t_tokens = set(_TOKEN_RE.findall(text.lower()))
+    if not t_tokens:
+        return 0.0
+    return len(q_tokens & t_tokens) / len(q_tokens)
 
 
 async def live_fetch_for_query(
@@ -33,11 +45,12 @@ async def live_fetch_for_query(
     query: str,
 ) -> list[RetrievedChunk]:
     """Fetch small set of official pages for freshness-critical queries."""
-    if not os.getenv("ENABLE_LIVE_FETCH", "true").lower() == "true":
+    if not settings.enable_live_fetch:
         return []
 
-    timeout = int(os.getenv("LIVE_FETCH_TIMEOUT", "10"))
-    max_urls = int(os.getenv("LIVE_FETCH_MAX_URLS", "3"))
+    timeout = settings.live_fetch_timeout
+    max_urls = settings.live_fetch_max_urls
+    max_chunks = settings.live_fetch_max_chunks
     targets = LIVE_FETCH_TARGETS.get(intent, [])[:max_urls]
 
     if not targets:
@@ -70,7 +83,7 @@ async def live_fetch_for_query(
                             url=url,
                             title=extracted.title,
                             chunk_text=tc.text,
-                            score=0.9,  # High relevance for live content
+                            score=_overlap_score(query, tc.text),
                             fetched_at=now.isoformat(),
                             method="live_fetch",
                         )
@@ -78,5 +91,8 @@ async def live_fetch_for_query(
             except Exception as exc:
                 logger.warning("live fetch failed", url=url, error=str(exc))
 
+    # Keep only query-relevant live chunks to reduce context noise and latency.
+    chunks.sort(key=lambda c: c.score, reverse=True)
+    chunks = chunks[:max_chunks]
     logger.info("live fetch complete", intent=intent, chunks=len(chunks))
     return chunks
