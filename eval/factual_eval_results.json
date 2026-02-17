@@ -1,0 +1,323 @@
+{
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "pass_rate": 1.0,
+    "answer_rate": 1.0,
+    "citation_rate": 0.667,
+    "avg_keyword_recall": 0.875,
+    "avg_confidence": 0.52,
+    "avg_latency_s": 7.03,
+    "category_breakdown": {
+      "broad_query": {
+        "total": 2,
+        "passed": 2,
+        "rate": 1.0
+      },
+      "course_specific": {
+        "total": 3,
+        "passed": 3,
+        "rate": 1.0
+      },
+      "follow_up": {
+        "total": 3,
+        "passed": 3,
+        "rate": 1.0
+      },
+      "registrar": {
+        "total": 2,
+        "passed": 2,
+        "rate": 1.0
+      },
+      "schedule": {
+        "total": 2,
+        "passed": 2,
+        "rate": 1.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "fu1",
+      "category": "follow_up",
+      "description": "Follow-up about CS 1332 schedule without repeating course code",
+      "pass": true,
+      "keyword_hits": 3,
+      "keyword_total": 3,
+      "precision": 1.0,
+      "turns": [
+        {
+          "query": "Tell me about CS 1332",
+          "answer_snippet": "CS 1332 is a course that focuses on data structures and algorithms, which is essential for computer science students. It is a prerequisite for several advanced courses in the curriculum.",
+          "confidence": 0.9,
+          "intent": "catalog_course",
+          "rewritten_query": "Tell me about CS 1332",
+          "citation_count": 3,
+          "latency_s": 14.11,
+          "error": null
+        },
+        {
+          "query": "offered in spring 2025?",
+          "answer_snippet": "No, CS 1332 is not offered in Spring 2025.",
+          "confidence": 0.9,
+          "intent": "course_schedule_sections",
+          "rewritten_query": "Is CS 1332 offered in Spring 2025?",
+          "citation_count": 1,
+          "latency_s": 6.24,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "fu2",
+      "category": "follow_up",
+      "description": "Follow-up asking for more results on same topic",
+      "pass": true,
+      "keyword_hits": 2,
+      "keyword_total": 2,
+      "precision": 1.0,
+      "turns": [
+        {
+          "query": "What are some database courses at Georgia Tech?",
+          "answer_snippet": "The retrieved sources do not provide specific database courses at Georgia Tech.",
+          "confidence": 0.0,
+          "intent": "catalog_course",
+          "rewritten_query": "database courses at Georgia Tech",
+          "citation_count": 0,
+          "latency_s": 4.0,
+          "error": null
+        },
+        {
+          "query": "another database course?",
+          "answer_snippet": "The retrieved sources do not provide information on additional database courses at Georgia Tech.",
+          "confidence": 0.0,
+          "intent": "catalog_course",
+          "rewritten_query": "database courses at Georgia Tech retrieved sources provide",
+          "citation_count": 1,
+          "latency_s": 5.19,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "fu3",
+      "category": "follow_up",
+      "description": "Implicit follow-up with 'then which semester'",
+      "pass": true,
+      "keyword_hits": 1,
+      "keyword_total": 1,
+      "precision": 1.0,
+      "turns": [
+        {
+          "query": "Is CS 4400 offered in fall 2025?",
+          "answer_snippet": "No, CS 4400 is not offered in Fall 2025.",
+          "confidence": 0.9,
+          "intent": "course_schedule_sections",
+          "rewritten_query": "Is CS 4400 offered in fall 2025?",
+          "citation_count": 1,
+          "latency_s": 6.18,
+          "error": null
+        },
+        {
+          "query": "then which semester is it available?",
+          "answer_snippet": "CS 4400 is available in Spring 2026.",
+          "confidence": 1.0,
+          "intent": "course_schedule_sections",
+          "rewritten_query": "Which semester is CS 4400 available?",
+          "citation_count": 1,
+          "latency_s": 5.23,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "bq1",
+      "category": "broad_query",
+      "description": "Broad topic query — database courses",
+      "pass": true,
+      "keyword_hits": 1,
+      "keyword_total": 2,
+      "precision": 0.5,
+      "turns": [
+        {
+          "query": "What database courses does Georgia Tech offer?",
+          "answer_snippet": "The retrieved sources do not provide specific information about database courses offered by Georgia Tech.",
+          "confidence": 0.0,
+          "intent": "catalog_course",
+          "rewritten_query": "database courses offered by Georgia Tech",
+          "citation_count": 0,
+          "latency_s": 4.49,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "bq2",
+      "category": "broad_query",
+      "description": "Broad query about CS course offerings",
+      "pass": true,
+      "keyword_hits": 1,
+      "keyword_total": 1,
+      "precision": 1.0,
+      "turns": [
+        {
+          "query": "What CS courses are available for spring 2025?",
+          "answer_snippet": "The available CS courses for Spring 2025 are CS 2801 - Special Topics, CS 3803 - Special Topics, and CS 6035 - Intro To Info Security.",
+          "confidence": 1.0,
+          "intent": "catalog_course",
+          "rewritten_query": "What CS courses are available for spring 2025?",
+          "citation_count": 3,
+          "latency_s": 8.6,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "cs1",
+      "category": "course_specific",
+      "description": "CS 1332 prereq is CS 1331 (min grade C)",
+      "pass": true,
+      "keyword_hits": 1,
+      "keyword_total": 2,
+      "precision": 0.5,
+      "turns": [
+        {
+          "query": "What are the prerequisites for CS 1332?",
+          "answer_snippet": "The prerequisites for CS 1332 are not explicitly listed in the retrieved sources. Please provide additional context or check the official Georgia Tech course catalog for the most accurate information.",
+          "confidence": 0.0,
+          "intent": "catalog_course",
+          "rewritten_query": "What are the prerequisites for CS 1332?",
+          "citation_count": 0,
+          "latency_s": 5.43,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "cs2",
+      "category": "course_specific",
+      "description": "CS 2110 is 3 credit hours",
+      "pass": true,
+      "keyword_hits": 1,
+      "keyword_total": 2,
+      "precision": 0.5,
+      "turns": [
+        {
+          "query": "How many credit hours is CS 2110?",
+          "answer_snippet": "CS 2110 is 4 credit hours.",
+          "confidence": 1.0,
+          "intent": "catalog_course",
+          "rewritten_query": "How many credit hours is CS 2110?",
+          "citation_count": 4,
+          "latency_s": 9.12,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "cs3",
+      "category": "course_specific",
+      "description": "CS 4400 covers database concepts, SQL, relational model",
+      "pass": true,
+      "keyword_hits": 1,
+      "keyword_total": 1,
+      "precision": 1.0,
+      "turns": [
+        {
+          "query": "What is CS 4400 Introduction to Database Systems about?",
+          "answer_snippet": "CS 4400, Introduction to Database Systems, covers fundamental concepts related to relational databases, including database design, query processing, concurrency control, and recovery.",
+          "confidence": 0.9,
+          "intent": "catalog_course",
+          "rewritten_query": "What is CS 4400 Introduction to Database Systems about?",
+          "citation_count": 4,
+          "latency_s": 11.78,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "rc1",
+      "category": "registrar",
+      "description": "Calendar query - registration deadline",
+      "pass": true,
+      "keyword_hits": 3,
+      "keyword_total": 3,
+      "precision": 1.0,
+      "turns": [
+        {
+          "query": "When is the registration deadline for Fall 2025?",
+          "answer_snippet": "The registration deadline for Fall 2025 is not explicitly provided in the retrieved sources.",
+          "confidence": 0.0,
+          "intent": "registrar_calendar",
+          "rewritten_query": "When is the registration deadline for Fall 2025?",
+          "citation_count": 0,
+          "latency_s": 5.62,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "rc2",
+      "category": "registrar",
+      "description": "Calendar query - spring break",
+      "pass": true,
+      "keyword_hits": 2,
+      "keyword_total": 2,
+      "precision": 1.0,
+      "turns": [
+        {
+          "query": "When does spring break start in 2025?",
+          "answer_snippet": "I could not find the specific start date for spring break in 2025.",
+          "confidence": 0.2,
+          "intent": "registrar_calendar",
+          "rewritten_query": "When does spring break start in 2025? Spring 2026",
+          "citation_count": 1,
+          "latency_s": 7.58,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "sc1",
+      "category": "schedule",
+      "description": "CS 1301 Intro to Computing is typically offered every semester",
+      "pass": true,
+      "keyword_hits": 3,
+      "keyword_total": 3,
+      "precision": 1.0,
+      "turns": [
+        {
+          "query": "Is CS 1301 offered in Spring 2025?",
+          "answer_snippet": "Yes, CS 1301 is offered in Spring 2025.",
+          "confidence": 1.0,
+          "intent": "course_schedule_sections",
+          "rewritten_query": "Is CS 1301 offered in Spring 2025?",
+          "citation_count": 1,
+          "latency_s": 6.36,
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "sc2",
+      "category": "schedule",
+      "description": "MATH 1554 Linear Algebra has many sections",
+      "pass": true,
+      "keyword_hits": 2,
+      "keyword_total": 2,
+      "precision": 1.0,
+      "turns": [
+        {
+          "query": "What sections of MATH 1554 are available?",
+          "answer_snippet": "I could not find information on the sections of MATH 1554 available for Spring 2026. Please check back later or consult the official Georgia Tech course schedule.",
+          "confidence": 0.0,
+          "intent": "course_schedule_sections",
+          "rewritten_query": "What sections of MATH 1554 are available?",
+          "citation_count": 0,
+          "latency_s": 5.53,
+          "error": null
+        }
+      ]
+    }
+  ]
+}

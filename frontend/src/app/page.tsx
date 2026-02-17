@@ -27,6 +27,10 @@ export default function Home() {
 
   const handleSend = async (text: string) => {
     setError(null);
+    const historyPayload = messages
+      .slice(-6)
+      .map((m) => ({ role: m.role, content: m.content }));
+
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -36,7 +40,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const resp = await sendChat({ query: text });
+      const resp = await sendChat({ query: text, history: historyPayload });
       const botMsg: Message = {
         id: crypto.randomUUID(),
         role: "assistant",

@@ -23,6 +23,7 @@ from app.core.usage import UsageLimitExceeded, get_usage
 from app.rag.answerer import generate_answer
 from app.rag.grounding import check_grounding
 from app.rag.live_fetch import live_fetch_for_query
+from app.rag.query_rewrite import rewrite_query
 from app.rag.retrieval import get_query_embedding, hybrid_retrieve
 from app.rag.router import classify_query
 from app.schemas.chat import (
@@ -46,7 +47,7 @@ _response_cache = TTLCache[dict](
 def _response_cache_key(
     normalized_query: str,
     route_intent: str,
-    source_filter: str | None,
+    source_filter: str | list[str] | None,
     user_context: dict | None,
     rmp_excerpt: str | None,
 ) -> str:
@@ -73,12 +74,18 @@ async def chat(
     """Main chat endpoint — RAG pipeline."""
     try:
         query = payload.query
+        history = [h.model_dump() for h in payload.history]
         has_rmp = bool(payload.rmp_excerpt)
         client_id = get_client_fingerprint(http_request)
-        normalized_query = normalize_query(query)
+        user_ctx = payload.user_context.model_dump() if payload.user_context else None
+        user_term = user_ctx.get("term") if user_ctx else None
 
-        # 1. Route
-        route_result = classify_query(query, has_rmp_excerpt=has_rmp)
+        # 1. Rewrite + Route
+        rewrite = await rewrite_query(query, history=history, user_term=user_term)
+        retrieval_query = rewrite.rewritten_query
+        normalized_query = normalize_query(retrieval_query)
+
+        route_result = classify_query(retrieval_query, has_rmp_excerpt=has_rmp)
         logger.info(
             "query routed",
             intent=route_result.intent,
@@ -86,12 +93,15 @@ async def chat(
             client=client_id,
         )
 
-        user_ctx = payload.user_context.model_dump() if payload.user_context else None
+        source_filter: str | list[str] | None = route_result.source_filter
+        if route_result.intent == "registrar_calendar" and rewrite.detected_course_code:
+            source_filter = ["gt-registrar", "gt-scheduler", "gt-catalog"]
+
         use_cache = route_result.freshness_strategy == "indexed" and not has_rmp
         cache_key = _response_cache_key(
             normalized_query=normalized_query,
             route_intent=route_result.intent,
-            source_filter=route_result.source_filter,
+            source_filter=source_filter,
             user_context=user_ctx,
             rmp_excerpt=payload.rmp_excerpt,
         )
@@ -106,20 +116,21 @@ async def chat(
 
         async with acquire_chat_slot():
             # 2. Retrieve
-            query_embedding = await get_query_embedding(query)
+            query_embedding = await get_query_embedding(retrieval_query)
             chunks = await hybrid_retrieve(
                 session=session,
-                query=query,
+                query=retrieval_query,
                 query_embedding=query_embedding,
                 top_k=settings.rag_top_k,
-                source_filter=route_result.source_filter,
+                source_filter=source_filter,
                 similarity_threshold=settings.rag_similarity_threshold,
+                force_fts=settings.rag_force_fts_for_date_sensitive and rewrite.date_sensitive,
             )
 
             # 3. Live fetch if needed
             live_fetch_used = False
             if route_result.freshness_strategy in ("live_fetch", "hybrid"):
-                live_chunks = await live_fetch_for_query(route_result.intent, query)
+                live_chunks = await live_fetch_for_query(route_result.intent, retrieval_query)
                 if live_chunks:
                     chunks = live_chunks + chunks  # Prioritize fresh content
                     live_fetch_used = True
@@ -144,6 +155,9 @@ async def chat(
                         intent=route_result.intent,
                         live_fetch_used=live_fetch_used,
                         retrieval_top_k=0,
+                        rewritten_query=retrieval_query,
+                        current_date=rewrite.current_date,
+                        current_term=rewrite.current_term,
                     ),
                 )
                 if use_cache:
@@ -157,6 +171,9 @@ async def chat(
                 intent=route_result.intent,
                 rmp_excerpt=payload.rmp_excerpt,
                 user_context=user_ctx,
+                current_date=rewrite.current_date,
+                current_term=rewrite.current_term,
+                history=history,
             )
 
             # 5. Grounding check
@@ -174,6 +191,9 @@ async def chat(
                     intent=route_result.intent,
                     rmp_excerpt=payload.rmp_excerpt,
                     user_context=user_ctx,
+                    current_date=rewrite.current_date,
+                    current_term=rewrite.current_term,
+                    history=history,
                 )
                 raw_citations = raw_answer.get("citations", [])
                 valid_citations, grounding_notes = check_grounding(raw_citations, chunks)
@@ -206,6 +226,9 @@ async def chat(
                 intent=route_result.intent,
                 live_fetch_used=live_fetch_used,
                 retrieval_top_k=len(chunks),
+                rewritten_query=retrieval_query,
+                current_date=rewrite.current_date,
+                current_term=rewrite.current_term,
             ),
         )
         if use_cache:

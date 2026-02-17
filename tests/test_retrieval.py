@@ -78,3 +78,16 @@ def test_signal_match_count_detects_course_and_term():
         score=0.1,
     )
     assert _signal_match_count(chunk, hints) == 2
+
+
+def test_signal_match_count_boosts_course_summary_for_availability():
+    hints = _extract_query_hints("Is CS 4400 offered in Spring 2025?")
+    chunk = RetrievedChunk(
+        chunk_id="summary",
+        url="https://example.com",
+        title="CS 4400 summary",
+        chunk_text="CS 4400 is offered in Spring 2025.",
+        score=0.1,
+        metadata_json={"type": "course_summary"},
+    )
+    assert _signal_match_count(chunk, hints) == 3

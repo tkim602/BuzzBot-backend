@@ -9,7 +9,7 @@ import httpx
 import structlog
 
 from app.core.config import settings
-from app.rag.retrieval import RetrievedChunk
+from app.rag.retrieval import RetrievedChunk, rerank_chunks_by_embedding
 from ingestion.extract import extract_content
 from ingestion.chunk import chunk_text
 
@@ -91,8 +91,8 @@ async def live_fetch_for_query(
             except Exception as exc:
                 logger.warning("live fetch failed", url=url, error=str(exc))
 
-    # Keep only query-relevant live chunks to reduce context noise and latency.
-    chunks.sort(key=lambda c: c.score, reverse=True)
+    # Rerank with embedding similarity (blended with lexical overlap) to improve precision.
+    chunks = await rerank_chunks_by_embedding(query, chunks, alpha=0.75)
     chunks = chunks[:max_chunks]
     logger.info("live fetch complete", intent=intent, chunks=len(chunks))
     return chunks

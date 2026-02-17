@@ -316,6 +316,31 @@ graph LR
    - `to_tsvector('simple', chunk_text)` GIN 인덱스
    - `(source_id, upper(course_code), lower(term_name))` 표현식 인덱스
 6. **Exact schedule fast-path**: course+term이 모두 있으면 벡터+메타데이터 결과가 충분할 때 FTS 생략
+7. **Query rewrite 연결**: 검색 전 query rewrite 단계 추가 (raw query 직접 임베딩 제거)
+8. **현재 날짜/학기 주입**: date-sensitive 질문에서 `CURRENT_DATE`, `CURRENT_TERM` 기반 질의 보강
+9. **date-sensitive FTS 강제 병행**: 벡터 결과가 충분해도 날짜 질문은 FTS를 같이 수행
+10. **Follow-up 문맥 처리**: `history` 기반으로 `it` 같은 지시어를 standalone query로 복원
+11. **Live fetch 재정렬 개선**: 단순 token overlap 대신 임베딩 기반 재랭킹으로 노이즈 감소
+12. **혼합 질의 다중 소스 검색**: registrar + course code 혼합 질의 시 `gt-registrar/gt-scheduler/gt-catalog` 동시 검색
+
+### Phase 1 메트릭 결과 (2026-02-17)
+
+실행 커맨드:
+- `python3 eval/retrieval_regression.py`
+- `RAG_QUERY_REWRITE_MODE=rule python3 eval/pipeline_phase1_eval.py`
+
+결과 요약:
+
+| Metric | Before | After | Delta |
+|------|-------:|------:|------:|
+| Retrieval regression strict_match | 0.875 | 0.875 | 0.000 |
+| Coverage@5 (ambiguity/date/follow-up set) | 0.600 | 0.800 | +0.200 |
+| Source hit@5 (same set) | 1.000 | 1.000 | 0.000 |
+
+해석:
+- 회귀 테스트는 성능 저하 없이 유지됨.
+- 모호한 질문/후속 질문 세트에서 top-5 정답 포함률이 상승.
+- 특히 `\"Is it offered in Spring 2025?\"` 유형에서 history 기반 복원이 효과적.
 
 ### 근거 검증 (Grounding Check)
 
@@ -347,7 +372,7 @@ graph LR
 1. 라우터가 `freshness_strategy: live_fetch` 결정
 2. 의도에 맞는 공식 URL 목록 (최대 3개)에서 실시간 fetch
 3. trafilatura로 추출 → 청킹 → 임시 컨텍스트로 추가
-4. 실시간 fetch 결과를 **우선** 배치 (더 높은 relevance score)
+4. 실시간 fetch 결과를 임베딩 유사도로 재정렬 후 상위 청크만 사용
 
 ### 트레이드오프
 

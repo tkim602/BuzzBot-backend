@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +37,14 @@ logger = structlog.get_logger(__name__)
 
 SOURCES_YAML = Path(__file__).parent / "sources.yaml"
 ARTIFACTS_DIR = Path(__file__).resolve().parent.parent / "artifacts"
+TERM_RE = re.compile(r"\b(Spring|Summer|Fall)\s+(20\d{2})\b", re.IGNORECASE)
+MONTH_DAY_RE = re.compile(
+    r"\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|"
+    r"Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+    r"\s+\d{1,2}(?:,\s*20\d{2})?\b",
+    re.IGNORECASE,
+)
+NUMERIC_DATE_RE = re.compile(r"\b\d{1,2}/\d{1,2}/20\d{2}\b")
 
 
 def load_sources() -> list[SourceConfig]:
@@ -68,6 +77,66 @@ async def run_discovery(sources: list[SourceConfig]) -> dict[str, list[str]]:
         results[source.name] = urls
         logger.info("discovered", source=source.name, count=len(urls))
     return results
+
+
+def _extract_dates(text: str, limit: int = 8) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for match in MONTH_DAY_RE.findall(text):
+        normalized = str(match).strip()
+        if normalized.lower() in seen:
+            continue
+        seen.add(normalized.lower())
+        out.append(normalized)
+        if len(out) >= limit:
+            return out
+    for match in NUMERIC_DATE_RE.findall(text):
+        if match.lower() in seen:
+            continue
+        seen.add(match.lower())
+        out.append(match)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _extract_terms(text: str, limit: int = 4) -> list[str]:
+    seen: set[str] = set()
+    terms: list[str] = []
+    for semester, year in TERM_RE.findall(text):
+        term = f"{semester.capitalize()} {year}"
+        key = term.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        terms.append(term)
+        if len(terms) >= limit:
+            break
+    return terms
+
+
+def _infer_content_type(url: str, title: str | None, has_tables: bool) -> str:
+    target = f"{url} {title or ''}".lower()
+    if has_tables or "calendar" in target:
+        return "calendar_event"
+    if any(k in target for k in ("course", "catalog", "curriculum", "degree")):
+        return "course_description"
+    if any(k in target for k in ("faq", "questions")):
+        return "faq"
+    if any(k in target for k in ("policy", "deadline", "registration")):
+        return "policy"
+    return "web_content"
+
+
+def _merge_metadata(base: dict, text: str) -> dict:
+    merged = dict(base)
+    dates = _extract_dates(text)
+    terms = _extract_terms(text)
+    if dates:
+        merged["date_mentioned"] = dates
+    if terms:
+        merged["term_relevance"] = terms
+    return merged
 
 
 def process_source(
@@ -123,17 +192,46 @@ def process_source(
 
             # Chunk
             now = datetime.now(timezone.utc)
+            base_content_type = _infer_content_type(
+                canonical,
+                extracted.title,
+                has_tables=bool(extracted.table_rows),
+            )
+            base_meta = {
+                "url": canonical,
+                "title": extracted.title,
+                "source": source.name,
+                "fetched_at": now.isoformat(),
+                "content_type": base_content_type,
+            }
             chunks = chunk_text(
                 extracted.text,
                 chunk_size=500,
                 chunk_overlap=80,
-                metadata={
-                    "url": canonical,
-                    "title": extracted.title,
-                    "source": source.name,
-                    "fetched_at": now.isoformat(),
-                },
+                metadata=base_meta,
             )
+            for c in chunks:
+                c.metadata = _merge_metadata(c.metadata, c.text)
+
+            # Add table rows as separate chunks to preserve row-wise key/value relationships.
+            for row in extracted.table_rows:
+                table_meta = _merge_metadata(
+                    {
+                        **base_meta,
+                        "content_type": "table_row",
+                        "table_index": row.get("table_index"),
+                        "row_index": row.get("row_index"),
+                    },
+                    row.get("text", ""),
+                )
+                table_chunks = chunk_text(
+                    row.get("text", ""),
+                    chunk_size=200,
+                    chunk_overlap=20,
+                    min_chunk_size=5,
+                    metadata=table_meta,
+                )
+                chunks.extend(table_chunks)
 
             # Index
             num_indexed = index_chunks(

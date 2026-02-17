@@ -39,12 +39,28 @@ def _build_context(chunks: list[RetrievedChunk], max_tokens: int = 3000) -> str:
     return "\n\n---\n\n".join(context_parts)
 
 
+def _format_history(history: list[dict] | None) -> str:
+    if not history:
+        return "none"
+    lines: list[str] = []
+    for turn in history[-6:]:
+        role = (turn.get("role") or "user").upper()
+        content = (turn.get("content") or "").strip()
+        if not content:
+            continue
+        lines.append(f"{role}: {content}")
+    return "\n".join(lines) if lines else "none"
+
+
 async def generate_answer(
     query: str,
     chunks: list[RetrievedChunk],
     intent: str = "general",
     rmp_excerpt: str | None = None,
     user_context: dict | None = None,
+    current_date: str | None = None,
+    current_term: str | None = None,
+    history: list[dict] | None = None,
 ) -> dict:
     """Generate a cited answer from retrieved contexts.
 
@@ -67,6 +83,9 @@ async def generate_answer(
         user_msg = user_msg.replace("{{USER_CONTEXT}}", json.dumps(user_context))
     else:
         user_msg = user_msg.replace("{{USER_CONTEXT}}", "none")
+    user_msg = user_msg.replace("{{CURRENT_DATE}}", current_date or "unknown")
+    user_msg = user_msg.replace("{{CURRENT_TERM}}", current_term or "unknown")
+    user_msg = user_msg.replace("{{CHAT_HISTORY}}", _format_history(history))
 
     # Call LLM
     raw_response = await _call_llm(system_prompt, user_msg)

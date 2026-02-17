@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import re
 from dataclasses import dataclass
@@ -17,6 +18,7 @@ from app.core.usage import check_limit_or_raise, record_usage
 from db.models import Chunk, Embedding, Source
 
 logger = structlog.get_logger(__name__)
+SourceFilter = str | list[str] | None
 
 COURSE_CODE_RE = re.compile(r"\b([a-z]{2,4})\s*-?\s*(\d{4}[a-z]?)\b", re.IGNORECASE)
 TERM_RE_1 = re.compile(r"\b(spring|summer|fall)\s*(20\d{2})\b", re.IGNORECASE)
@@ -25,6 +27,7 @@ _TOKEN_RE = re.compile(r"[A-Za-z0-9\-]+")
 COURSE_CODE_STOPWORDS = {
     "spring", "summer", "fall", "term", "year", "this", "next", "last", "the",
 }
+AVAILABILITY_TERMS = ("offer", "offered", "offering", "available", "availability", "개설")
 FTS_STOPWORDS = {
     "what", "when", "where", "which", "who", "how", "is", "are", "was", "were",
     "a", "an", "the", "for", "to", "of", "in", "on", "at", "with", "and", "or",
@@ -47,6 +50,7 @@ class RetrievedChunk:
     source_name: str | None = None
     fetched_at: str | None = None
     headings: str | None = None
+    metadata_json: dict | None = None
     method: str = "vector"
 
 
@@ -55,6 +59,7 @@ class QueryHints:
     course_code: str | None = None
     term_name: str | None = None
     expanded_query: str = ""
+    asks_availability: bool = False
 
 
 def _extract_query_hints(query: str) -> QueryHints:
@@ -89,10 +94,12 @@ def _extract_query_hints(query: str) -> QueryHints:
 
     # Keep order while de-duplicating
     expanded_query = " ".join(dict.fromkeys(expansions))
+    asks_availability = any(term in query.lower() for term in AVAILABILITY_TERMS)
     return QueryHints(
         course_code=course_code,
         term_name=term_name,
         expanded_query=expanded_query,
+        asks_availability=asks_availability,
     )
 
 
@@ -125,65 +132,122 @@ def _compact_query_for_fts(query: str, max_tokens: int = 12) -> str:
     return " ".join(filtered) if filtered else query
 
 
+def _apply_source_filter(stmt, source_filter: SourceFilter):
+    if not source_filter:
+        return stmt
+    if isinstance(source_filter, list):
+        if not source_filter:
+            return stmt
+        return stmt.where(Source.name.in_(source_filter))
+    return stmt.where(Source.name == source_filter)
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    if len(a) != len(b) or not a:
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
 async def get_query_embedding(query: str) -> list[float]:
     """Get embedding for a query string."""
-    provider = os.getenv("LLM_PROVIDER", "openai")
+    embeddings = await get_text_embeddings([query])
+    return embeddings[0] if embeddings else []
 
-    if provider == "openai":
-        import openai
-        model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
-        if settings.rag_enable_embedding_cache:
-            cache_key = _embedding_cache_key(provider, model, query)
-            cached = _embedding_cache.get(cache_key)
-            if cached is not None:
-                return list(cached)
 
-        # Check usage limit before API call
-        check_limit_or_raise()
+async def get_text_embeddings(texts: list[str]) -> list[list[float]]:
+    """Get embeddings for text list with provider-aware batching and cache."""
+    if not texts:
+        return []
 
-        client = openai.AsyncOpenAI()
-        resp = await client.embeddings.create(input=[query], model=model)
+    provider = os.getenv("LLM_PROVIDER", settings.llm_provider)
+    model = os.getenv("OPENAI_EMBED_MODEL", settings.openai_embed_model)
 
-        # Record usage
-        total_tokens = resp.usage.total_tokens
-        record_usage(model, total_tokens, "embedding")
-        embedding = resp.data[0].embedding
-        if settings.rag_enable_embedding_cache:
-            _embedding_cache.set(cache_key, embedding)
-        return embedding
-
-    elif provider == "ollama":
-        import httpx
-
-        base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-        model = os.getenv("OLLAMA_MODEL", "llama3")
-        if settings.rag_enable_embedding_cache:
-            cache_key = _embedding_cache_key(provider, model, query)
-            cached = _embedding_cache.get(cache_key)
-            if cached is not None:
-                return list(cached)
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{base}/api/embeddings", json={"model": model, "prompt": query}
-            )
-            resp.raise_for_status()
-            embedding = resp.json()["embedding"]
-            if settings.rag_enable_embedding_cache:
-                _embedding_cache.set(cache_key, embedding)
-            return embedding
-
+    uncached_positions: list[int] = []
+    resolved: list[list[float] | None] = [None] * len(texts)
+    if settings.rag_enable_embedding_cache:
+        for idx, text in enumerate(texts):
+            key = _embedding_cache_key(provider, model, text)
+            cached = _embedding_cache.get(key)
+            if cached is None:
+                uncached_positions.append(idx)
+            else:
+                resolved[idx] = list(cached)
     else:
-        from sentence_transformers import SentenceTransformer
+        uncached_positions = list(range(len(texts)))
 
-        st_model = SentenceTransformer("all-MiniLM-L6-v2")
-        return st_model.encode([query])[0].tolist()
+    if uncached_positions:
+        inputs = [texts[i] for i in uncached_positions]
+        fresh_embeddings: list[list[float]]
+
+        if provider == "openai":
+            import openai
+
+            check_limit_or_raise()
+            client = openai.AsyncOpenAI()
+            resp = await client.embeddings.create(input=inputs, model=model)
+            total_tokens = resp.usage.total_tokens if resp.usage else 0
+            if total_tokens:
+                record_usage(model, total_tokens, "embedding")
+            fresh_embeddings = [item.embedding for item in resp.data]
+        elif provider == "ollama":
+            import httpx
+
+            base = os.getenv("OLLAMA_BASE_URL", settings.ollama_base_url)
+            ollama_model = os.getenv("OLLAMA_MODEL", settings.ollama_model)
+            fresh_embeddings = []
+            async with httpx.AsyncClient(timeout=60) as client:
+                for text in inputs:
+                    resp = await client.post(
+                        f"{base}/api/embeddings",
+                        json={"model": ollama_model, "prompt": text},
+                    )
+                    resp.raise_for_status()
+                    fresh_embeddings.append(resp.json()["embedding"])
+        else:
+            from sentence_transformers import SentenceTransformer
+
+            st_model = SentenceTransformer("all-MiniLM-L6-v2")
+            fresh_embeddings = st_model.encode(inputs).tolist()
+
+        for pos, emb in zip(uncached_positions, fresh_embeddings):
+            resolved[pos] = emb
+            if settings.rag_enable_embedding_cache:
+                cache_key = _embedding_cache_key(provider, model, texts[pos])
+                _embedding_cache.set(cache_key, emb)
+
+    return [emb if emb is not None else [] for emb in resolved]
+
+
+async def rerank_chunks_by_embedding(
+    query: str,
+    chunks: list[RetrievedChunk],
+    alpha: float = 0.75,
+) -> list[RetrievedChunk]:
+    """Rerank chunks by blending existing score with embedding cosine similarity."""
+    if not chunks:
+        return chunks
+    try:
+        query_emb = await get_query_embedding(query)
+        chunk_embs = await get_text_embeddings([c.chunk_text for c in chunks])
+        for chunk, emb in zip(chunks, chunk_embs):
+            sim = _cosine_similarity(query_emb, emb)
+            chunk.score = (alpha * sim) + ((1.0 - alpha) * chunk.score)
+        chunks.sort(key=lambda c: c.score, reverse=True)
+    except Exception as exc:
+        logger.warning("embedding rerank skipped", error=str(exc))
+    return chunks
 
 
 async def vector_search(
     session: AsyncSession,
     query_embedding: list[float],
     top_k: int = 8,
-    source_filter: str | None = None,
+    source_filter: SourceFilter = None,
     similarity_threshold: float = 0.3,
     metadata_course_code: str | None = None,
     metadata_term_name: str | None = None,
@@ -201,14 +265,14 @@ async def vector_search(
             Source.name.label("source_name"),
             Chunk.fetched_at,
             Chunk.headings,
+            Chunk.metadata_json,
             distance_expr.label("distance"),
         )
         .join(Embedding, Embedding.chunk_id == Chunk.chunk_id)
         .join(Source, Source.id == Chunk.source_id)
     )
 
-    if source_filter:
-        stmt = stmt.where(Source.name == source_filter)
+    stmt = _apply_source_filter(stmt, source_filter)
 
     if metadata_course_code:
         stmt = stmt.where(
@@ -239,6 +303,7 @@ async def vector_search(
                 source_name=row.source_name,
                 fetched_at=row.fetched_at.isoformat() if row.fetched_at else None,
                 headings=row.headings,
+                metadata_json=row.metadata_json,
                 method="vector",
             )
         )
@@ -249,7 +314,7 @@ async def fts_search(
     session: AsyncSession,
     query: str,
     top_k: int = 5,
-    source_filter: str | None = None,
+    source_filter: SourceFilter = None,
     metadata_course_code: str | None = None,
     metadata_term_name: str | None = None,
 ) -> list[RetrievedChunk]:
@@ -270,14 +335,14 @@ async def fts_search(
             Chunk.chunk_text,
             Chunk.fetched_at,
             Chunk.headings,
+            Chunk.metadata_json,
             Source.name.label("source_name"),
             rank_expr.label("rank"),
         )
         .join(Source, Source.id == Chunk.source_id)
         .where(ts_vector.op("@@")(ts_query))
     )
-    if source_filter:
-        stmt = stmt.where(Source.name == source_filter)
+    stmt = _apply_source_filter(stmt, source_filter)
     if metadata_course_code:
         stmt = stmt.where(
             func.upper(Chunk.metadata_json["course_code"].astext) == metadata_course_code.upper()
@@ -301,6 +366,7 @@ async def fts_search(
             source_name=row.source_name,
             fetched_at=row.fetched_at.isoformat() if row.fetched_at else None,
             headings=row.headings,
+            metadata_json=row.metadata_json,
             method="fts",
         )
         for row in rows
@@ -311,7 +377,7 @@ async def exact_course_code_search(
     session: AsyncSession,
     course_code: str,
     top_k: int = 6,
-    source_filter: str | None = None,
+    source_filter: SourceFilter = None,
 ) -> list[RetrievedChunk]:
     """Lexical exact-match search for course code patterns like 'CS 2110'."""
     cc = course_code.strip()
@@ -327,6 +393,7 @@ async def exact_course_code_search(
             Chunk.chunk_text,
             Chunk.fetched_at,
             Chunk.headings,
+            Chunk.metadata_json,
             Source.name.label("source_name"),
         )
         .join(Source, Source.id == Chunk.source_id)
@@ -336,8 +403,7 @@ async def exact_course_code_search(
             | func.lower(Chunk.chunk_text).like(like_patterns[2].lower())
         )
     )
-    if source_filter:
-        stmt = stmt.where(Source.name == source_filter)
+    stmt = _apply_source_filter(stmt, source_filter)
     stmt = stmt.order_by(Chunk.fetched_at.desc().nullslast()).limit(top_k)
     result = await session.execute(stmt)
     rows = result.all()
@@ -352,6 +418,7 @@ async def exact_course_code_search(
             source_name=row.source_name,
             fetched_at=row.fetched_at.isoformat() if row.fetched_at else None,
             headings=row.headings,
+            metadata_json=row.metadata_json,
             method="exact_code",
         )
         for row in rows
@@ -406,6 +473,10 @@ def _signal_match_count(chunk: RetrievedChunk, hints: QueryHints) -> int:
             score += 1
     if hints.term_name and hints.term_name.lower() in haystack:
         score += 1
+    if hints.asks_availability and chunk.metadata_json:
+        chunk_type = str(chunk.metadata_json.get("type", "")).lower()
+        if chunk_type == "course_summary":
+            score += 1
     return score
 
 
@@ -414,20 +485,22 @@ async def hybrid_retrieve(
     query: str,
     query_embedding: list[float],
     top_k: int = 8,
-    source_filter: str | None = None,
+    source_filter: SourceFilter = None,
     similarity_threshold: float = 0.3,
+    force_fts: bool = False,
 ) -> list[RetrievedChunk]:
     """Combined vector + FTS retrieval with reciprocal rank fusion."""
     hints = _extract_query_hints(query)
-    metadata_course_code = hints.course_code if source_filter == "gt-scheduler" else None
-    metadata_term_name = hints.term_name if source_filter == "gt-scheduler" else None
+    schedule_only = source_filter == "gt-scheduler" or (
+        isinstance(source_filter, list) and source_filter == ["gt-scheduler"]
+    )
+    metadata_course_code = hints.course_code if schedule_only else None
+    metadata_term_name = hints.term_name if schedule_only else None
     keyword_query = hints.expanded_query or query
 
     fts_top_k = max(3, min(top_k, settings.rag_fts_top_k))
 
-    exact_schedule_lookup = (
-        source_filter == "gt-scheduler" and metadata_course_code and metadata_term_name
-    )
+    exact_schedule_lookup = schedule_only and metadata_course_code and metadata_term_name
     if settings.rag_skip_fts_for_exact_schedule and exact_schedule_lookup:
         vector_results = await vector_search(
             session, query_embedding, top_k=top_k,
@@ -452,6 +525,7 @@ async def hybrid_retrieve(
         )
         if (
             settings.rag_skip_fts_when_vector_sufficient
+            and not force_fts
             and len(vector_results) >= top_k
             and not hints.course_code
         ):

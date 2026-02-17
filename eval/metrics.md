@@ -14,3 +14,8 @@
 - Coverage@5 >= 0.85
 - Grounding_check pass rate >= 0.90
 - Freshness correctness >= 0.95 for deadline queries
+
+## Latest Snapshot (2026-02-17)
+- `retrieval_regression.py` strict_match: `0.875` (7/8)
+- `pipeline_phase1_eval.py` Coverage@5: `0.800` (baseline `0.600`, delta `+0.200`)
+- `pipeline_phase1_eval.py` Source hit@5: `1.000`

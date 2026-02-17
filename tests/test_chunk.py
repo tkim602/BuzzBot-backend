@@ -37,3 +37,16 @@ def test_min_chunk_size_filters_tiny():
     result = chunk_text(text, chunk_size=500, chunk_overlap=80, min_chunk_size=50)
     for r in result:
         assert r.token_count >= 50
+
+
+def test_heading_aware_chunking_adds_section_metadata():
+    text = """
+Registration
+The registration period opens next week.
+
+Add/Drop
+Students can add and drop classes until the posted deadline.
+"""
+    result = chunk_text(text, chunk_size=80, chunk_overlap=10)
+    assert len(result) >= 1
+    assert any("section_heading" in r.metadata for r in result)

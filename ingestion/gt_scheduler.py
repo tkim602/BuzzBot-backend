@@ -75,7 +75,10 @@ def parse_course_to_chunks(
     description = course_data[3] if len(course_data) > 3 else ""
     
     chunks = []
-    
+    crns: list[str] = []
+    instructors_seen: set[str] = set()
+    section_ids: list[str] = []
+
     # Main course info chunk
     main_text = f"""Course: {course_code} - {course_name}
 Term: {term_name}
@@ -92,6 +95,7 @@ Description: {description if description else 'No description available.'}
             "term": term,
             "term_name": term_name,
             "type": "course_info",
+            "content_type": "course_description",
         }
     })
     
@@ -105,6 +109,8 @@ Description: {description if description else 'No description available.'}
                 crn = section_data[0] if len(section_data) > 0 else "N/A"
                 meetings = section_data[1] if len(section_data) > 1 else []
                 credits = section_data[2] if len(section_data) > 2 else "N/A"
+                section_ids.append(str(section_id))
+                crns.append(str(crn))
                 
                 section_text = f"""Course: {course_code} - {course_name}
 Section: {section_id}
@@ -120,6 +126,9 @@ Credits: {credits}
                         location = meeting[2] if meeting[2] else "TBA"
                         instructors = meeting[4] if isinstance(meeting[4], list) else []
                         instructor_str = ", ".join(instructors) if instructors else "TBA"
+                        for inst in instructors:
+                            if inst:
+                                instructors_seen.add(str(inst))
                         
                         section_text += f"Schedule: {days}\n"
                         section_text += f"Location: {location}\n"
@@ -135,12 +144,39 @@ Credits: {credits}
                         "term": term,
                         "term_name": term_name,
                         "type": "section",
+                        "content_type": "section_schedule",
                     }
                 })
             except (IndexError, TypeError) as e:
                 logger.debug("failed to parse section", course=course_code, section=section_id, error=str(e))
                 continue
-    
+
+    section_count = len(section_ids)
+    instructors_list = sorted(instructors_seen)
+    summary_text = (
+        f"Course: {course_code} - {course_name}\n"
+        f"Term: {term_name}\n"
+        f"Offering summary: {course_code} is offered in {term_name} with {section_count} section(s).\n"
+        f"Sections: {', '.join(section_ids[:20]) if section_ids else 'None listed'}\n"
+        f"CRNs: {', '.join(crns[:30]) if crns else 'None listed'}\n"
+        f"Instructors: {', '.join(instructors_list[:20]) if instructors_list else 'TBA'}"
+    )
+    chunks.insert(
+        0,
+        {
+            "text": summary_text.strip(),
+            "metadata": {
+                "course_code": course_code,
+                "course_name": course_name,
+                "term": term,
+                "term_name": term_name,
+                "type": "course_summary",
+                "content_type": "course_summary",
+                "section_count": section_count,
+            },
+        },
+    )
+
     return chunks
 
 

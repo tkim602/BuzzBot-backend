@@ -31,6 +31,7 @@ export interface ChatRequest {
   query: string;
   user_context?: { term?: string; major?: string };
   rmp_excerpt?: string;
+  history?: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
 export async function sendChat(request: ChatRequest): Promise<ChatResponse> {

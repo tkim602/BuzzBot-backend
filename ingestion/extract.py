@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import structlog
 import trafilatura
 from readability import Document as ReadabilityDoc
+from lxml import html as lxml_html
 
 logger = structlog.get_logger(__name__)
 
@@ -16,12 +17,58 @@ class ExtractedContent:
     url: str
     title: str | None
     text: str
+    table_rows: list[dict] = field(default_factory=list)
     success: bool = True
     method: str = "trafilatura"
 
 
+def _extract_table_rows(html: str, max_tables: int = 8, max_rows_per_table: int = 80) -> list[dict]:
+    rows: list[dict] = []
+    try:
+        root = lxml_html.fromstring(html)
+        tables = root.xpath("//table")
+    except Exception:
+        return rows
+
+    for t_idx, table in enumerate(tables[:max_tables]):
+        title = ""
+        caption = table.xpath(".//caption//text()")
+        if caption:
+            title = " ".join(" ".join(caption).split())
+
+        header_cells = table.xpath(".//tr[1]/*[self::th or self::td]//text()")
+        headers = [h.strip() for h in header_cells if h.strip()]
+        row_nodes = table.xpath(".//tr")[1:] if headers else table.xpath(".//tr")
+
+        for r_idx, row in enumerate(row_nodes[:max_rows_per_table]):
+            cells = [" ".join(" ".join(c.xpath('.//text()')).split()) for c in row.xpath("./th|./td")]
+            cells = [c for c in cells if c]
+            if not cells:
+                continue
+
+            if headers and len(headers) >= len(cells):
+                pairs = [f"{headers[i]}: {cells[i]}" for i in range(len(cells))]
+                row_text = " | ".join(pairs)
+            else:
+                row_text = " | ".join(cells)
+
+            if title:
+                row_text = f"{title} | {row_text}"
+
+            rows.append(
+                {
+                    "table_index": t_idx,
+                    "row_index": r_idx,
+                    "text": row_text,
+                }
+            )
+    return rows
+
+
 def extract_content(url: str, html: str) -> ExtractedContent:
     """Extract clean text and title from HTML."""
+    table_rows = _extract_table_rows(html)
+
     # Try trafilatura first
     text = trafilatura.extract(
         html,
@@ -47,7 +94,12 @@ def extract_content(url: str, html: str) -> ExtractedContent:
             pass
 
     if text and len(text.strip()) > 50:
-        return ExtractedContent(url=url, title=title, text=text.strip())
+        return ExtractedContent(
+            url=url,
+            title=title,
+            text=text.strip(),
+            table_rows=table_rows,
+        )
 
     # Fallback to readability-lxml
     logger.info("trafilatura insufficient, trying readability", url=url)
@@ -62,9 +114,20 @@ def extract_content(url: str, html: str) -> ExtractedContent:
         fallback_text = re.sub(r"\s+", " ", fallback_text).strip()
         if len(fallback_text) > 50:
             return ExtractedContent(
-                url=url, title=title, text=fallback_text, method="readability"
+                url=url,
+                title=title,
+                text=fallback_text,
+                table_rows=table_rows,
+                method="readability",
             )
     except Exception as exc:
         logger.warning("readability extraction failed", url=url, error=str(exc))
 
-    return ExtractedContent(url=url, title=title, text="", success=False, method="none")
+    return ExtractedContent(
+        url=url,
+        title=title,
+        text="",
+        table_rows=table_rows,
+        success=False,
+        method="none",
+    )

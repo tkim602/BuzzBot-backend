@@ -8,6 +8,8 @@ RAG-powered chatbot for Georgia Tech campus information — registration, course
 - **Hybrid retrieval (RRF)** — pgvector semantic search + PostgreSQL full-text search + reciprocal rank fusion
 - **Course-offering routing fix** — schedule/term questions (e.g., `CS 4400 Spring 2025`) route to `gt-scheduler`
 - **Freshness-aware** — live fetch for time-sensitive queries (deadlines, dates), indexed for stable info
+- **Query rewrite + temporal grounding** — date-sensitive queries are rewritten with current term context for better retrieval
+- **Follow-up aware** — optional `history` field helps resolve references like “is it offered?”
 - **Multi-source ingestion** — sitemap-driven discovery, robots.txt compliance, incremental updates
 - **GT Scheduler integration** — 17 semesters (2020-2026) of course schedules with CRNs, instructors, times
 - **Usage tracking & cost controls** — $20 default limit, real-time cost monitoring, automatic safety checks
@@ -146,6 +148,7 @@ make lint           # Lint with ruff
 make fmt            # Auto-format
 python3 eval/retrieval_regression.py   # Routing/retrieval regression checks
 python3 eval/retrieval_perf.py         # Retrieval latency benchmark
+python3 eval/pipeline_phase1_eval.py   # Baseline vs improved (query rewrite/date-context) comparison
 ```
 
 ## Configuration
@@ -158,6 +161,10 @@ See `.env.example` for all configuration options. Key settings:
 | `OPENAI_MODEL`       | `gpt-4o-mini` | Chat model (conversational tone)              |
 | `USAGE_LIMIT`        | `20.0`        | Maximum API cost in USD before blocking calls |
 | `ENABLE_LIVE_FETCH`  | `true`        | Fetch fresh pages for time-sensitive queries  |
+| `RAG_ENABLE_QUERY_REWRITE` | `true` | Enable retrieval query rewrite step |
+| `RAG_QUERY_REWRITE_MODE` | `rule` | Rewrite mode: `rule`, `llm`, `auto` |
+| `RAG_FORCE_FTS_FOR_DATE_SENSITIVE` | `true` | Always run FTS with vector for date-sensitive queries |
+| `RAG_SKIP_FTS_WHEN_VECTOR_SUFFICIENT` | `false` | Keep lexical fallback on by default |
 | `CHAT_RATE_LIMIT_PER_MINUTE` | `24` | Per-client minute-level request cap |
 | `CHAT_RATE_LIMIT_PER_HOUR` | `240` | Per-client hour-level request cap |
 | `CHAT_RATE_LIMIT_PER_DAY` | `400` | Per-client daily request cap |
@@ -171,7 +178,29 @@ See `.env.example` for all configuration options. Key settings:
 - Exact schedule queries now use metadata-aware filtering on `course_code` and `term_name`.
 - FTS query terms are compacted to high-signal tokens to reduce DB scan overhead.
 - Exact schedule lookups can skip FTS when vector+metadata already returns enough hits.
+- Default now keeps FTS enabled even when vector results are sufficient (`RAG_SKIP_FTS_WHEN_VECTOR_SUFFICIENT=false`) to preserve exact-keyword hits.
+- Date-sensitive queries can force vector+FTS together (`RAG_FORCE_FTS_FOR_DATE_SENSITIVE=true`).
+- Live fetch chunks are reranked with embedding similarity (not token overlap only).
 - Grounding now drops empty-quote citations and URL-mismatched citations.
+
+## Phase-1 Improvement Metrics (2026-02-17)
+
+Measured with:
+- `python3 eval/retrieval_regression.py`
+- `RAG_QUERY_REWRITE_MODE=rule python3 eval/pipeline_phase1_eval.py`
+
+Results:
+
+| Metric | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Retrieval regression strict_match (`eval/retrieval_regression.py`) | 0.875 | 0.875 | 0.000 |
+| Coverage@5 on ambiguity/date/follow-up set (`eval/pipeline_phase1_eval.py`) | 0.600 | 0.800 | +0.200 |
+| Source hit@5 on same set | 1.000 | 1.000 | 0.000 |
+
+Notes:
+- Biggest gain came from follow-up resolution (`\"Is it offered in Spring 2025?\"` + history -> `CS 4400`).
+- Mixed query routing now supports multi-source retrieval for registrar+course queries.
+- Ingestion-side changes (heading/table/summary chunks) require re-ingestion to affect production answers.
 
 ## References
 
