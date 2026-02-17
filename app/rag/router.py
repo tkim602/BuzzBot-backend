@@ -103,7 +103,7 @@ def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
         return RouterResult(
             intent="registrar_calendar",
             freshness_strategy="live_fetch" if needs_fresh else "indexed",
-            source_filter="gt-registrar",
+            source_filter=["gt-registrar", "gt-calendar-events"],
         )
 
     if cat_score > 0:

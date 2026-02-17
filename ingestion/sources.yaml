@@ -40,6 +40,18 @@ sources:
       schedule: weekly
       method: sitemap_incremental
 
+  - name: gt-calendar-events
+    base_url: https://registrar.gatech.edu/calendar
+    allowed: true
+    reason: "Georgia Tech academic calendar — structured date/event data for semesters."
+    sitemap_url: null
+    include_patterns: []
+    exclude_patterns: []
+    max_urls: 0
+    refresh_policy:
+      schedule: monthly
+      method: manual
+
   - name: ratemyprofessors
     base_url: https://www.ratemyprofessors.com
     allowed: false

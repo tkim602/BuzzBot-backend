@@ -6,7 +6,7 @@ from app.rag.router import classify_query
 def test_registrar_calendar_intent():
     result = classify_query("When is the registration deadline for fall semester?")
     assert result.intent == "registrar_calendar"
-    assert result.source_filter == "gt-registrar"
+    assert result.source_filter == ["gt-registrar", "gt-calendar-events"]
 
 
 def test_catalog_course_intent():
@@ -30,19 +30,19 @@ def test_course_schedule_intent_korean_mixed_query():
 def test_mixed_calendar_and_course_query_prefers_registrar():
     result = classify_query("When is the registration deadline for CS 4400 Spring 2025?")
     assert result.intent == "registrar_calendar"
-    assert result.source_filter == "gt-registrar"
+    assert result.source_filter == ["gt-registrar", "gt-calendar-events"]
 
 
 def test_fall_year_not_misclassified_as_course_code():
     result = classify_query("When is the registration deadline for Fall 2026?")
     assert result.intent == "registrar_calendar"
-    assert result.source_filter == "gt-registrar"
+    assert result.source_filter == ["gt-registrar", "gt-calendar-events"]
 
 
 def test_korean_calendar_query_routes_to_registrar():
     result = classify_query("학사일정 등록 마감일 언제야?")
     assert result.intent == "registrar_calendar"
-    assert result.source_filter == "gt-registrar"
+    assert result.source_filter == ["gt-registrar", "gt-calendar-events"]
 
 
 def test_library_query_routes_to_library_source():

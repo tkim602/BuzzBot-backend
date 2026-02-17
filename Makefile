@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: setup db-up db-down migrate ingest ingest-courses ingest-courses-all ingest-all run-backend run-frontend test lint fmt usage usage-reset
+.PHONY: setup db-up db-down migrate ingest ingest-courses ingest-courses-all ingest-calendar ingest-all run-backend run-frontend test lint fmt usage usage-reset
 
 setup:
 	pip install -e ".[dev]"
@@ -27,12 +27,19 @@ ingest-courses:
 ingest-courses-all:
 	$(PYTHON) -m ingestion.gt_scheduler --all
 
+ingest-calendar:
+	$(PYTHON) -m ingestion.gt_calendar
+
 ingest-all:
 	@echo "=== Ingesting sitemap sources (registrar, catalog, library) ==="
 	$(PYTHON) -m ingestion.run_ingestion
 	@echo ""
 	@echo "=== Ingesting GT Scheduler course data (all terms) ==="
 	$(PYTHON) -m ingestion.gt_scheduler --all
+	@echo ""
+	@echo ""
+	@echo "=== Ingesting academic calendar events ==="
+	$(PYTHON) -m ingestion.gt_calendar
 	@echo ""
 	@echo "=== Ingestion complete! ==="
 
