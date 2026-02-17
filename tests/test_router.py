@@ -12,19 +12,25 @@ def test_registrar_calendar_intent():
 def test_catalog_course_intent():
     result = classify_query("What are the prerequisites for CS 1332?")
     assert result.intent == "catalog_course"
-    assert result.source_filter == "gt-catalog"
+    assert result.source_filter == ["gt-catalog", "gt-scheduler"]
 
 
 def test_course_schedule_intent_from_course_code_and_term():
     result = classify_query("Is CS4400 offered in Spring 2025?")
     assert result.intent == "course_schedule_sections"
-    assert result.source_filter == "gt-scheduler"
+    assert result.source_filter == ["gt-scheduler", "gt-catalog"]
 
 
 def test_course_schedule_intent_korean_mixed_query():
     result = classify_query("CS 4400 수업이 2025 Spring에 개설되나요?")
     assert result.intent == "course_schedule_sections"
-    assert result.source_filter == "gt-scheduler"
+    assert result.source_filter == ["gt-scheduler", "gt-catalog"]
+
+
+def test_mixed_calendar_and_course_query_prefers_registrar():
+    result = classify_query("When is the registration deadline for CS 4400 Spring 2025?")
+    assert result.intent == "registrar_calendar"
+    assert result.source_filter == "gt-registrar"
 
 
 def test_fall_year_not_misclassified_as_course_code():
@@ -47,7 +53,7 @@ def test_library_query_routes_to_library_source():
 def test_course_code_without_schedule_routes_to_catalog():
     result = classify_query("What does MATH 1554 cover?")
     assert result.intent == "catalog_course"
-    assert result.source_filter == "gt-catalog"
+    assert result.source_filter == ["gt-catalog", "gt-scheduler"]
 
 
 def test_rmp_with_excerpt():

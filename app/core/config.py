@@ -25,16 +25,20 @@ class Settings(BaseSettings):
     # RAG
     rag_top_k: int = 8
     rag_max_context_tokens: int = 3000
-    rag_similarity_threshold: float = 0.3
+    rag_similarity_threshold: float = 0.2
     rag_regenerate_on_ungrounded: bool = False
     rag_skip_fts_for_exact_schedule: bool = True
-    rag_skip_fts_when_vector_sufficient: bool = True
+    rag_skip_fts_when_vector_sufficient: bool = False
+    rag_force_fts_for_date_sensitive: bool = True
     rag_enable_embedding_cache: bool = True
     rag_embedding_cache_ttl_seconds: int = 3600
     rag_embedding_cache_max_size: int = 3000
     rag_response_cache_ttl_seconds: int = 180
     rag_response_cache_max_size: int = 1000
     rag_fts_top_k: int = 5
+    rag_enable_query_rewrite: bool = True
+    rag_query_rewrite_mode: str = "auto"  # rule | llm | auto
+    rag_user_timezone: str = "America/New_York"
 
     # Live fetch
     enable_live_fetch: bool = True

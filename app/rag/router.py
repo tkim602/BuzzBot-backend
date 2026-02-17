@@ -78,11 +78,12 @@ def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
     has_course_code = bool(_extract_course_code(q))
     has_schedule_keyword = any(kw in q for kw in SCHEDULE_KEYWORDS)
     has_term_keyword = any(kw in q for kw in TERM_KEYWORDS)
-    if has_course_code and (has_schedule_keyword or has_term_keyword):
+    has_calendar_keyword = any(kw in q for kw in CALENDAR_KEYWORDS)
+    if has_course_code and (has_schedule_keyword or has_term_keyword) and not has_calendar_keyword:
         return RouterResult(
             intent="course_schedule_sections",
             freshness_strategy="indexed",
-            source_filter="gt-scheduler",
+            source_filter=["gt-scheduler", "gt-catalog"],
         )
 
     if any(kw in q for kw in LIBRARY_KEYWORDS):
@@ -109,7 +110,7 @@ def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
         return RouterResult(
             intent="catalog_course",
             freshness_strategy="indexed",
-            source_filter="gt-catalog",
+            source_filter=["gt-catalog", "gt-scheduler"],
         )
 
     # Course code query without explicit schedule terms usually targets catalog facts.
@@ -117,7 +118,7 @@ def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
         return RouterResult(
             intent="catalog_course",
             freshness_strategy="indexed",
-            source_filter="gt-catalog",
+            source_filter=["gt-catalog", "gt-scheduler"],
         )
 
     # General / unknown
