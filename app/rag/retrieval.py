@@ -223,6 +223,30 @@ async def get_text_embeddings(texts: list[str]) -> list[list[float]]:
     return [emb if emb is not None else [] for emb in resolved]
 
 
+def rerank_with_cross_encoder(
+    query: str,
+    chunks: list[RetrievedChunk],
+    top_k: int | None = None,
+) -> list[RetrievedChunk]:
+    """Rerank chunks using a cross-encoder model for more accurate relevance scoring."""
+    if not chunks:
+        return chunks
+    try:
+        from sentence_transformers import CrossEncoder
+
+        model = CrossEncoder(settings.rag_rerank_model)
+        pairs = [[query, c.chunk_text] for c in chunks]
+        scores = model.predict(pairs)
+        for chunk, score in zip(chunks, scores):
+            chunk.score = float(score)
+        chunks.sort(key=lambda c: c.score, reverse=True)
+        if top_k is not None:
+            chunks = chunks[:top_k]
+    except Exception as exc:
+        logger.warning("cross-encoder rerank skipped", error=str(exc))
+    return chunks
+
+
 async def rerank_chunks_by_embedding(
     query: str,
     chunks: list[RetrievedChunk],
@@ -488,8 +512,11 @@ async def hybrid_retrieve(
     source_filter: SourceFilter = None,
     similarity_threshold: float = 0.3,
     force_fts: bool = False,
+    hyde_embedding: list[float] | None = None,
 ) -> list[RetrievedChunk]:
     """Combined vector + FTS retrieval with reciprocal rank fusion."""
+    # Use HyDE embedding for vector search if provided
+    vector_embedding = hyde_embedding if hyde_embedding else query_embedding
     hints = _extract_query_hints(query)
     schedule_only = source_filter == "gt-scheduler" or (
         isinstance(source_filter, list) and source_filter == ["gt-scheduler"]
@@ -503,7 +530,7 @@ async def hybrid_retrieve(
     exact_schedule_lookup = schedule_only and metadata_course_code and metadata_term_name
     if settings.rag_skip_fts_for_exact_schedule and exact_schedule_lookup:
         vector_results = await vector_search(
-            session, query_embedding, top_k=top_k,
+            session, vector_embedding, top_k=top_k,
             source_filter=source_filter, similarity_threshold=similarity_threshold,
             metadata_course_code=metadata_course_code, metadata_term_name=metadata_term_name,
         )
@@ -519,7 +546,7 @@ async def hybrid_retrieve(
         )
     else:
         vector_results = await vector_search(
-            session, query_embedding, top_k=top_k,
+            session, vector_embedding, top_k=top_k,
             source_filter=source_filter, similarity_threshold=similarity_threshold,
             metadata_course_code=metadata_course_code, metadata_term_name=metadata_term_name,
         )
@@ -560,4 +587,11 @@ async def hybrid_retrieve(
         key=lambda c: (_signal_match_count(c, hints), c.score),
         reverse=True,
     )
+
+    # Cross-encoder reranking for more accurate relevance scoring
+    if settings.rag_enable_reranking and len(merged) > 1:
+        # Rerank up to 15 candidates, return best top_k
+        candidates = merged[:15]
+        merged = rerank_with_cross_encoder(query, candidates, top_k=top_k)
+
     return merged[:top_k]

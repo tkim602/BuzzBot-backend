@@ -24,18 +24,47 @@ def _load_prompt(name: str) -> str:
     return ""
 
 
+def _lost_in_the_middle_reorder(items: list) -> list:
+    """Reorder items so the most relevant are at the start and end.
+
+    Exploits the U-shaped attention pattern in LLMs: they attend most to the
+    beginning and end of the context window. Places #1 first, #2 last, #3
+    second, #4 second-to-last, etc.
+    """
+    if len(items) <= 2:
+        return items
+    reordered: list = [None] * len(items)
+    left, right = 0, len(items) - 1
+    for i, item in enumerate(items):
+        if i % 2 == 0:
+            reordered[left] = item
+            left += 1
+        else:
+            reordered[right] = item
+            right -= 1
+    return reordered
+
+
 def _build_context(chunks: list[RetrievedChunk], max_tokens: int = 3000) -> str:
     """Build context string from retrieved chunks, respecting token limit."""
-    context_parts: list[str] = []
+    # First pass: select chunks within token budget
+    selected: list[RetrievedChunk] = []
     approx_tokens = 0
     for c in chunks:
         chunk_tokens = len(c.chunk_text.split()) * 1.3  # rough token estimate
         if approx_tokens + chunk_tokens > max_tokens:
             break
+        selected.append(c)
+        approx_tokens += chunk_tokens
+
+    # Apply lost-in-the-middle reordering
+    selected = _lost_in_the_middle_reorder(selected)
+
+    context_parts: list[str] = []
+    for c in selected:
         source_label = f"[Source: {c.url}]" if c.url else "[Source: unknown]"
         fetched_label = f"[Fetched: {c.fetched_at}]" if c.fetched_at else ""
         context_parts.append(f"{source_label} {fetched_label}\n{c.chunk_text}")
-        approx_tokens += chunk_tokens
     return "\n\n---\n\n".join(context_parts)
 
 

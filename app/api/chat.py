@@ -23,7 +23,7 @@ from app.core.usage import UsageLimitExceeded, get_usage
 from app.rag.answerer import generate_answer
 from app.rag.grounding import check_grounding
 from app.rag.live_fetch import live_fetch_for_query
-from app.rag.query_rewrite import rewrite_query
+from app.rag.query_rewrite import generate_hyde_passage, rewrite_query
 from app.rag.retrieval import get_query_embedding, hybrid_retrieve
 from app.rag.router import classify_query
 from app.schemas.chat import (
@@ -115,8 +115,14 @@ async def chat(
         enforce_request_guardrails(http_request, query)
 
         async with acquire_chat_slot():
-            # 2. Retrieve
+            # 2. Retrieve (with optional HyDE embedding)
             query_embedding = await get_query_embedding(retrieval_query)
+
+            hyde_embedding = None
+            hyde_passage = await generate_hyde_passage(retrieval_query)
+            if hyde_passage:
+                hyde_embedding = await get_query_embedding(hyde_passage)
+
             chunks = await hybrid_retrieve(
                 session=session,
                 query=retrieval_query,
@@ -125,6 +131,7 @@ async def chat(
                 source_filter=source_filter,
                 similarity_threshold=settings.rag_similarity_threshold,
                 force_fts=settings.rag_force_fts_for_date_sensitive and rewrite.date_sensitive,
+                hyde_embedding=hyde_embedding,
             )
 
             # 3. Live fetch if needed

@@ -5,9 +5,9 @@
     "pass_rate": 1.0,
     "answer_rate": 1.0,
     "citation_rate": 0.667,
-    "avg_keyword_recall": 0.875,
-    "avg_confidence": 0.52,
-    "avg_latency_s": 7.03,
+    "avg_keyword_recall": 0.958,
+    "avg_confidence": 0.72,
+    "avg_latency_s": 11.96,
     "category_breakdown": {
       "broad_query": {
         "total": 2,
@@ -48,22 +48,22 @@
       "turns": [
         {
           "query": "Tell me about CS 1332",
-          "answer_snippet": "CS 1332 is a course that focuses on data structures and algorithms, which is essential for computer science students. It is a prerequisite for several advanced courses in the curriculum.",
-          "confidence": 0.9,
+          "answer_snippet": "CS 1332, titled 'Data Structures and Algorithms for Applications', focuses on computer data structures and algorithms within the context of object-oriented programming, emphasizing software development for applications. The prerequisites for this course are a grade of C or better in either CS 1322 o",
+          "confidence": 1.0,
           "intent": "catalog_course",
           "rewritten_query": "Tell me about CS 1332",
-          "citation_count": 3,
-          "latency_s": 14.11,
+          "citation_count": 2,
+          "latency_s": 27.84,
           "error": null
         },
         {
           "query": "offered in spring 2025?",
-          "answer_snippet": "No, CS 1332 is not offered in Spring 2025.",
-          "confidence": 0.9,
+          "answer_snippet": "CS 1332 is not offered in Spring 2025.",
+          "confidence": 1.0,
           "intent": "course_schedule_sections",
           "rewritten_query": "Is CS 1332 offered in Spring 2025?",
-          "citation_count": 1,
-          "latency_s": 6.24,
+          "citation_count": 3,
+          "latency_s": 13.89,
           "error": null
         }
       ]
@@ -79,22 +79,22 @@
       "turns": [
         {
           "query": "What are some database courses at Georgia Tech?",
-          "answer_snippet": "The retrieved sources do not provide specific database courses at Georgia Tech.",
-          "confidence": 0.0,
+          "answer_snippet": "One database course at Georgia Tech is MGT 4058, titled Database Management Systems.",
+          "confidence": 1.0,
           "intent": "catalog_course",
           "rewritten_query": "database courses at Georgia Tech",
-          "citation_count": 0,
-          "latency_s": 4.0,
+          "citation_count": 3,
+          "latency_s": 11.88,
           "error": null
         },
         {
           "query": "another database course?",
-          "answer_snippet": "The retrieved sources do not provide information on additional database courses at Georgia Tech.",
-          "confidence": 0.0,
+          "answer_snippet": "Yes, another database course at Georgia Tech is MGT 4058, titled Database Management Systems, which is offered in Spring 2026.",
+          "confidence": 1.0,
           "intent": "catalog_course",
-          "rewritten_query": "database courses at Georgia Tech retrieved sources provide",
-          "citation_count": 1,
-          "latency_s": 5.19,
+          "rewritten_query": "another database course at Georgia Tech? MGT 4058",
+          "citation_count": 2,
+          "latency_s": 11.82,
           "error": null
         }
       ]
@@ -110,22 +110,22 @@
       "turns": [
         {
           "query": "Is CS 4400 offered in fall 2025?",
-          "answer_snippet": "No, CS 4400 is not offered in Fall 2025.",
+          "answer_snippet": "CS 4400 is not listed as being offered in Fall 2025.",
           "confidence": 0.9,
           "intent": "course_schedule_sections",
           "rewritten_query": "Is CS 4400 offered in fall 2025?",
-          "citation_count": 1,
-          "latency_s": 6.18,
+          "citation_count": 0,
+          "latency_s": 8.78,
           "error": null
         },
         {
           "query": "then which semester is it available?",
-          "answer_snippet": "CS 4400 is available in Spring 2026.",
-          "confidence": 1.0,
+          "answer_snippet": "CS 4400 is available in Spring 2026 as a prerequisite for other courses.",
+          "confidence": 0.9,
           "intent": "course_schedule_sections",
           "rewritten_query": "Which semester is CS 4400 available?",
-          "citation_count": 1,
-          "latency_s": 5.23,
+          "citation_count": 3,
+          "latency_s": 12.71,
           "error": null
         }
       ]
@@ -141,12 +141,12 @@
       "turns": [
         {
           "query": "What database courses does Georgia Tech offer?",
-          "answer_snippet": "The retrieved sources do not provide specific information about database courses offered by Georgia Tech.",
-          "confidence": 0.0,
+          "answer_snippet": "Georgia Tech offers the course MGT 4058, titled 'Database Management Systems'.",
+          "confidence": 1.0,
           "intent": "catalog_course",
-          "rewritten_query": "database courses offered by Georgia Tech",
-          "citation_count": 0,
-          "latency_s": 4.49,
+          "rewritten_query": "What database courses does Georgia Tech offer?",
+          "citation_count": 3,
+          "latency_s": 13.64,
           "error": null
         }
       ]
@@ -162,12 +162,12 @@
       "turns": [
         {
           "query": "What CS courses are available for spring 2025?",
-          "answer_snippet": "The available CS courses for Spring 2025 are CS 2801 - Special Topics, CS 3803 - Special Topics, and CS 6035 - Intro To Info Security.",
-          "confidence": 1.0,
+          "answer_snippet": "The retrieved sources do not provide specific information about the CS courses available for Spring 2025.",
+          "confidence": 0.0,
           "intent": "catalog_course",
           "rewritten_query": "What CS courses are available for spring 2025?",
-          "citation_count": 3,
-          "latency_s": 8.6,
+          "citation_count": 0,
+          "latency_s": 10.01,
           "error": null
         }
       ]
@@ -177,18 +177,18 @@
       "category": "course_specific",
       "description": "CS 1332 prereq is CS 1331 (min grade C)",
       "pass": true,
-      "keyword_hits": 1,
+      "keyword_hits": 2,
       "keyword_total": 2,
-      "precision": 0.5,
+      "precision": 1.0,
       "turns": [
         {
           "query": "What are the prerequisites for CS 1332?",
-          "answer_snippet": "The prerequisites for CS 1332 are not explicitly listed in the retrieved sources. Please provide additional context or check the official Georgia Tech course catalog for the most accurate information.",
-          "confidence": 0.0,
+          "answer_snippet": "The prerequisites for CS 1332 in Spring 2026 are either CS 1322 with a grade of C or CS 1331 with a grade of C.",
+          "confidence": 1.0,
           "intent": "catalog_course",
           "rewritten_query": "What are the prerequisites for CS 1332?",
-          "citation_count": 0,
-          "latency_s": 5.43,
+          "citation_count": 1,
+          "latency_s": 10.45,
           "error": null
         }
       ]
@@ -196,20 +196,20 @@
     {
       "id": "cs2",
       "category": "course_specific",
-      "description": "CS 2110 is 3 credit hours",
+      "description": "CS 2110 is 4 credit hours",
       "pass": true,
-      "keyword_hits": 1,
+      "keyword_hits": 2,
       "keyword_total": 2,
-      "precision": 0.5,
+      "precision": 1.0,
       "turns": [
         {
           "query": "How many credit hours is CS 2110?",
-          "answer_snippet": "CS 2110 is 4 credit hours.",
+          "answer_snippet": "CS 2110 is worth 4 credit hours.",
           "confidence": 1.0,
           "intent": "catalog_course",
           "rewritten_query": "How many credit hours is CS 2110?",
-          "citation_count": 4,
-          "latency_s": 9.12,
+          "citation_count": 2,
+          "latency_s": 11.48,
           "error": null
         }
       ]
@@ -226,11 +226,11 @@
         {
           "query": "What is CS 4400 Introduction to Database Systems about?",
           "answer_snippet": "CS 4400, Introduction to Database Systems, covers fundamental concepts related to relational databases, including database design, query processing, concurrency control, and recovery.",
-          "confidence": 0.9,
+          "confidence": 1.0,
           "intent": "catalog_course",
           "rewritten_query": "What is CS 4400 Introduction to Database Systems about?",
-          "citation_count": 4,
-          "latency_s": 11.78,
+          "citation_count": 1,
+          "latency_s": 9.24,
           "error": null
         }
       ]
@@ -246,12 +246,12 @@
       "turns": [
         {
           "query": "When is the registration deadline for Fall 2025?",
-          "answer_snippet": "The registration deadline for Fall 2025 is not explicitly provided in the retrieved sources.",
+          "answer_snippet": "The registration deadline for Fall 2025 is not explicitly stated in the retrieved sources.",
           "confidence": 0.0,
           "intent": "registrar_calendar",
           "rewritten_query": "When is the registration deadline for Fall 2025?",
           "citation_count": 0,
-          "latency_s": 5.62,
+          "latency_s": 8.8,
           "error": null
         }
       ]
@@ -267,12 +267,12 @@
       "turns": [
         {
           "query": "When does spring break start in 2025?",
-          "answer_snippet": "I could not find the specific start date for spring break in 2025.",
-          "confidence": 0.2,
+          "answer_snippet": "The sources do not provide specific dates for spring break in 2025.",
+          "confidence": 0.0,
           "intent": "registrar_calendar",
           "rewritten_query": "When does spring break start in 2025? Spring 2026",
-          "citation_count": 1,
-          "latency_s": 7.58,
+          "citation_count": 0,
+          "latency_s": 10.08,
           "error": null
         }
       ]
@@ -288,12 +288,12 @@
       "turns": [
         {
           "query": "Is CS 1301 offered in Spring 2025?",
-          "answer_snippet": "Yes, CS 1301 is offered in Spring 2025.",
+          "answer_snippet": "No, CS 1301 is not offered in Spring 2025.",
           "confidence": 1.0,
           "intent": "course_schedule_sections",
           "rewritten_query": "Is CS 1301 offered in Spring 2025?",
-          "citation_count": 1,
-          "latency_s": 6.36,
+          "citation_count": 2,
+          "latency_s": 9.82,
           "error": null
         }
       ]
@@ -309,12 +309,12 @@
       "turns": [
         {
           "query": "What sections of MATH 1554 are available?",
-          "answer_snippet": "I could not find information on the sections of MATH 1554 available for Spring 2026. Please check back later or consult the official Georgia Tech course schedule.",
+          "answer_snippet": "I could not find any information regarding the sections of MATH 1554 available for Spring 2026.",
           "confidence": 0.0,
           "intent": "course_schedule_sections",
           "rewritten_query": "What sections of MATH 1554 are available?",
           "citation_count": 0,
-          "latency_s": 5.53,
+          "latency_s": 8.91,
           "error": null
         }
       ]

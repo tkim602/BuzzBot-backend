@@ -289,6 +289,66 @@ async def _rewrite_with_llm(
         return fallback
 
 
+async def generate_hyde_passage(query: str) -> str | None:
+    """Generate a hypothetical document passage that would answer the query.
+
+    Used for HyDE (Hypothetical Document Embeddings) — the embedding of this
+    passage is used for vector search instead of the raw query embedding.
+    """
+    if not settings.rag_enable_hyde:
+        return None
+
+    provider = settings.llm_provider
+    system = (
+        "You are a Georgia Tech information assistant. "
+        "Given a student question, write a ~100-word passage that would appear "
+        "in an official Georgia Tech document answering this question. "
+        "Be specific and factual. Output ONLY the passage, no preamble."
+    )
+
+    try:
+        check_limit_or_raise()
+
+        if provider == "openai":
+            import openai
+
+            client = openai.AsyncOpenAI()
+            resp = await client.chat.completions.create(
+                model=settings.openai_model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": query},
+                ],
+                temperature=0,
+                max_tokens=200,
+            )
+            passage = resp.choices[0].message.content or ""
+            if resp.usage:
+                record_usage(settings.openai_model, resp.usage.prompt_tokens, "input")
+                record_usage(settings.openai_model, resp.usage.completion_tokens, "output")
+        elif provider == "anthropic":
+            import anthropic
+
+            client = anthropic.AsyncAnthropic()
+            resp = await client.messages.create(
+                model=settings.anthropic_model,
+                max_tokens=200,
+                system=system,
+                messages=[{"role": "user", "content": query}],
+            )
+            passage = resp.content[0].text
+            if hasattr(resp, "usage"):
+                record_usage(settings.anthropic_model, resp.usage.input_tokens, "input")
+                record_usage(settings.anthropic_model, resp.usage.output_tokens, "output")
+        else:
+            return None
+
+        return passage.strip() if passage.strip() else None
+    except Exception as exc:
+        logger.warning("hyde passage generation failed", error=str(exc))
+        return None
+
+
 async def rewrite_query(
     query: str,
     history: list[dict] | None = None,

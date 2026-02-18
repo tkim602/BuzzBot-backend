@@ -61,7 +61,10 @@ async def run() -> dict:
             top_source = chunks[0].source_name if chunks else None
             blob = "\n".join((c.title or "") + "\n" + c.chunk_text for c in chunks[:3]) if chunks else ""
 
-            route_match = route.source_filter == case.expected_source
+            if isinstance(route.source_filter, list):
+                route_match = case.expected_source in route.source_filter
+            else:
+                route_match = route.source_filter == case.expected_source
             source_match = top_source == case.expected_source
             strict_match = _contains_all(blob, case.must_have)
 

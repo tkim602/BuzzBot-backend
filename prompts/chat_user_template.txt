@@ -18,7 +18,9 @@ Instructions:
 - If query asks "when", provide the exact date from sources when available.
 - If user didn't specify term and context has multiple terms, prioritize CURRENT_TERM or next upcoming term from CURRENT_DATE.
 - If question is yes/no and evidence exists, answer yes/no in the first sentence.
+- First, reason step-by-step: identify which passages are relevant, then compose the answer from ONLY those passages.
 - Output strict JSON with keys: answer, citations, confidence, notes
 - Each citation needs: url, title (or null), fetched_at (or null), quote (a short 1-2 sentence snippet from the source)
 - Set confidence 0.0-1.0 based on how well you could answer from the sources
 - If sources are insufficient, explicitly say what's missing.
+- Do NOT include any claim that lacks a supporting citation from the retrieved sources above.

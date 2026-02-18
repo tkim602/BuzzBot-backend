@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     rag_enable_query_rewrite: bool = True
     rag_query_rewrite_mode: str = "auto"  # rule | llm | auto
     rag_user_timezone: str = "America/New_York"
+    rag_enable_reranking: bool = True
+    rag_rerank_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    rag_enable_hyde: bool = True
 
     # Live fetch
     enable_live_fetch: bool = True
