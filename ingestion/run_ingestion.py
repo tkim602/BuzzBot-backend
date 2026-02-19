@@ -61,6 +61,7 @@ def load_sources() -> list[SourceConfig]:
                 allowed=s.get("allowed", True),
                 reason=s.get("reason", ""),
                 sitemap_url=s.get("sitemap_url"),
+                seed_urls=s.get("seed_urls", []),
                 include_patterns=s.get("include_patterns", []),
                 exclude_patterns=s.get("exclude_patterns", []),
                 max_urls=s.get("max_urls", 200),

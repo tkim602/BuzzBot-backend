@@ -39,6 +39,24 @@ def test_fall_year_not_misclassified_as_course_code():
     assert result.source_filter == ["gt-registrar", "gt-calendar-events"]
 
 
+def test_register_add_query_prefers_registrar_on_tie():
+    result = classify_query("When is the last day to register or add courses for Spring 2026?")
+    assert result.intent == "registrar_calendar"
+    assert result.source_filter == ["gt-registrar", "gt-calendar-events"]
+
+
+def test_omscs_application_deadline_routes_to_admissions_intent():
+    result = classify_query("application deadline for OMSCS")
+    assert result.intent == "admissions_deadline"
+    assert result.source_filter == ["gt-omscs", "gt-admission", "gt-grad", "gt-catalog"]
+
+
+def test_mscs_application_deadline_routes_catalog_first():
+    result = classify_query("application deadline for MSCS")
+    assert result.intent == "admissions_deadline"
+    assert result.source_filter == ["gt-catalog", "gt-grad", "gt-admission"]
+
+
 def test_korean_calendar_query_routes_to_registrar():
     result = classify_query("학사일정 등록 마감일 언제야?")
     assert result.intent == "registrar_calendar"

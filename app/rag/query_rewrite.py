@@ -21,6 +21,9 @@ PROMPTS_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
 COURSE_CODE_RE = re.compile(r"\b([a-z]{2,4})\s*-?\s*(\d{4}[a-z]?)\b", re.IGNORECASE)
 TERM_RE_1 = re.compile(r"\b(spring|summer|fall)\s*(20\d{2})\b", re.IGNORECASE)
 TERM_RE_2 = re.compile(r"\b(20\d{2})\s*(spring|summer|fall)\b", re.IGNORECASE)
+COURSE_CODE_STOPWORDS = {
+    "spring", "summer", "fall", "term", "year", "this", "next", "last", "the",
+}
 PRONOUN_RE = re.compile(r"\b(it|that class|this class|that course|this course|그거|그 과목|이 과목)\b", re.IGNORECASE)
 FOLLOWUP_SIGNALS = re.compile(
     r"\b(another|other|also|more|then|which semester|offered|available|alternatives?|instead|else|too)\b",
@@ -30,7 +33,16 @@ DATE_SENSITIVE_TERMS = (
     "when", "date", "deadline", "registration", "add/drop", "withdrawal", "commencement",
     "today", "tomorrow", "this semester", "next semester", "upcoming", "언제", "마감", "학사일정",
 )
+ADMISSIONS_QUERY_TERMS = (
+    "application deadline", "admission deadline", "deadline to apply",
+    "apply", "admission", "omscs", "mscs",
+)
 NEXT_TERM_TERMS = ("next semester", "upcoming", "next term", "다음 학기")
+EXPLICIT_FACTUAL_TERMS = (
+    "application deadline", "admission deadline", "deadline", "when is",
+    "last day to", "registration", "register", "add/drop", "withdraw",
+    "omscs", "mscs", "fall 20", "spring 20", "summer 20",
+)
 
 
 @dataclass
@@ -65,6 +77,9 @@ def _extract_course_code(query: str) -> str | None:
     m = COURSE_CODE_RE.search(query)
     if not m:
         return None
+    dept = m.group(1).lower()
+    if dept in COURSE_CODE_STOPWORDS:
+        return None
     return f"{m.group(1).upper()} {m.group(2).upper()}"
 
 
@@ -81,6 +96,13 @@ def _extract_term_name(query: str) -> str | None:
 def _is_date_sensitive(query: str) -> bool:
     q = query.lower()
     return any(term in q for term in DATE_SENSITIVE_TERMS)
+
+
+def _is_admissions_deadline_query(query: str) -> bool:
+    q = query.lower()
+    if "deadline" not in q:
+        return False
+    return any(term in q for term in ADMISSIONS_QUERY_TERMS)
 
 
 def _term_for_month(month: int, year: int) -> str:
@@ -127,6 +149,16 @@ def _extract_topic_keywords(text: str) -> list[str]:
     return [w for w in words if w not in stopwords]
 
 
+def _should_force_rule_rewrite(query: str, fallback: RewriteResult) -> bool:
+    q = query.lower().strip()
+    if any(term in q for term in EXPLICIT_FACTUAL_TERMS):
+        return True
+    # Date-sensitive questions are usually better served with low-latency deterministic rewrite.
+    if fallback.date_sensitive and len(query.split()) >= 5:
+        return True
+    return False
+
+
 def _resolve_from_history(query: str, history: list[dict] | None) -> str:
     if not history:
         return query
@@ -167,11 +199,12 @@ def _build_rule_based_query(
 ) -> RewriteResult:
     standalone = _resolve_from_history(_normalize_space(query), history)
     date_sensitive = _is_date_sensitive(standalone)
+    admissions_deadline = _is_admissions_deadline_query(standalone)
     detected_course_code = _extract_course_code(standalone)
     detected_term = _extract_term_name(standalone)
 
     target_term = detected_term or user_term
-    if not target_term and date_sensitive:
+    if not target_term and date_sensitive and not admissions_deadline:
         wants_next = any(x in standalone.lower() for x in NEXT_TERM_TERMS)
         target_term = _next_term(temporal.current_term) if wants_next else temporal.current_term
 
@@ -367,6 +400,8 @@ async def rewrite_query(
     if mode == "llm":
         return await _rewrite_with_llm(query, temporal, fallback, history)
     if mode == "auto":
+        if _should_force_rule_rewrite(query, fallback):
+            return fallback
         # Use LLM only for short/ambiguous questions where rewrite value is highest.
         if len(query.split()) <= 12 or fallback.date_sensitive:
             return await _rewrite_with_llm(query, temporal, fallback, history)

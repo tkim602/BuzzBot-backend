@@ -23,10 +23,68 @@ sources:
     sitemap_url: https://catalog.gatech.edu/sitemap.xml
     include_patterns: [] # Empty = all URLs from sitemap
     exclude_patterns: []
-    max_urls: 1000
+    max_urls: 2000
     refresh_policy:
       schedule: weekly
       method: sitemap_incremental
+
+  - name: gt-omscs
+    base_url: https://omscs.gatech.edu
+    allowed: true
+    reason: "Official OMSCS site for online MSCS admissions details and deadlines."
+    sitemap_url: https://omscs.gatech.edu/sitemap.xml
+    seed_urls: []
+    include_patterns:
+      - "/admission"
+      - "/apply"
+      - "/deadline"
+      - "/faq"
+    exclude_patterns: []
+    max_urls: 500
+    refresh_policy:
+      schedule: daily
+      method: sitemap_incremental
+
+  - name: gt-admission
+    base_url: https://admission.gatech.edu
+    allowed: true
+    reason: "Official Georgia Tech admissions website for undergraduate and graduate deadlines."
+    sitemap_url: null
+    seed_urls:
+      - https://admission.gatech.edu/first-year/deadlines
+      - https://admission.gatech.edu/transfer/deadlines
+      - https://admission.gatech.edu/graduate
+      - https://admission.gatech.edu/apply
+    include_patterns:
+      - "/deadline"
+      - "/admission"
+      - "/apply"
+      - "/graduate"
+    exclude_patterns: []
+    max_urls: 200
+    refresh_policy:
+      schedule: daily
+      method: seed_urls
+
+  - name: gt-grad
+    base_url: https://grad.gatech.edu
+    allowed: true
+    reason: "Official Georgia Tech Graduate Education pages for admissions and policy context."
+    sitemap_url: null
+    seed_urls:
+      - https://grad.gatech.edu/admissions
+      - https://grad.gatech.edu/degree-programs/computer-science-online
+      - https://grad.gatech.edu/programs
+    include_patterns:
+      - "/admission"
+      - "/deadline"
+      - "/program"
+      - "/degree"
+    exclude_patterns: []
+    max_urls: 200
+    refresh_policy:
+      schedule: weekly
+      method: seed_urls
 
   - name: gt-library
     base_url: https://library.gatech.edu

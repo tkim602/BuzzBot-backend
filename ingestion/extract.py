@@ -22,6 +22,27 @@ class ExtractedContent:
     method: str = "trafilatura"
 
 
+def _extract_title_from_html(html: str) -> str | None:
+    """Best-effort page title extraction when trafilatura metadata is empty."""
+    try:
+        root = lxml_html.fromstring(html)
+    except Exception:
+        return None
+
+    title_candidates = [
+        root.xpath("//meta[@property='og:title']/@content"),
+        root.xpath("//meta[@name='twitter:title']/@content"),
+        root.xpath("//title/text()"),
+        root.xpath("//h1//text()"),
+    ]
+    for values in title_candidates:
+        for value in values:
+            normalized = " ".join(str(value).split()).strip()
+            if normalized:
+                return normalized
+    return None
+
+
 def _extract_table_rows(html: str, max_tables: int = 8, max_rows_per_table: int = 80) -> list[dict]:
     rows: list[dict] = []
     try:
@@ -92,6 +113,8 @@ def extract_content(url: str, html: str) -> ExtractedContent:
             title = meta_dict.get("title")
         except (json.JSONDecodeError, TypeError):
             pass
+    if not title:
+        title = _extract_title_from_html(html)
 
     if text and len(text.strip()) > 50:
         return ExtractedContent(

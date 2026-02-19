@@ -38,11 +38,14 @@ class FreshnessInfo(BaseModel):
 
 class DebugInfo(BaseModel):
     intent: str | None = None
+    source_filter: str | list[str] | None = None
     live_fetch_used: bool = False
     retrieval_top_k: int = 0
+    top_sources: list[str] = []
     rewritten_query: str | None = None
     current_date: str | None = None
     current_term: str | None = None
+    stage_timings_ms: dict[str, int] = {}
 
 
 class ChatResponse(BaseModel):

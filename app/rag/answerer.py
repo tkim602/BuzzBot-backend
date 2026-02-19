@@ -15,6 +15,7 @@ from app.rag.retrieval import RetrievedChunk
 logger = structlog.get_logger(__name__)
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
+FACTUAL_INTENTS = {"registrar_calendar", "admissions_deadline", "catalog_course", "course_schedule_sections"}
 
 
 def _load_prompt(name: str) -> str:
@@ -116,8 +117,10 @@ async def generate_answer(
     user_msg = user_msg.replace("{{CURRENT_TERM}}", current_term or "unknown")
     user_msg = user_msg.replace("{{CHAT_HISTORY}}", _format_history(history))
 
+    temperature = 0.0 if intent in FACTUAL_INTENTS else 0.2
+
     # Call LLM
-    raw_response = await _call_llm(system_prompt, user_msg)
+    raw_response = await _call_llm(system_prompt, user_msg, temperature=temperature)
 
     # Parse JSON from response
     try:
@@ -134,7 +137,7 @@ async def generate_answer(
     return parsed
 
 
-async def _call_llm(system: str, user: str) -> str:
+async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
     """Call the configured LLM provider."""
     # Check usage limit before API call
     check_limit_or_raise()
@@ -151,7 +154,7 @@ async def _call_llm(system: str, user: str) -> str:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            temperature=0.2,
+            temperature=temperature,
             max_tokens=1500,
         )
         

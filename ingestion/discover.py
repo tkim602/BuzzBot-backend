@@ -5,7 +5,7 @@ from __future__ import annotations
 import fnmatch
 import re
 from dataclasses import dataclass, field
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
@@ -15,6 +15,7 @@ from lxml import etree
 logger = structlog.get_logger(__name__)
 
 SITEMAP_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+PLACEHOLDER_SITEMAP_HOSTS = {"default", "localhost", "127.0.0.1"}
 
 
 @dataclass
@@ -24,6 +25,7 @@ class SourceConfig:
     allowed: bool
     reason: str
     sitemap_url: str | None
+    seed_urls: list[str] = field(default_factory=list)
     include_patterns: list[str] = field(default_factory=list)
     exclude_patterns: list[str] = field(default_factory=list)
     max_urls: int = 200
@@ -79,6 +81,29 @@ async def parse_sitemap(sitemap_url: str) -> list[str]:
             urls.append(loc.text.strip())
     logger.info("sitemap parsed", url=sitemap_url, count=len(urls))
     return urls
+
+
+def _normalize_discovered_url(url: str, base_url: str) -> str:
+    """Normalize malformed sitemap URLs to the source domain when needed."""
+    parsed = urlparse(url)
+    parsed_base = urlparse(base_url)
+
+    if not parsed.netloc:
+        return urljoin(base_url, url)
+
+    if parsed.netloc in PLACEHOLDER_SITEMAP_HOSTS and parsed.path:
+        return urlunparse(
+            (
+                parsed_base.scheme or "https",
+                parsed_base.netloc,
+                parsed.path,
+                parsed.params,
+                parsed.query,
+                parsed.fragment,
+            )
+        )
+
+    return url
 
 
 def filter_urls(
@@ -151,9 +176,18 @@ async def discover_urls(source: SourceConfig) -> list[str]:
     urls: list[str] = []
     if source.sitemap_url:
         urls = await parse_sitemap(source.sitemap_url)
+        urls = [_normalize_discovered_url(u, source.base_url) for u in urls]
+
+    if not urls and source.seed_urls:
+        logger.info(
+            "no sitemap URLs found, using configured seed_urls",
+            source=source.name,
+            seeds=len(source.seed_urls),
+        )
+        urls = list(source.seed_urls)
 
     if not urls:
-        logger.info("no sitemap URLs found, using base_url", source=source.name)
+        logger.info("no sitemap or seed URLs found, using base_url", source=source.name)
         urls = [source.base_url]
 
     filtered = filter_urls(

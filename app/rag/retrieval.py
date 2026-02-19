@@ -38,6 +38,8 @@ _embedding_cache = TTLCache[list[float]](
     max_size=settings.rag_embedding_cache_max_size,
     ttl_seconds=settings.rag_embedding_cache_ttl_seconds,
 )
+_cross_encoder_model = None
+_cross_encoder_model_name: str | None = None
 
 
 @dataclass
@@ -229,12 +231,18 @@ def rerank_with_cross_encoder(
     top_k: int | None = None,
 ) -> list[RetrievedChunk]:
     """Rerank chunks using a cross-encoder model for more accurate relevance scoring."""
+    global _cross_encoder_model, _cross_encoder_model_name
     if not chunks:
         return chunks
     try:
         from sentence_transformers import CrossEncoder
 
-        model = CrossEncoder(settings.rag_rerank_model)
+        if _cross_encoder_model is None or _cross_encoder_model_name != settings.rag_rerank_model:
+            _cross_encoder_model = CrossEncoder(settings.rag_rerank_model)
+            _cross_encoder_model_name = settings.rag_rerank_model
+            logger.info("cross-encoder loaded", model=settings.rag_rerank_model)
+
+        model = _cross_encoder_model
         pairs = [[query, c.chunk_text] for c in chunks]
         scores = model.predict(pairs)
         for chunk, score in zip(chunks, scores):
@@ -275,6 +283,7 @@ async def vector_search(
     similarity_threshold: float = 0.3,
     metadata_course_code: str | None = None,
     metadata_term_name: str | None = None,
+    metadata_semester: str | None = None,
 ) -> list[RetrievedChunk]:
     """Search chunks using pgvector cosine distance."""
     # Build query
@@ -305,6 +314,11 @@ async def vector_search(
     if metadata_term_name:
         stmt = stmt.where(
             func.lower(Chunk.metadata_json["term_name"].astext) == metadata_term_name.lower()
+        )
+    if metadata_semester:
+        stmt = stmt.where(
+            (Source.name != "gt-calendar-events")
+            | (func.lower(Chunk.metadata_json["semester"].astext) == metadata_semester.lower())
         )
 
     stmt = stmt.order_by(distance_expr).limit(top_k)
@@ -341,6 +355,7 @@ async def fts_search(
     source_filter: SourceFilter = None,
     metadata_course_code: str | None = None,
     metadata_term_name: str | None = None,
+    metadata_semester: str | None = None,
 ) -> list[RetrievedChunk]:
     """Full-text search fallback using PostgreSQL tsvector."""
     if not query.strip():
@@ -374,6 +389,11 @@ async def fts_search(
     if metadata_term_name:
         stmt = stmt.where(
             func.lower(Chunk.metadata_json["term_name"].astext) == metadata_term_name.lower()
+        )
+    if metadata_semester:
+        stmt = stmt.where(
+            (Source.name != "gt-calendar-events")
+            | (func.lower(Chunk.metadata_json["semester"].astext) == metadata_semester.lower())
         )
 
     stmt = stmt.order_by(rank_expr.desc()).limit(top_k)
@@ -521,8 +541,12 @@ async def hybrid_retrieve(
     schedule_only = source_filter == "gt-scheduler" or (
         isinstance(source_filter, list) and source_filter == ["gt-scheduler"]
     )
+    includes_calendar_events = source_filter == "gt-calendar-events" or (
+        isinstance(source_filter, list) and "gt-calendar-events" in source_filter
+    )
     metadata_course_code = hints.course_code if schedule_only else None
     metadata_term_name = hints.term_name if schedule_only else None
+    metadata_semester = hints.term_name if includes_calendar_events else None
     keyword_query = hints.expanded_query or query
 
     fts_top_k = max(3, min(top_k, settings.rag_fts_top_k))
@@ -533,6 +557,7 @@ async def hybrid_retrieve(
             session, vector_embedding, top_k=top_k,
             source_filter=source_filter, similarity_threshold=similarity_threshold,
             metadata_course_code=metadata_course_code, metadata_term_name=metadata_term_name,
+            metadata_semester=metadata_semester,
         )
         if len(vector_results) >= min(3, top_k):
             return vector_results[:top_k]
@@ -543,12 +568,14 @@ async def hybrid_retrieve(
             source_filter=source_filter,
             metadata_course_code=metadata_course_code,
             metadata_term_name=metadata_term_name,
+            metadata_semester=metadata_semester,
         )
     else:
         vector_results = await vector_search(
             session, vector_embedding, top_k=top_k,
             source_filter=source_filter, similarity_threshold=similarity_threshold,
             metadata_course_code=metadata_course_code, metadata_term_name=metadata_term_name,
+            metadata_semester=metadata_semester,
         )
         if (
             settings.rag_skip_fts_when_vector_sufficient
@@ -564,6 +591,7 @@ async def hybrid_retrieve(
             source_filter=source_filter,
             metadata_course_code=metadata_course_code,
             metadata_term_name=metadata_term_name,
+            metadata_semester=metadata_semester,
         )
 
     merged = _rrf_fuse_results(vector_results, fts_results, top_k=top_k)

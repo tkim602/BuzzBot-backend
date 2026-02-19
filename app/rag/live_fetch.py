@@ -18,8 +18,14 @@ logger = structlog.get_logger(__name__)
 # Safe targets for live fetch (official GT only)
 LIVE_FETCH_TARGETS = {
     "registrar_calendar": [
-        "https://registrar.gatech.edu/calendar",
+        "https://registrar.gatech.edu/calendar/academic-calendar",
         "https://registrar.gatech.edu/registration",
+        "https://registrar.gatech.edu/calendar",
+    ],
+    "admissions_deadline": [
+        "https://omscs.gatech.edu/admission-deadlines-calendar",
+        "https://catalog.gatech.edu/programs/computer-science-ms",
+        "https://admission.gatech.edu/first-year/deadlines",
     ],
     "catalog_course": [
         "https://catalog.gatech.edu",

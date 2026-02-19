@@ -37,3 +37,27 @@ async def test_rewrite_keeps_explicit_term(monkeypatch):
 
     assert "Fall 2026" in result.rewritten_query
     assert result.detected_term_name == "Fall 2026"
+
+
+async def test_rewrite_does_not_treat_fall_year_as_course_code(monkeypatch):
+    monkeypatch.setattr(settings, "rag_enable_query_rewrite", True)
+    monkeypatch.setattr(settings, "rag_query_rewrite_mode", "rule")
+
+    history = [
+        {"role": "user", "content": "when is the application deadline for Fall 2026"},
+        {"role": "assistant", "content": "I could not find the exact date yet."},
+    ]
+
+    result = await rewrite_query("isnt it Mar 1?", history=history)
+
+    assert "FALL 2026" not in result.rewritten_query
+
+
+async def test_rewrite_does_not_append_current_term_for_admissions_deadline(monkeypatch):
+    monkeypatch.setattr(settings, "rag_enable_query_rewrite", True)
+    monkeypatch.setattr(settings, "rag_query_rewrite_mode", "rule")
+
+    result = await rewrite_query("application deadline for MSCS")
+
+    assert "Spring" not in result.rewritten_query
+    assert "Fall" not in result.rewritten_query

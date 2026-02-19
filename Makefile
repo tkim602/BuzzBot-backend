@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: setup db-up db-down migrate ingest ingest-courses ingest-courses-all ingest-calendar ingest-all run-backend run-frontend test lint fmt usage usage-reset
+.PHONY: setup db-up db-down migrate ingest ingest-courses ingest-courses-all ingest-calendar ingest-all run-backend run-frontend test lint fmt usage usage-reset eval-debug
 
 setup:
 	pip install -e ".[dev]"
@@ -48,6 +48,10 @@ usage:
 
 usage-reset:
 	@$(PYTHON) -c "from app.core.usage import reset_usage; reset_usage(); print('Usage reset to \$$0.00')"
+
+eval-debug:
+	$(PYTHON) eval/db_coverage_audit.py
+	$(PYTHON) eval/debug_deadlines_matrix.py
 
 run-backend:
 	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
