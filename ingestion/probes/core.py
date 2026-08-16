@@ -65,22 +65,32 @@ class ProbeSession:
     def latency_ms(self) -> int:
         return int((time.monotonic() - self.started_at) * 1000)
 
-    async def get(self, url: str) -> ProbeHttpResponse:
+    async def get(
+        self,
+        url: str,
+        *,
+        retry_transient: bool = True,
+        follow_redirects: bool | None = None,
+    ) -> ProbeHttpResponse:
         last_error: str | None = None
-        for attempt in range(2):
+        attempts = 2 if retry_transient else 1
+        for attempt in range(attempts):
             if self.requests_used >= self.budget.max_requests:
                 raise RuntimeError("probe request budget exhausted")
             self.requests_used += 1
 
             try:
-                response = await self.client.get(url)
+                if follow_redirects is None:
+                    response = await self.client.get(url)
+                else:
+                    response = await self.client.get(url, follow_redirects=follow_redirects)
             except httpx.TransportError as exc:
                 last_error = str(exc)
-                if attempt == 0:
+                if attempt + 1 < attempts:
                     continue
                 return _error_response(url, last_error)
 
-            if response.status_code >= 500 and attempt == 0:
+            if response.status_code >= 500 and attempt + 1 < attempts:
                 continue
             return _safe_response(url, response)
 
@@ -92,6 +102,9 @@ def _safe_response(source_url: str, response: httpx.Response) -> ProbeHttpRespon
     content_type = response.headers.get("Content-Type")
     if content_type:
         content_type = content_type.split(";", 1)[0].strip()
+    redirect_urls = [str(item.url) for item in response.history]
+    if response.next_request is not None:
+        redirect_urls.append(str(response.next_request.url))
     return ProbeHttpResponse(
         source_url=source_url,
         final_url=str(response.url),
@@ -100,7 +113,7 @@ def _safe_response(source_url: str, response: httpx.Response) -> ProbeHttpRespon
         body=body,
         fetched_at=datetime.now(UTC).isoformat(),
         sha256=hashlib.sha256(body.encode("utf-8")).hexdigest(),
-        redirect_urls=tuple(str(item.url) for item in response.history),
+        redirect_urls=tuple(redirect_urls),
         retry_after=response.headers.get("Retry-After"),
     )
 
