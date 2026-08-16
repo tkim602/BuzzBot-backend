@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import UniqueConstraint, inspect
+import importlib
+
+from sqlalchemy import CheckConstraint, ForeignKeyConstraint, UniqueConstraint, inspect
 
 from db import models
 
@@ -39,10 +41,12 @@ def test_schedule_foreign_keys_are_version_scoped():
         "courses": {"data_versions.id"},
         "sections": {
             "data_versions.id",
+            "academic_terms.data_version_id",
             "academic_terms.id",
+            "courses.data_version_id",
             "courses.id",
         },
-        "meetings": {"data_versions.id", "sections.id"},
+        "meetings": {"data_versions.id", "sections.data_version_id", "sections.id"},
         "source_snapshots": {"data_versions.id"},
         "ingestion_errors": {"data_versions.id"},
     }
@@ -50,6 +54,77 @@ def test_schedule_foreign_keys_are_version_scoped():
     for table_name, targets in expected.items():
         table = models.Base.metadata.tables[table_name]
         assert {foreign_key.target_fullname for foreign_key in table.foreign_keys} == targets
+
+
+def test_child_references_require_the_same_data_version():
+    expected = {
+        "sections": {
+            (
+                ("data_version_id", "academic_term_id"),
+                ("academic_terms.data_version_id", "academic_terms.id"),
+            ),
+            (
+                ("data_version_id", "course_id"),
+                ("courses.data_version_id", "courses.id"),
+            ),
+        },
+        "meetings": {
+            (
+                ("data_version_id", "section_id"),
+                ("sections.data_version_id", "sections.id"),
+            ),
+        },
+    }
+
+    for table_name, required_constraints in expected.items():
+        table = models.Base.metadata.tables[table_name]
+        actual = {
+            (
+                tuple(constraint.column_keys),
+                tuple(element.target_fullname for element in constraint.elements),
+            )
+            for constraint in table.constraints
+            if isinstance(constraint, ForeignKeyConstraint)
+        }
+        assert actual >= required_constraints
+
+
+def test_parent_rows_expose_versioned_composite_keys():
+    for model in (models.AcademicTerm, models.Course, models.Section):
+        constraints = {
+            tuple(constraint.columns.keys())
+            for constraint in model.__table__.constraints
+            if isinstance(constraint, UniqueConstraint)
+        }
+        assert ("data_version_id", "id") in constraints
+
+
+def test_model_and_migration_enforce_the_same_version_states(monkeypatch):
+    model_checks = {
+        constraint.name: str(constraint.sqltext)
+        for constraint in models.DataVersion.__table__.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
+    assert "ck_data_versions_status" in model_checks
+
+    migration = importlib.import_module("db.migrations.versions.003_structured_schedule")
+    migration_checks: dict[str | None, str] = {}
+
+    def capture_table(name, *items):
+        if name == "data_versions":
+            migration_checks.update(
+                {
+                    item.name: str(item.sqltext)
+                    for item in items
+                    if isinstance(item, CheckConstraint)
+                }
+            )
+
+    monkeypatch.setattr(migration.op, "create_table", capture_table)
+    monkeypatch.setattr(migration.op, "create_index", lambda *args, **kwargs: None)
+    migration.upgrade()
+
+    assert migration_checks["ck_data_versions_status"] == model_checks["ck_data_versions_status"]
 
 
 def test_tba_meeting_fields_are_nullable():

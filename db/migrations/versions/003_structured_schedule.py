@@ -29,6 +29,10 @@ def upgrade() -> None:
             "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
         ),
         sa.Column("published_at", sa.DateTime(timezone=True), nullable=True),
+        sa.CheckConstraint(
+            "status IN ('STAGED', 'PUBLISHED', 'FAILED', 'SUPERSEDED')",
+            name="ck_data_versions_status",
+        ),
     )
     op.create_index(
         "ix_data_versions_published_lookup",
@@ -47,9 +51,8 @@ def upgrade() -> None:
         ),
         sa.Column("term_code", sa.String(16), nullable=False),
         sa.Column("display_name", sa.String(128), nullable=False),
-        sa.UniqueConstraint(
-            "data_version_id", "term_code", name="uq_academic_terms_version_code"
-        ),
+        sa.UniqueConstraint("data_version_id", "term_code", name="uq_academic_terms_version_code"),
+        sa.UniqueConstraint("data_version_id", "id", name="uq_academic_terms_version_id"),
     )
 
     op.create_table(
@@ -74,6 +77,7 @@ def upgrade() -> None:
             "course_number",
             name="uq_courses_version_subject_number",
         ),
+        sa.UniqueConstraint("data_version_id", "id", name="uq_courses_version_id"),
     )
 
     op.create_table(
@@ -85,8 +89,8 @@ def upgrade() -> None:
             sa.ForeignKey("data_versions.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("academic_term_id", sa.UUID(), sa.ForeignKey("academic_terms.id"), nullable=False),
-        sa.Column("course_id", sa.UUID(), sa.ForeignKey("courses.id"), nullable=False),
+        sa.Column("academic_term_id", sa.UUID(), nullable=False),
+        sa.Column("course_id", sa.UUID(), nullable=False),
         sa.Column("term_code", sa.String(16), nullable=False),
         sa.Column("crn", sa.String(16), nullable=False),
         sa.Column("section_code", sa.String(16), nullable=False),
@@ -95,10 +99,21 @@ def upgrade() -> None:
         sa.Column("instructional_method", sa.String(128), nullable=True),
         sa.Column("instructors_json", postgresql.JSONB(), nullable=False),
         sa.Column("notes", sa.Text(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["data_version_id", "academic_term_id"],
+            ["academic_terms.data_version_id", "academic_terms.id"],
+            name="fk_sections_version_term",
+        ),
+        sa.ForeignKeyConstraint(
+            ["data_version_id", "course_id"],
+            ["courses.data_version_id", "courses.id"],
+            name="fk_sections_version_course",
+        ),
         # The unique constraint's backing index is the term/CRN lookup index.
         sa.UniqueConstraint(
             "data_version_id", "term_code", "crn", name="uq_sections_version_term_crn"
         ),
+        sa.UniqueConstraint("data_version_id", "id", name="uq_sections_version_id"),
     )
     op.create_index(
         "ix_sections_instructors_json",
@@ -116,7 +131,7 @@ def upgrade() -> None:
             sa.ForeignKey("data_versions.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("section_id", sa.UUID(), sa.ForeignKey("sections.id"), nullable=False),
+        sa.Column("section_id", sa.UUID(), nullable=False),
         sa.Column("meeting_type", sa.String(64), nullable=False),
         sa.Column("days", sa.String(16), nullable=True),
         sa.Column("start_time", sa.Time(), nullable=True),
@@ -126,10 +141,13 @@ def upgrade() -> None:
         sa.Column("building", sa.String(256), nullable=True),
         sa.Column("room", sa.String(64), nullable=True),
         sa.Column("is_tba", sa.Boolean(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["data_version_id", "section_id"],
+            ["sections.data_version_id", "sections.id"],
+            name="fk_meetings_version_section",
+        ),
     )
-    op.create_index(
-        "ix_meetings_days_times", "meetings", ["days", "start_time", "end_time"]
-    )
+    op.create_index("ix_meetings_days_times", "meetings", ["days", "start_time", "end_time"])
 
     op.create_table(
         "source_snapshots",

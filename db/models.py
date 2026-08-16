@@ -8,10 +8,12 @@ from datetime import date, datetime, time
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -31,17 +33,13 @@ class Base(DeclarativeBase):
 class Source(Base):
     __tablename__ = "sources"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(256), nullable=False, unique=True)
     base_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     allowed: Mapped[bool] = mapped_column(Boolean, default=True)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     refresh_policy_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     documents: Mapped[list[Document]] = relationship(back_populates="source")
 
@@ -68,7 +66,9 @@ class Document(Base):
     metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     source: Mapped[Source] = relationship(back_populates="documents")
-    chunks: Mapped[list[Chunk]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    chunks: Mapped[list[Chunk]] = relationship(
+        back_populates="document", cascade="all, delete-orphan"
+    )
 
 
 class Chunk(Base):
@@ -123,9 +123,7 @@ class FetchState(Base):
     etag: Mapped[str | None] = mapped_column(String(256), nullable=True)
     last_modified: Mapped[str | None] = mapped_column(String(256), nullable=True)
     content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    last_fetched_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="pending")
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -133,9 +131,7 @@ class FetchState(Base):
 class DataVersion(Base):
     __tablename__ = "data_versions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     provider: Mapped[str] = mapped_column(String(64), nullable=False)
     requested_unit: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="STAGED")
@@ -143,9 +139,7 @@ class DataVersion(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    published_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     academic_terms: Mapped[list[AcademicTerm]] = relationship(
         back_populates="data_version", cascade="all, delete-orphan"
@@ -167,6 +161,10 @@ class DataVersion(Base):
     )
 
     __table_args__ = (
+        CheckConstraint(
+            "status IN ('STAGED', 'PUBLISHED', 'FAILED', 'SUPERSEDED')",
+            name="ck_data_versions_status",
+        ),
         Index(
             "ix_data_versions_published_lookup",
             "provider",
@@ -180,9 +178,7 @@ class DataVersion(Base):
 class AcademicTerm(Base):
     __tablename__ = "academic_terms"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     data_version_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("data_versions.id", ondelete="CASCADE"), nullable=False
     )
@@ -190,19 +186,18 @@ class AcademicTerm(Base):
     display_name: Mapped[str] = mapped_column(String(128), nullable=False)
 
     data_version: Mapped[DataVersion] = relationship(back_populates="academic_terms")
-    sections: Mapped[list[Section]] = relationship(back_populates="academic_term")
+    sections: Mapped[list[Section]] = relationship(back_populates="academic_term", viewonly=True)
 
     __table_args__ = (
         UniqueConstraint("data_version_id", "term_code", name="uq_academic_terms_version_code"),
+        UniqueConstraint("data_version_id", "id", name="uq_academic_terms_version_id"),
     )
 
 
 class Course(Base):
     __tablename__ = "courses"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     data_version_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("data_versions.id", ondelete="CASCADE"), nullable=False
     )
@@ -214,7 +209,7 @@ class Course(Base):
     prerequisites_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     data_version: Mapped[DataVersion] = relationship(back_populates="courses")
-    sections: Mapped[list[Section]] = relationship(back_populates="course")
+    sections: Mapped[list[Section]] = relationship(back_populates="course", viewonly=True)
 
     __table_args__ = (
         UniqueConstraint(
@@ -223,24 +218,19 @@ class Course(Base):
             "course_number",
             name="uq_courses_version_subject_number",
         ),
+        UniqueConstraint("data_version_id", "id", name="uq_courses_version_id"),
     )
 
 
 class Section(Base):
     __tablename__ = "sections"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     data_version_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("data_versions.id", ondelete="CASCADE"), nullable=False
     )
-    academic_term_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("academic_terms.id"), nullable=False
-    )
-    course_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("courses.id"), nullable=False
-    )
+    academic_term_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    course_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     term_code: Mapped[str] = mapped_column(String(16), nullable=False)
     crn: Mapped[str] = mapped_column(String(16), nullable=False)
     section_code: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -251,14 +241,25 @@ class Section(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     data_version: Mapped[DataVersion] = relationship(back_populates="sections")
-    academic_term: Mapped[AcademicTerm] = relationship(back_populates="sections")
-    course: Mapped[Course] = relationship(back_populates="sections")
-    meetings: Mapped[list[Meeting]] = relationship(back_populates="section")
+    academic_term: Mapped[AcademicTerm] = relationship(back_populates="sections", viewonly=True)
+    course: Mapped[Course] = relationship(back_populates="sections", viewonly=True)
+    meetings: Mapped[list[Meeting]] = relationship(back_populates="section", viewonly=True)
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["data_version_id", "academic_term_id"],
+            ["academic_terms.data_version_id", "academic_terms.id"],
+            name="fk_sections_version_term",
+        ),
+        ForeignKeyConstraint(
+            ["data_version_id", "course_id"],
+            ["courses.data_version_id", "courses.id"],
+            name="fk_sections_version_course",
+        ),
         UniqueConstraint(
             "data_version_id", "term_code", "crn", name="uq_sections_version_term_crn"
         ),
+        UniqueConstraint("data_version_id", "id", name="uq_sections_version_id"),
         Index(
             "ix_sections_instructors_json",
             "instructors_json",
@@ -270,15 +271,11 @@ class Section(Base):
 class Meeting(Base):
     __tablename__ = "meetings"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     data_version_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("data_versions.id", ondelete="CASCADE"), nullable=False
     )
-    section_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sections.id"), nullable=False
-    )
+    section_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     meeting_type: Mapped[str] = mapped_column(String(64), nullable=False)
     days: Mapped[str | None] = mapped_column(String(16), nullable=True)
     start_time: Mapped[time | None] = mapped_column(Time(), nullable=True)
@@ -290,9 +287,14 @@ class Meeting(Base):
     is_tba: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     data_version: Mapped[DataVersion] = relationship(back_populates="meetings")
-    section: Mapped[Section] = relationship(back_populates="meetings")
+    section: Mapped[Section] = relationship(back_populates="meetings", viewonly=True)
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["data_version_id", "section_id"],
+            ["sections.data_version_id", "sections.id"],
+            name="fk_meetings_version_section",
+        ),
         Index("ix_meetings_days_times", "days", "start_time", "end_time"),
     )
 
@@ -300,9 +302,7 @@ class Meeting(Base):
 class SourceSnapshot(Base):
     __tablename__ = "source_snapshots"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     data_version_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("data_versions.id", ondelete="CASCADE"), nullable=False
     )
@@ -322,9 +322,7 @@ class SourceSnapshot(Base):
 class IngestionError(Base):
     __tablename__ = "ingestion_errors"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     data_version_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("data_versions.id", ondelete="CASCADE"), nullable=False
     )
