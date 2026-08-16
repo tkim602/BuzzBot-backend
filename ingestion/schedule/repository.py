@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.orm import Session
 
 from db.models import (
@@ -121,6 +122,9 @@ def publish_collection(
         if not report.valid:
             return version_id
 
+        session.execute(
+            select(func.pg_advisory_xact_lock(_publication_lock_key(provider, requested_unit)))
+        )
         term_ids = _insert_terms(session, version_id, sections)
         course_ids = _insert_courses(session, version_id, courses)
         section_ids = _insert_sections(
@@ -143,6 +147,14 @@ def publish_collection(
             .values(status="PUBLISHED", published_at=datetime.now(UTC))
         )
     return version_id
+
+
+def _publication_lock_key(provider: str, requested_unit: str) -> int:
+    digest = hashlib.blake2b(
+        f"{provider}\0{requested_unit}".encode(),
+        digest_size=8,
+    ).digest()
+    return int.from_bytes(digest, byteorder="big", signed=True)
 
 
 def _insert_terms(
