@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     ingest_concurrency: int = 5
 
     # Usage tracking
-    usage_limit: float = 20.0  # Maximum API cost in USD
+    usage_limit: float = 3.0  # Maximum API cost in USD
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

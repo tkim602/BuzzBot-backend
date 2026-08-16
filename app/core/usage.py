@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 
 import structlog
+
+from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
 
@@ -34,6 +35,7 @@ COST_PER_MILLION = {
 USAGE_FILE = Path(__file__).resolve().parent.parent / "artifacts" / "usage.json"
 
 _lock = Lock()
+MAX_USAGE_LIMIT = 3.0
 
 
 class UsageLimitExceeded(Exception):
@@ -43,18 +45,21 @@ class UsageLimitExceeded(Exception):
 
 def _load_usage() -> dict:
     """Load usage data from file."""
-    # Import here to avoid circular dependency
-    from app.core.config import settings
-    
     if USAGE_FILE.exists():
         try:
             with open(USAGE_FILE) as f:
-                return json.load(f)
+                data = json.load(f)
+                data["limit"] = min(
+                    float(data.get("limit", settings.usage_limit)),
+                    settings.usage_limit,
+                    MAX_USAGE_LIMIT,
+                )
+                return data
         except (json.JSONDecodeError, IOError):
             pass
     return {
         "total_cost": 0.0,
-        "limit": settings.usage_limit,
+        "limit": min(settings.usage_limit, MAX_USAGE_LIMIT),
         "history": [],
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -79,19 +84,20 @@ def get_remaining_budget() -> float:
     return max(0, usage["limit"] - usage["total_cost"])
 
 
-def set_limit(limit: float) -> None:
+def set_limit(limit: float) -> float:
     """Set the usage limit in dollars."""
+    if limit < 0:
+        raise ValueError("Usage limit cannot be negative")
     with _lock:
         data = _load_usage()
-        data["limit"] = limit
+        data["limit"] = min(limit, settings.usage_limit, MAX_USAGE_LIMIT)
         _save_usage(data)
-    logger.info("usage limit updated", limit=limit)
+    logger.info("usage limit updated", limit=data["limit"])
+    return data["limit"]
 
 
 def reset_usage() -> None:
     """Reset usage tracking (keeps limit)."""
-    from app.core.config import settings
-    
     with _lock:
         data = _load_usage()
         limit = data.get("limit", settings.usage_limit)

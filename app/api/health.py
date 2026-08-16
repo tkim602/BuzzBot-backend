@@ -58,5 +58,5 @@ async def usage_reset():
 @router.post("/usage/set-limit")
 async def usage_set_limit(limit: float):
     """Set new usage limit in dollars."""
-    set_limit(limit)
-    return {"status": "ok", "limit": limit}
+    applied_limit = set_limit(limit)
+    return {"status": "ok", "limit": applied_limit}
