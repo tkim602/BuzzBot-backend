@@ -68,17 +68,39 @@ def test_partial_subject_collection_is_invalid():
     assert "COLLECTION_INCOMPLETE" in _codes(report)
 
 
+def test_normalized_subjects_must_include_every_planned_subject():
+    plan, courses, sections = _collection()
+    plan = replace(
+        plan,
+        planned_subjects=("CS", "MATH"),
+        completed_subjects=("CS", "MATH"),
+    )
+
+    report = validate_collection(plan, courses, sections, [], NOW)
+
+    assert "SUBJECT_COVERAGE_MISMATCH" in _codes(report)
+
+
+def test_normalized_subjects_must_not_include_unplanned_subjects():
+    plan, courses, sections = _collection()
+    math_course = replace(courses[0], subject="MATH")
+    math_section = replace(sections[0], course_key=("MATH", "7650"))
+
+    report = validate_collection(plan, [math_course], [math_section], [], NOW)
+
+    assert "SUBJECT_COVERAGE_MISMATCH" in _codes(report)
+
+
 def test_parse_success_below_99_percent_is_invalid():
     plan, courses, sections = _collection()
-    plan = replace(plan, records_fetched=101, records_parsed=99)
+    plan = replace(plan, records_fetched=2, records_parsed=1)
     failures = [
         ParseFailure("SECTION_HEADER_INVALID", "bad-1", "missing header"),
-        ParseFailure("SECTION_HEADER_INVALID", "bad-2", "missing header"),
     ]
 
     report = validate_collection(plan, courses, sections, failures, NOW)
 
-    assert report.parse_success_rate == pytest.approx(99 / 101)
+    assert report.parse_success_rate == pytest.approx(0.5)
     assert "PARSE_RATE_LOW" in _codes(report)
 
 
@@ -118,6 +140,57 @@ def test_invalid_parse_denominator_is_reported():
 
     assert report.parse_success_rate == 0.0
     assert "RECORD_COUNTS_INVALID" in _codes(report)
+
+
+@pytest.mark.parametrize(
+    ("records_fetched", "records_parsed", "section_count"),
+    [(2, 2, 1), (1, 1, 2)],
+)
+def test_declared_parsed_count_must_match_normalized_sections(
+    records_fetched, records_parsed, section_count
+):
+    plan, courses, sections = _collection()
+    plan = replace(plan, records_fetched=records_fetched, records_parsed=records_parsed)
+    if section_count == 2:
+        sections.append(replace(sections[0], crn="90428", section_code="B"))
+
+    report = validate_collection(plan, courses, sections, [], NOW)
+
+    assert "RECORD_COUNTS_INVALID" in _codes(report)
+
+
+@pytest.mark.parametrize("field", ["subject", "course_number", "title"])
+def test_required_course_fields_must_be_non_empty(field):
+    plan, courses, sections = _collection()
+    courses = [replace(courses[0], **{field: ""})]
+
+    report = validate_collection(plan, courses, sections, [], NOW)
+
+    assert "COURSE_FIELD_MISSING" in _codes(report)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["term_code", "term_name", "crn", "section_code", "campus", "schedule_type"],
+)
+def test_required_section_fields_must_be_non_empty(field):
+    plan, courses, sections = _collection()
+    sections = [replace(sections[0], **{field: ""})]
+
+    report = validate_collection(plan, courses, sections, [], NOW)
+
+    assert "SECTION_FIELD_MISSING" in _codes(report)
+
+
+@pytest.mark.parametrize("field", ["meeting_type", "days"])
+def test_required_timed_meeting_fields_must_be_non_empty(field):
+    plan, courses, sections = _collection()
+    meeting = replace(sections[0].meetings[0], **{field: ""})
+    sections = [replace(sections[0], meetings=(meeting,))]
+
+    report = validate_collection(plan, courses, sections, [], NOW)
+
+    assert "MEETING_FIELD_MISSING" in _codes(report)
 
 
 def test_meeting_must_be_present_or_explicitly_tba():

@@ -83,6 +83,7 @@ def validate_collection(
     counts_valid = (
         plan.records_fetched >= 0
         and 0 <= plan.records_parsed <= plan.records_fetched
+        and plan.records_parsed == len(sections)
         and len(failures) == plan.records_fetched - plan.records_parsed
     )
     parse_success_rate = (
@@ -108,12 +109,59 @@ def validate_collection(
     if not courses or not sections or plan.records_fetched == 0:
         issues.append(ValidationIssue("EMPTY_COLLECTION", None, "Collection has no usable records"))
 
+    planned_subjects = set(plan.planned_subjects)
+    course_subjects = {course.subject for course in courses}
+    section_subjects = {section.course_key[0] for section in sections}
+    if course_subjects != planned_subjects or section_subjects != planned_subjects:
+        issues.append(
+            ValidationIssue(
+                "SUBJECT_COVERAGE_MISMATCH",
+                None,
+                "Normalized course and section subjects must exactly match the plan",
+            )
+        )
+
+    for course in courses:
+        if (
+            not course.subject.strip()
+            or not course.course_number.strip()
+            or not course.title.strip()
+        ):
+            record_id = f"{course.subject} {course.course_number}".strip() or None
+            issues.append(
+                ValidationIssue(
+                    "COURSE_FIELD_MISSING",
+                    record_id,
+                    "Course subject, number, and title are required",
+                )
+            )
+
     course_keys = {(course.subject, course.course_number) for course in courses}
     if len(course_keys) != len(courses):
         issues.append(ValidationIssue("DUPLICATE_COURSE", None, "Course keys must be unique"))
 
     seen_sections: set[tuple[str, str]] = set()
     for section in sections:
+        if any(
+            not value.strip()
+            for value in (
+                section.term_code,
+                section.term_name,
+                section.crn,
+                *section.course_key,
+                section.section_code,
+                section.campus,
+                section.schedule_type,
+            )
+        ):
+            issues.append(
+                ValidationIssue(
+                    "SECTION_FIELD_MISSING",
+                    section.crn or None,
+                    "Section term, CRN, course key, code, campus, and type are required",
+                )
+            )
+
         section_key = (section.term_code, section.crn)
         if section_key in seen_sections:
             issues.append(
@@ -151,6 +199,17 @@ def validate_collection(
                 )
             )
         for meeting in section.meetings:
+            if not meeting.meeting_type.strip() or (
+                not meeting.is_tba and not meeting.days.strip()
+            ):
+                issues.append(
+                    ValidationIssue(
+                        "MEETING_FIELD_MISSING",
+                        section.crn or None,
+                        "Meeting type and non-TBA days are required",
+                    )
+                )
+
             has_any_time = meeting.start_time is not None or meeting.end_time is not None
             missing_any_time = meeting.start_time is None or meeting.end_time is None
             if (meeting.is_tba and has_any_time) or (not meeting.is_tba and missing_any_time):
