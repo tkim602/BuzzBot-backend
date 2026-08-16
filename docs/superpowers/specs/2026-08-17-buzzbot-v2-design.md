@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-17
 
-**Status:** Approved design
+**Status:** Final approved design
 
 **Primary goal:** Build a read-only Georgia Tech student information assistant that answers from verified, versioned evidence and can be deployed as a portfolio-quality public service.
 
@@ -30,25 +30,37 @@ Current-seat answers are excluded until a separate public-access validation prov
 6. **Observable evidence, not model confidence.** Responses report evidence status, source type, and data timestamp.
 7. **Optimize measured bottlenecks.** Keep module boundaries clear, reuse existing dependencies, and avoid speculative abstractions or infrastructure.
 
-## 3. Source Authority and Failure Policy
+## 3. Claim-Specific Authority and Failure Policy
 
-Source priority:
+Authority is selected by claim type rather than by one global source ranking.
 
-1. Public OSCAR Schedule of Classes
-2. Last-known-good validated OSCAR snapshot
-3. Official GT documents such as Registrar, Catalog, Calendar, and OMSCS pages
-4. GT Scheduler as a comparison/reference dataset, and only later as an explicitly labeled secondary provider if its reuse conditions are acceptable
-5. Abstain and direct the user to OSCAR when evidence is unavailable
+| Claim type | Primary authority | Fallback behavior |
+| --- | --- | --- |
+| Term offering, CRN, section, instructor, time, location | Current public OSCAR | Last-known-good OSCAR snapshot within its maximum age |
+| Course description, credits, prerequisites | GT Catalog, with OSCAR details where term-specific | Cite the available official source and identify any conflict |
+| Degree and specialization requirements | Applicable GT Catalog edition | Official program documentation for program-specific clarification |
+| Registration policy and procedures | Registrar | Abstain and link to Registrar if evidence is unavailable |
+| Academic dates and deadlines | Official Academic Calendar | No third-party fallback for exact deadlines |
+| OMSCS-specific rules | Official OMSCS/GT documentation | Catalog or Registrar only for the portion they govern |
+| Comparison and ingestion debugging | GT Scheduler | Never silently merge it into official evidence |
 
-Public OSCAR is the primary source of truth, but its current HTML routes are not treated as a stable official API contract. Provider code must therefore isolate page/session details behind one OSCAR adapter and retain raw snapshots for replay and parser regression tests.
+Public OSCAR is the primary source of truth for term-specific schedule claims, but its current HTML routes are not treated as a stable official API contract. Provider code must therefore isolate page/session details behind one OSCAR adapter and retain raw snapshots for replay and parser regression tests.
 
 The system must never replace a valid published dataset with a failed, partial, empty, or schema-incompatible collection.
+
+Every dataset has a configured freshness target and hard maximum age. Internal freshness states are deliberately limited to:
+
+- `CURRENT`: within the freshness target
+- `STALE`: older than the target but within the hard maximum; answers must include `data_as_of` and a warning
+- `EXPIRED`: older than the hard maximum; volatile claims cannot be answered from the snapshot
+
+For current/future-term OSCAR schedules, the initial defaults are a 6-hour freshness target and a 24-hour hard maximum. Historical completed-term schedules do not expire for historical claims, but still retain `data_as_of`. Official-document freshness is configured per source because calendars, catalogs, and policy pages change at different rates.
 
 ## 4. Probe-First Collection
 
 Every collection run begins with a provider probe. A probe is a real but deliberately small sample, not a complete preflight crawl.
 
-Default limits:
+Default probe budget:
 
 - at most 5 HTTP requests per provider
 - at most 20 parsed records
@@ -56,7 +68,11 @@ Default limits:
 - 15-second request timeout
 - concurrency of 2 across providers
 - one retry only for transient 5xx or connection errors
-- stop immediately on authentication redirects, repeated 429 responses, forbidden access, or incompatible markup
+- stop immediately on authentication redirects, any 429 response, forbidden access, or incompatible markup
+
+Providers may define a smaller budget or an explicitly reviewed larger budget when their public navigation handshake requires it. Budget changes are configuration, must remain bounded, and must not be inferred dynamically by crawling more URLs.
+
+An HTTP 429 is not retried during a probe. The probe records `RATE_LIMITED`, captures `Retry-After` when present, prohibits bulk synchronization, and leaves retry scheduling to a later run.
 
 The OSCAR probe should verify one known term/course listing and, where public, its detail page. Document-source probes should fetch only the configured root and one representative content page.
 
@@ -71,7 +87,8 @@ Each probe returns a machine-readable report:
   "required_fields_present": true,
   "latency_ms": 420,
   "status": "READY",
-  "reason": null
+  "reason": null,
+  "retry_after_seconds": null
 }
 ```
 
@@ -96,9 +113,11 @@ Public OSCAR
   -> deterministic parser
   -> typed normalized records
   -> staging tables
-  -> schema and integrity gates
+  -> schema, integrity, coverage, and freshness gates
   -> atomic publish of a new data version
 ```
+
+Raw snapshots persist only the response body, status code, content type, fetch timestamp, source URL, and SHA-256 hash. They must not persist `Set-Cookie`, session identifiers, authorization headers, GT credentials, CSRF values, or other transient request tokens.
 
 Required publish gates:
 
@@ -106,7 +125,11 @@ Required publish gates:
 - at least 99% of fetched records parse successfully
 - `(term_code, crn)` is unique
 - every section references a course
+- every meeting references a section
 - required section fields are present or explicitly marked TBA
+- requested term and subject coverage matches the collection plan
+- parsed counts match source-reported totals when available
+- an unexplained large drop from the last-known-good snapshot fails publication or requires explicit review
 - source URL, fetch timestamp, snapshot hash, parser version, and data version are recorded
 
 If any gate fails, the staged version is rejected and the last-known-good version remains active.
@@ -191,10 +214,10 @@ Formatted prompts and unrestricted database results are not persisted in graph s
 
 - `VERIFIED`: all required claims have valid evidence
 - `PARTIAL`: only part of the question is supported
-- `STALE`: a last-known-good snapshot is usable but outside its freshness target
+- `STALE`: a last-known-good snapshot is outside its freshness target but still within its hard maximum
 - `INSUFFICIENT`: the system must abstain or ask a clarifying question
 
-The model does not assign its own `high/medium/low` confidence label.
+An expired volatile dataset produces `INSUFFICIENT`, not `STALE`. The model does not assign its own `high/medium/low` confidence label.
 
 ## 8. Module and Dependency Boundaries
 
@@ -286,9 +309,12 @@ Local development uses Docker Compose. Public deployment uses the same container
 Data acceptance:
 
 - probe prevents bulk execution for inaccessible or incompatible providers
+- one 429 marks the provider `RATE_LIMITED` without an immediate retry
+- snapshots contain no cookies, session identifiers, credentials, or transient request tokens
 - parser success at least 99% for accepted schedule snapshots
 - zero duplicate `(term_code, crn)` rows
 - 100% section-to-course referential integrity
+- collected term/subject coverage and record-count envelopes are validated before publication
 - no partial batch can replace the last-known-good version
 - changed-only document embedding is demonstrated
 
@@ -318,6 +344,9 @@ Evaluation categories include policy, calendar, course details, prerequisites, t
 
 - [OSCAR](https://oscar.gatech.edu/)
 - [Georgia Tech Schedule of Classes](https://registrar.gatech.edu/current-students/schedule-of-classes)
+- [Georgia Tech Catalog](https://catalog.gatech.edu/)
+- [Georgia Tech Academic Calendar](https://registrar.gatech.edu/calendar)
+- [Georgia Tech Acceptable Use Policy](https://policylibrary.gatech.edu/information-technology/acceptable-use-policy)
 - [GT Scheduler crawler-v2](https://github.com/gt-scheduler/crawler-v2)
 - [LangGraph Agentic RAG](https://docs.langchain.com/oss/python/langgraph/agentic-rag)
 - [LangGraph persistence](https://docs.langchain.com/oss/python/langgraph/persistence)
