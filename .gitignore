@@ -39,3 +39,6 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Isolated implementation worktrees
+.worktrees/
