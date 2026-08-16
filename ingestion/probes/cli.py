@@ -32,7 +32,7 @@ async def run_oscar_probe(
     async with httpx.AsyncClient(
         transport=transport,
         timeout=httpx.Timeout(budget.timeout_seconds),
-        follow_redirects=True,
+        follow_redirects=False,
         headers={"User-Agent": USER_AGENT},
     ) as client:
         result, response = await probe_oscar(

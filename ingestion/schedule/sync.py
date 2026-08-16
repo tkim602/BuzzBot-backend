@@ -85,7 +85,7 @@ async def sync_subject(
     async with httpx.AsyncClient(
         transport=transport,
         timeout=httpx.Timeout(budget.timeout_seconds),
-        follow_redirects=True,
+        follow_redirects=False,
         headers={"User-Agent": USER_AGENT},
     ) as client:
         probe_session = ProbeSession(client, budget)

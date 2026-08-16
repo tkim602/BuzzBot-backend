@@ -49,6 +49,33 @@ async def test_probe_failure_prevents_subject_fetch_and_database_access(tmp_path
 
 
 @pytest.mark.asyncio
+async def test_sync_probe_stops_before_auth_redirect(tmp_path: Path):
+    urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        urls.append(str(request.url))
+        return httpx.Response(
+            302,
+            request=request,
+            headers={"Location": "https://sso.gatech.edu/login"},
+        )
+
+    result = await sync_subject(
+        "202608",
+        "CS",
+        "7650",
+        tmp_path,
+        _never_open_database,
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is SyncOutcome.PROBE_FAILED
+    assert result.probe_status is ProbeStatus.AUTH_REQUIRED
+    assert result.requests_used == len(urls) == 1
+    assert httpx.URL(urls[0]).host == "oscar.gatech.edu"
+
+
+@pytest.mark.asyncio
 async def test_ready_probe_allows_exactly_one_subject_request_and_publication(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

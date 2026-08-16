@@ -100,9 +100,11 @@ async def test_probe_classifies_429_without_retry():
 
 @pytest.mark.asyncio
 async def test_probe_rejects_login_redirect():
+    calls = 0
+
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.host == "sso.gatech.edu":
-            return httpx.Response(200, text="login", request=request)
+        nonlocal calls
+        calls += 1
         return httpx.Response(
             302,
             headers={"Location": "https://sso.gatech.edu/login"},
@@ -111,13 +113,14 @@ async def test_probe_rejects_login_redirect():
 
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(handler),
-        follow_redirects=True,
+        follow_redirects=False,
     ) as client:
         session = ProbeSession(client, ProbeBudget())
         result, _ = await probe_oscar(session, "202608", "CS", "7650")
 
     assert result.status is ProbeStatus.AUTH_REQUIRED
     assert result.public_access is False
+    assert result.requests_used == calls == 1
 
 
 @pytest.mark.asyncio
