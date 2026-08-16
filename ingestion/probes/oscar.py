@@ -120,7 +120,8 @@ async def probe_oscar(
     if _requires_auth(response):
         return _result(session, ProbeStatus.AUTH_REQUIRED, response, reason="LOGIN_REDIRECT"), response
     if response.status_code == 429:
-        retry_after = int(response.retry_after) if (response.retry_after or "").isdigit() else None
+        retry_header = response.retry_after
+        retry_after = int(retry_header) if retry_header and retry_header.isdigit() else None
         return (
             _result(
                 session,
