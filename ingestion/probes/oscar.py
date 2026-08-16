@@ -46,6 +46,12 @@ class OscarSectionSample:
     meetings: tuple[OscarMeetingSample, ...]
 
 
+@dataclass(frozen=True)
+class OscarParseFailure:
+    error_code: str
+    raw_header: str
+
+
 def build_listing_url(term: str, subject: str, course: str) -> str:
     query = urlencode(
         {
@@ -58,28 +64,40 @@ def build_listing_url(term: str, subject: str, course: str) -> str:
     return f"{OSCAR_LISTING_URL}?{query}"
 
 
-def parse_schedule_listing(html: str, max_records: int) -> list[OscarSectionSample]:
+def parse_schedule_listing(
+    html: str,
+    max_records: int | None,
+) -> tuple[list[OscarSectionSample], list[OscarParseFailure]]:
     tree = lxml_html.fromstring(html)
     tables = tree.xpath(
         "//table[caption[normalize-space(.)='Sections Found']]"
     )
     if not tables:
-        return []
+        return [], []
 
     sections: list[OscarSectionSample] = []
+    failures: list[OscarParseFailure] = []
+    records_seen = 0
     rows = tables[0].xpath("./tr | ./tbody/tr")
     for row in rows:
         title_cells = row.xpath("./th[contains(concat(' ', normalize-space(@class), ' '), ' ddtitle ')]")
         if not title_cells:
             continue
-        match = SECTION_TITLE_RE.match(_text(title_cells[0]))
+        if max_records is not None and records_seen >= max_records:
+            break
+        records_seen += 1
+        raw_header = _text(title_cells[0])
+        match = SECTION_TITLE_RE.match(raw_header)
         if not match:
+            failures.append(OscarParseFailure("SECTION_HEADER_INVALID", raw_header))
             continue
         detail_rows = row.xpath("following-sibling::tr[1]")
         if not detail_rows:
+            failures.append(OscarParseFailure("SECTION_DETAIL_MISSING", raw_header))
             continue
         detail_cells = detail_rows[0].xpath("./td")
         if not detail_cells:
+            failures.append(OscarParseFailure("SECTION_DETAIL_MISSING", raw_header))
             continue
 
         detail = detail_cells[0]
@@ -104,9 +122,7 @@ def parse_schedule_listing(html: str, max_records: int) -> list[OscarSectionSamp
                 meetings=tuple(meetings),
             )
         )
-        if len(sections) >= max_records:
-            break
-    return sections
+    return sections, failures
 
 
 async def probe_oscar(
@@ -139,7 +155,7 @@ async def probe_oscar(
         return _result(session, ProbeStatus.UNAVAILABLE, response, reason=reason), response
 
     try:
-        sections = parse_schedule_listing(response.body, session.budget.max_records)
+        sections, _ = parse_schedule_listing(response.body, session.budget.max_records)
     except (ValueError, TypeError) as exc:
         return _result(session, ProbeStatus.PARSE_FAILED, response, reason=str(exc)), response
     if not sections:

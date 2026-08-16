@@ -10,7 +10,7 @@ FIXTURE = Path("tests/fixtures/oscar_schedule_sample.html")
 
 
 def test_parse_schedule_listing_extracts_structured_fields():
-    sections = parse_schedule_listing(FIXTURE.read_text(), max_records=20)
+    sections, failures = parse_schedule_listing(FIXTURE.read_text(), max_records=20)
 
     assert len(sections) == 2
     assert sections[0].crn == "90427"
@@ -26,12 +26,27 @@ def test_parse_schedule_listing_extracts_structured_fields():
     assert sections[0].meetings[0].instructor == "Kartik Goyal"
     assert sections[1].meetings[0].time == "TBA"
     assert sections[1].meetings[0].days == ""
+    assert failures == []
 
 
 def test_parse_schedule_listing_stops_at_record_limit():
-    sections = parse_schedule_listing(FIXTURE.read_text(), max_records=1)
+    sections, failures = parse_schedule_listing(FIXTURE.read_text(), max_records=1)
 
     assert [section.crn for section in sections] == ["90427"]
+    assert failures == []
+
+
+def test_parse_schedule_listing_unlimited_retains_malformed_sections():
+    malformed = FIXTURE.read_text().replace(
+        "Natural Language - 90427 - CS 7650 - A",
+        "invalid section header",
+    )
+
+    sections, failures = parse_schedule_listing(malformed, max_records=None)
+
+    assert [section.crn for section in sections] == ["89627"]
+    assert len(failures) == 1
+    assert failures[0].error_code == "SECTION_HEADER_INVALID"
 
 
 def test_build_listing_url_encodes_query():
