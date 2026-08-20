@@ -85,7 +85,9 @@ documents:
     allowed_roots: [https://catalog.gatech.edu/]
     seed_urls: [https://catalog.gatech.edu/programs/]
     allowed_path_prefixes: [/programs, /academics]
-    excluded_paths: [/academics/research-support-facilities/oak-ridge-associated-universities]
+    excluded_paths:
+      - /academics/research-support-facilities/oak-ridge-associated-universities
+      - /programs/management-ms-executive
     content_types: [text/html, application/pdf]
     freshness_class: low
     profiles: [run3]
@@ -112,9 +114,9 @@ documents:
     allowed_roots: [https://registrar.gatech.edu/]
     seed_urls:
       - https://registrar.gatech.edu/transfer-credit
-      - https://registrar.gatech.edu/transcripts
-      - https://registrar.gatech.edu/graduation
-    allowed_path_prefixes: [/transfer-credit, /transcripts, /graduation, /records, /readmission, /withdrawal]
+      - https://registrar.gatech.edu/current-students/transcripts
+      - https://registrar.gatech.edu/current-students/degree-information
+    allowed_path_prefixes: [/transfer-credit, /current-students/transcripts, /current-students/degree-information, /records, /readmission, /withdrawal]
     content_types: [text/html, application/pdf]
     freshness_class: medium
     profiles: [run3]
@@ -144,6 +146,7 @@ documents:
     allowed_roots: [https://finaid.gatech.edu/]
     seed_urls: [https://finaid.gatech.edu/manage-aid/consumer-information, https://finaid.gatech.edu/updates]
     allowed_path_prefixes: [/manage-aid, /apply, /types-of-aid, /costs, /updates]
+    excluded_paths: [/manage-aid/grade-substitution]
     content_types: [text/html, application/pdf]
     freshness_class: high
     profiles: [run3]
@@ -181,6 +184,7 @@ documents:
     vertical: health_support
     adapter: paths
     allowed_roots: [https://health.gatech.edu/]
+    allowed_redirect_roots: [https://c14750.wpmucdn.com/2790/files/]
     seed_urls: [https://health.gatech.edu/immunization-requirements/]
     allowed_path_prefixes: [/immunization-requirements, /insurance, /services, /files]
     content_types: [text/html, application/pdf]
@@ -221,7 +225,10 @@ documents:
     adapter: paths
     allowed_roots: [https://isss.oie.gatech.edu/]
     seed_urls: [https://isss.oie.gatech.edu/isss/travel, https://isss.oie.gatech.edu/content/international-student-employment-overview]
-    allowed_path_prefixes: [/isss, /content, /sites/default/files]
+    allowed_path_prefixes: [/isss, /content, /i-20-and-ds-2019-form-guides, /sites/default/files]
+    excluded_paths:
+      - /content/isss-welcome
+      - /sites/default/files/i-94_instructions_updated.pdf
     content_types: [text/html, application/pdf]
     freshness_class: high
     profiles: [run3]
@@ -260,7 +267,7 @@ documents:
     adapter: paths
     allowed_roots: [https://www.success.gatech.edu/]
     seed_urls: [https://www.success.gatech.edu/academic-success/, https://www.success.gatech.edu/tutoring/plus/]
-    allowed_path_prefixes: [/academic-success, /tutoring, /success]
+    allowed_path_prefixes: [/academic-success, /tutoring, /success, /pre-graduate-advising, /pre-health, /pre-teaching]
     content_types: [text/html, application/pdf]
     freshness_class: medium
     profiles: [run3]
