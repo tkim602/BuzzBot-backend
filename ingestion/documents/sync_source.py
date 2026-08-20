@@ -9,8 +9,10 @@ import httpx
 from lxml.etree import ParserError
 from sqlalchemy.orm import Session
 
+from ingestion.documents.admission import discover_urls as discover_admission_urls
 from ingestion.documents.catalog import discover_urls as discover_catalog_urls
 from ingestion.documents.discovery import MaxUrlsExceededError
+from ingestion.documents.omscs import discover_urls as discover_omscs_urls
 from ingestion.documents.registrar import discover_urls as discover_registrar_urls
 from ingestion.documents.registry import DocumentSource
 from ingestion.documents.sync import (
@@ -104,6 +106,10 @@ async def _discover(
             urls = discover_registrar_urls(source, response.text)
         elif source.name == "gt-catalog":
             urls = discover_catalog_urls(source, response.text)
+        elif source.name == "gt-omscs":
+            urls = discover_omscs_urls(source, response.text)
+        elif source.name == "gt-admission":
+            urls = discover_admission_urls(source, response.text)
         else:
             raise ValueError("unsupported document discovery source")
     except MaxUrlsExceededError:

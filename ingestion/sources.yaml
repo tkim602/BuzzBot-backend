@@ -25,15 +25,28 @@ documents:
     source_type: omscs_policy
     authority: omscs
     allowed_roots: [https://omscs.gatech.edu/]
-    seed_urls: [https://omscs.gatech.edu/admission-criteria]
+    seed_urls:
+      - https://omscs.gatech.edu/admission-criteria
+      - https://omscs.gatech.edu/degree-requirements
+      - https://omscs.gatech.edu/current-courses
+      - https://omscs.gatech.edu/prospective-student-faqs
+      - https://omscs.gatech.edu/specializations
+      - https://omscs.gatech.edu/cost-and-payment-schedule
     max_urls: 10
 
   - name: gt-admission
     source_type: admissions
     authority: admissions
-    allowed_roots: [https://admission.gatech.edu/]
-    seed_urls: [https://admission.gatech.edu/first-year/deadlines]
-    max_urls: 5
+    allowed_roots: [https://admission.gatech.edu/first-year/]
+    seed_urls:
+      - https://admission.gatech.edu/first-year/
+      - https://admission.gatech.edu/first-year/deadlines
+      - https://admission.gatech.edu/first-year/application-review
+      - https://admission.gatech.edu/first-year/academic-preparation
+      - https://admission.gatech.edu/first-year/personal-essays
+      - https://admission.gatech.edu/first-year/recommendations
+      - https://admission.gatech.edu/first-year/major-selection
+    max_urls: 30
 
 blocked_sources:
   - name: ratemyprofessors
