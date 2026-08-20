@@ -9,6 +9,8 @@ from enum import StrEnum
 from urllib.parse import urljoin
 
 import httpx
+from lxml import html as lxml_html
+from lxml.etree import ParserError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -36,6 +38,10 @@ class DocumentSyncOutcome(StrEnum):
     EXTRACT_FAILED = "EXTRACT_FAILED"
     RATE_LIMITED = "RATE_LIMITED"
     AUTH_REQUIRED = "AUTH_REQUIRED"
+
+
+class DocumentQualityError(ValueError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -136,9 +142,18 @@ async def sync_document_source(
             last_modified=response.headers.get("Last-Modified"),
             edition=calendar.edition,
         )
-    with session_factory() as session:
-        changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
-        session.commit()
+    try:
+        with session_factory() as session:
+            changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
+            session.commit()
+    except DocumentQualityError:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.EXTRACT_FAILED,
+            requests_used,
+            fetched=1,
+            reason="QUALITY_GATE_FAILED",
+        )
 
     return DocumentSyncResult(
         source.name,
@@ -200,6 +215,14 @@ async def sync_document_url(
             document = session.scalar(
                 select(Document).where(Document.canonical_url == canonical_url)
             )
+            if document is not None and (not document.title or not document.content_text):
+                return DocumentSyncResult(
+                    source.name,
+                    DocumentSyncOutcome.EXTRACT_FAILED,
+                    requests_used,
+                    fetched=1,
+                    reason="QUALITY_GATE_FAILED",
+                )
             if document is not None and document.content_text:
                 stored_chunks = session.scalars(
                     select(Chunk).where(Chunk.doc_id == document.doc_id)
@@ -220,8 +243,19 @@ async def sync_document_url(
                         ),
                         edition=_edition(f"{document.title or ''}\n{document.content_text}"),
                     )
-                    changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
-                    session.commit()
+                    try:
+                        changed, chunks_indexed = _store_document(
+                            session, source, fetched, embed_fn
+                        )
+                        session.commit()
+                    except DocumentQualityError:
+                        return DocumentSyncResult(
+                            source.name,
+                            DocumentSyncOutcome.EXTRACT_FAILED,
+                            requests_used,
+                            fetched=1,
+                            reason="QUALITY_GATE_FAILED",
+                        )
                     return DocumentSyncResult(
                         source.name,
                         DocumentSyncOutcome.INDEXED,
@@ -261,6 +295,18 @@ async def sync_document_url(
             fetched=1,
             reason="EXTRACTION_FAILED",
         )
+    if (
+        not extracted.title
+        or not extracted.title.strip()
+        or _is_recognized_error_page(response.text, extracted.title)
+    ):
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.EXTRACT_FAILED,
+            requests_used,
+            fetched=1,
+            reason="QUALITY_GATE_FAILED",
+        )
     fetched = FetchedDocument(
         source_url=canonical_url,
         canonical_url=canonical_url,
@@ -271,9 +317,18 @@ async def sync_document_url(
         last_modified=response.headers.get("Last-Modified"),
         edition=_edition(f"{extracted.title or ''}\n{extracted.text}"),
     )
-    with session_factory() as session:
-        changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
-        session.commit()
+    try:
+        with session_factory() as session:
+            changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
+            session.commit()
+    except DocumentQualityError:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.EXTRACT_FAILED,
+            requests_used,
+            fetched=1,
+            reason="QUALITY_GATE_FAILED",
+        )
     return DocumentSyncResult(
         source.name,
         DocumentSyncOutcome.INDEXED if changed else DocumentSyncOutcome.UNCHANGED,
@@ -300,6 +355,8 @@ def _store_document(
     fetched: FetchedDocument,
     embed_fn,
 ) -> tuple[bool, int]:
+    if not fetched.title or not fetched.title.strip() or not fetched.text.strip():
+        raise DocumentQualityError("document title and body are required")
     source_id = upsert_source(
         session,
         source.name,
@@ -346,6 +403,15 @@ def _store_document(
             )
             return False, len(stored_chunks)
 
+    chunks = chunk_text(
+        fetched.text,
+        chunk_size=500,
+        chunk_overlap=80,
+        min_chunk_size=min_chunk_size,
+        metadata=metadata,
+    )
+    if not chunks:
+        raise DocumentQualityError("document produced no chunks")
     document_id = upsert_document(
         session,
         source_id,
@@ -355,13 +421,6 @@ def _store_document(
         digest,
         fetched.etag,
         fetched.last_modified,
-    )
-    chunks = chunk_text(
-        fetched.text,
-        chunk_size=500,
-        chunk_overlap=80,
-        min_chunk_size=min_chunk_size,
-        metadata=metadata,
     )
     indexed = index_chunks(
         session,
@@ -374,6 +433,8 @@ def _store_document(
         fetched.fetched_at,
         embed_fn,
     )
+    if indexed != len(chunks):
+        raise DocumentQualityError("document chunks were not fully indexed")
     update_fetch_state(
         session,
         fetched.source_url,
@@ -392,3 +453,28 @@ def _edition(text: str) -> str | None:
 
 def _retry_after_seconds(value: str | None) -> int | None:
     return int(value) if value and value.isdigit() else None
+
+
+def _is_recognized_error_page(body: str, title: str) -> bool:
+    normalized_title = " ".join(title.lower().split())
+    error_titles = (
+        "access denied",
+        "forbidden",
+        "page not found",
+        "just a moment",
+        "request rejected",
+        "attention required",
+        "service unavailable",
+        "temporarily unavailable",
+        "internal server error",
+        "sign in",
+        "log in",
+        "login",
+    )
+    if normalized_title == "error" or any(item in normalized_title for item in error_titles):
+        return True
+    try:
+        root = lxml_html.fromstring(body)
+    except (ParserError, TypeError, ValueError):
+        return False
+    return bool(root.xpath("//input[translate(@type, 'PASSWORD', 'password')='password']"))

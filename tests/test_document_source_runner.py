@@ -146,6 +146,23 @@ async def test_safety_ceiling_fails_planning_before_verification_limit(sessions)
 
 
 @pytest.mark.asyncio
+async def test_empty_discovery_body_fails_closed_without_parser_exception(sessions):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="", request=request)
+
+    summary = await sync_document_source_urls(
+        _source(),
+        sessions,
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert summary.status == "FAILED"
+    assert summary.stop_reason == "DISCOVERY_PARSE_FAILED"
+    assert summary.planned == 0
+
+
+@pytest.mark.asyncio
 async def test_resume_uses_only_stored_incomplete_urls_without_discovery(monkeypatch, sessions):
     source = _source()
     run_id = create_run(sessions, PROVIDER, {"source": source.name}, concurrency=1)

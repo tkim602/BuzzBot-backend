@@ -13,6 +13,8 @@
 - Added immutable manifest resume and per-URL result JSON through the existing orchestration.
 - Kept document/chunk/embedding replacement atomic per URL with no implicit deletion.
 - Kept healthy unchanged documents free from re-embedding and added repair for invalid stored chunks.
+- Added fail-closed title, login/block/error-page, and nonzero fully-indexed chunk quality gates.
+- Mapped empty or malformed lxml discovery documents to `DISCOVERY_PARSE_FAILED`.
 
 ## Discovery coverage
 
@@ -77,4 +79,3 @@ Bounded smoke only:
 make sync-doc-many source=gt-registrar verification_limit=2
 make sync-doc-many source=gt-catalog verification_limit=2
 ```
-

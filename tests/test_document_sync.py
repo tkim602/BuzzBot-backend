@@ -11,10 +11,12 @@ from ingestion.documents.sync import (
     DocumentSyncOutcome,
     FetchedDocument,
     _edition,
+    _is_recognized_error_page,
     _store_document,
     sync_document_source,
     sync_document_url,
 )
+from ingestion.extract import ExtractedContent
 from ingestion.index import get_embedding_function
 from ingestion.normalize import content_hash
 
@@ -203,6 +205,71 @@ async def test_one_url_sync_rejects_outside_allowlist_without_request():
     assert result.outcome is DocumentSyncOutcome.FETCH_FAILED
     assert result.requests_used == 0
     assert result.reason == "URL_NOT_ALLOWED"
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_rejects_missing_title_as_quality_failure(monkeypatch):
+    html = "<html><body>" + "official policy text " * 30 + "</body></html>"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=html, request=request)
+
+    monkeypatch.setattr(
+        "ingestion.documents.sync.extract_content",
+        lambda url, body: ExtractedContent(url, None, "official policy text " * 30),
+    )
+    monkeypatch.setattr(
+        "ingestion.documents.sync._store_document",
+        lambda *args: (_ for _ in ()).throw(AssertionError("quality failure must not store")),
+    )
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        _source().seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is DocumentSyncOutcome.EXTRACT_FAILED
+    assert result.reason == "QUALITY_GATE_FAILED"
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_rejects_recognized_login_page(monkeypatch):
+    html = """
+    <html><title>Georgia Tech Sign In</title><body>
+      <form action="/login"><input name="username"><input type="password"></form>
+      Sign in with your Georgia Tech account to continue.
+    </body></html>
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=html, request=request)
+
+    monkeypatch.setattr(
+        "ingestion.documents.sync._store_document",
+        lambda *args: (_ for _ in ()).throw(AssertionError("login page must not store")),
+    )
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        _source().seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is DocumentSyncOutcome.EXTRACT_FAILED
+    assert result.reason == "QUALITY_GATE_FAILED"
+
+
+def test_recognized_error_titles_do_not_reject_legitimate_error_documentation():
+    assert _is_recognized_error_page("<html></html>", "Access Denied")
+    assert _is_recognized_error_page("<html></html>", "Attention Required! | Cloudflare")
+    assert not _is_recognized_error_page("<html></html>", "Registration Error Messages | Registrar")
 
 
 @pytest.mark.asyncio
@@ -445,10 +512,10 @@ def test_calendar_store_uses_short_fact_chunk_threshold(monkeypatch: pytest.Monk
 
     def fake_chunk_text(text, **kwargs):
         captured.update(kwargs)
-        return []
+        return [object()]
 
     monkeypatch.setattr("ingestion.documents.sync.chunk_text", fake_chunk_text)
-    monkeypatch.setattr("ingestion.documents.sync.index_chunks", lambda *args: 0)
+    monkeypatch.setattr("ingestion.documents.sync.index_chunks", lambda *args: 1)
     monkeypatch.setattr("ingestion.documents.sync.update_fetch_state", lambda *args: None)
 
     _store_document(session, source, fetched, lambda texts: [])
@@ -479,10 +546,10 @@ def test_unchanged_document_reindexes_only_when_stored_chunks_are_invalid(monkey
     monkeypatch.setattr("ingestion.documents.sync.upsert_source", lambda *args: "source-id")
     monkeypatch.setattr("ingestion.documents.sync.upsert_document", lambda *args: "doc-id")
     monkeypatch.setattr("ingestion.documents.sync.chunk_text", lambda *args, **kwargs: [object()])
-    monkeypatch.setattr("ingestion.documents.sync.index_chunks", lambda *args: 2)
+    monkeypatch.setattr("ingestion.documents.sync.index_chunks", lambda *args: 1)
     monkeypatch.setattr("ingestion.documents.sync.update_fetch_state", lambda *args: None)
 
     changed, indexed = _store_document(session, source, fetched, lambda texts: [])
 
     assert changed is True
-    assert indexed == 2
+    assert indexed == 1

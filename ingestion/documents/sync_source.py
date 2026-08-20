@@ -6,6 +6,7 @@ from contextlib import AbstractContextManager
 from urllib.parse import urljoin
 
 import httpx
+from lxml.etree import ParserError
 from sqlalchemy.orm import Session
 
 from ingestion.documents.catalog import discover_urls as discover_catalog_urls
@@ -107,7 +108,7 @@ async def _discover(
             raise ValueError("unsupported document discovery source")
     except MaxUrlsExceededError:
         return (), "MAX_URLS_EXCEEDED"
-    except (TypeError, ValueError):
+    except (ParserError, TypeError, ValueError):
         return (), "DISCOVERY_PARSE_FAILED"
     if verification_limit is not None:
         urls = urls[:verification_limit]

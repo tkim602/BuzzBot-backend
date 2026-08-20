@@ -81,6 +81,9 @@ make resume-doc-run source=gt-registrar run_id=<RUN_ID>
 
 Each canonical URL is committed independently. Failed URL updates roll back and preserve the
 previous document, chunks, and embeddings; the runner never deletes documents implicitly.
+HTML documents must have a nonblank title and body, must not match a recognized login/block/error
+page, and must produce at least one fully embedded chunk. Quality failures are recorded as
+`EXTRACT_FAILED` with reason `QUALITY_GATE_FAILED` and leave trusted data unchanged.
 
 ```mermaid
 sequenceDiagram

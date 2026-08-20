@@ -225,3 +225,68 @@ async def test_failed_embedding_rolls_back_one_url_replacement():
             if stored_source is not None:
                 session.delete(stored_source)
             session.commit()
+
+
+@pytest.mark.asyncio
+async def test_zero_chunks_fails_quality_gate_and_preserves_trusted_document(monkeypatch):
+    suffix = uuid.uuid4().hex
+    url = f"https://registrar.gatech.edu/registration/test-zero-chunks-{suffix}"
+    source = DocumentSource(
+        f"test-zero-chunks-{suffix}",
+        "official_policy",
+        "registrar",
+        ("https://registrar.gatech.edu/registration",),
+        (url,),
+        1,
+    )
+
+    @contextmanager
+    def sessions():
+        with Session(sync_engine) as session:
+            yield session
+
+    current_body = "trusted registration policy " * 100
+    replacement_body = "replacement registration policy " * 100
+
+    def response(body: str):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                text=f"<html><title>Registration Policy</title><body>{body}</body></html>",
+                request=request,
+            )
+
+        return httpx.MockTransport(handler)
+
+    def embed(texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 1536 for _ in texts]
+
+    try:
+        first = await sync_document_url(source, url, sessions, embed, response(current_body))
+        assert first.outcome is DocumentSyncOutcome.INDEXED
+        with Session(sync_engine) as session:
+            original = session.scalar(select(Document).where(Document.canonical_url == url))
+            assert original is not None
+            original_text = original.content_text
+            original_chunks = tuple(chunk.chunk_text for chunk in original.chunks)
+
+        monkeypatch.setattr("ingestion.documents.sync.chunk_text", lambda *args, **kwargs: [])
+        result = await sync_document_url(source, url, sessions, embed, response(replacement_body))
+
+        assert result.outcome is DocumentSyncOutcome.EXTRACT_FAILED
+        assert result.reason == "QUALITY_GATE_FAILED"
+        with Session(sync_engine) as session:
+            preserved = session.scalar(select(Document).where(Document.canonical_url == url))
+            assert preserved is not None
+            assert preserved.content_text == original_text
+            assert tuple(chunk.chunk_text for chunk in preserved.chunks) == original_chunks
+    finally:
+        with Session(sync_engine) as session:
+            document = session.scalar(select(Document).where(Document.canonical_url == url))
+            if document is not None:
+                session.delete(document)
+            session.execute(delete(FetchState).where(FetchState.url == url))
+            stored_source = session.scalar(select(Source).where(Source.name == source.name))
+            if stored_source is not None:
+                session.delete(stored_source)
+            session.commit()
