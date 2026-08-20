@@ -355,7 +355,7 @@ async def _drain_active(
     for (_task, unit), value in zip(active.items(), results, strict=True):
         result = _exception_result(value) if isinstance(value, BaseException) else value
         status = "SUCCEEDED" if result.outcome is UnitOutcome.SUCCEEDED else "FAILED"
-        if result.outcome is UnitOutcome.RATE_LIMITED:
+        if result.outcome in {UnitOutcome.RATE_LIMITED, UnitOutcome.RETRYABLE}:
             status = "PENDING"
         elif result.outcome is UnitOutcome.AUTH_REQUIRED:
             hard_stop = "AUTH_REQUIRED"
@@ -381,7 +381,7 @@ def _retry_delay(
     jitter: Callable[[float, float], float],
 ) -> float:
     if retry_after_seconds is not None and retry_after_seconds >= 0:
-        return min(float(retry_after_seconds), 300.0)
+        return float(retry_after_seconds)
     base = min(float(2**retries), 60.0)
     return base + jitter(0.0, min(1.0, base / 10))
 

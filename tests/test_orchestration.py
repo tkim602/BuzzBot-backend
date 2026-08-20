@@ -91,7 +91,7 @@ async def test_rate_limit_pauses_new_scheduling_then_recovers(sessions):
         if unit == "AE":
             attempts += 1
             if attempts == 1:
-                return UnitResult(UnitOutcome.RATE_LIMITED, {}, retry_after_seconds=7)
+                return UnitResult(UnitOutcome.RATE_LIMITED, {}, retry_after_seconds=600)
         return UnitResult(UnitOutcome.SUCCEEDED, {})
 
     async def fake_sleep(delay: float) -> None:
@@ -99,7 +99,7 @@ async def test_rate_limit_pauses_new_scheduling_then_recovers(sessions):
 
     summary = await run_batch(run_id, sessions, run_unit, sleep=fake_sleep)
 
-    assert calls == ["AE", "sleep:7", "AE", "CS"]
+    assert calls == ["AE", "sleep:600", "AE", "CS"]
     assert summary.status == "COMPLETED"
 
 
@@ -178,6 +178,22 @@ async def test_auth_from_an_already_running_unit_overrides_rate_limit_pause(sess
 
     assert summary.status == "FAILED"
     assert summary.stop_reason == "AUTH_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_transient_in_flight_unit_remains_pending_when_batch_pauses(sessions):
+    run_id = _planned_run(sessions, "AE", "CS", "ECE", concurrency=2, retry_limit=0)
+
+    async def run_unit(unit: str) -> UnitResult:
+        if unit == "AE":
+            return UnitResult(UnitOutcome.RATE_LIMITED, {})
+        await asyncio.sleep(0.01)
+        return UnitResult(UnitOutcome.RETRYABLE, {}, reason="HTTP_503")
+
+    summary = await run_batch(run_id, sessions, run_unit)
+
+    assert summary.status == "PAUSED"
+    assert (summary.failed, summary.remaining) == (0, 3)
 
 
 @pytest.mark.asyncio
