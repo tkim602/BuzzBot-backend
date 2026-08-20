@@ -743,7 +743,7 @@ async def chat(
         is_factual = _is_factual_intent(route_result.intent, rewrite.date_sensitive)
         claims_supported = True
         if is_factual:
-            claims_supported, claim_notes = check_claim_support(
+            claims_supported, claim_notes = await check_claim_support(
                 raw_answer.get("answer", ""), chunks
             )
             grounding_notes.extend(claim_notes)
@@ -760,7 +760,7 @@ async def chat(
                     raw_answer.get("answer", ""), valid_citations
                 )
                 program_evidence_ok = _program_specific_evidence_supported(query, valid_citations)
-                claims_supported, claim_notes = check_claim_support(
+                claims_supported, claim_notes = await check_claim_support(
                     raw_answer.get("answer", ""), chunks
                 )
                 grounding_notes.extend(claim_notes)

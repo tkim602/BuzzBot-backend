@@ -69,7 +69,8 @@ January 6
     assert all(date in indexed for date in ("October 15", "November 2", "January 6"))
 
 
-def test_first_year_recommendation_query_prefers_recommendations_page():
+@pytest.mark.asyncio
+async def test_first_year_recommendation_query_prefers_recommendations_page():
     recommendations = _chunk(
         "recommendations",
         "Recommendations | Undergraduate Admission",
@@ -83,7 +84,7 @@ def test_first_year_recommendation_query_prefers_recommendations_page():
     )
 
     route = classify_query(RECOMMENDATIONS_QUERY)
-    supported, _ = check_claim_support(
+    supported, _ = await check_claim_support(
         "Recommendations are optional, and applicants may submit up to three recommendations.",
         [recommendations],
     )
@@ -112,7 +113,7 @@ async def test_major_selection_contradiction_is_rejected_and_policy_uses_tempera
         "We consider how well you are prepared for your intended major.",
     )
     route = classify_query(MAJOR_QUERY)
-    supported, notes = check_claim_support(
+    supported, notes = await check_claim_support(
         "First-year applicants apply directly to a specific major or college.",
         [major],
     )

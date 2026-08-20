@@ -142,7 +142,9 @@ async def generate_answer(
     return parsed
 
 
-async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
+async def _call_llm(
+    system: str, user: str, temperature: float = 0.2, max_tokens: int = 1500
+) -> str:
     """Call the configured LLM provider."""
     # Check usage limit before API call
     check_limit_or_raise()
@@ -160,7 +162,7 @@ async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
                 {"role": "user", "content": user},
             ],
             temperature=temperature,
-            max_tokens=1500,
+            max_tokens=max_tokens,
         )
 
         # Record usage
@@ -176,7 +178,7 @@ async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
         client = anthropic.AsyncAnthropic()
         resp = await client.messages.create(
             model=settings.anthropic_model,
-            max_tokens=1500,
+            max_tokens=max_tokens,
             system=system,
             messages=[{"role": "user", "content": user}],
         )
@@ -201,6 +203,7 @@ async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
                         {"role": "user", "content": user},
                     ],
                     "stream": False,
+                    "options": {"num_predict": max_tokens},
                 },
             )
             resp.raise_for_status()
