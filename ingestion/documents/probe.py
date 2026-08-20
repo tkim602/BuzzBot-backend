@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 import httpx
 from lxml import html as lxml_html
 
+from ingestion.documents.calendar import selected_academic_year
 from ingestion.documents.registry import DocumentSource
 from ingestion.probes.cli import USER_AGENT
 from ingestion.probes.core import ProbeBudget, ProbeSession
@@ -28,6 +29,7 @@ class DocumentProbeResult:
     requests_used: int
     source_url: str
     title: str | None = None
+    edition: str | None = None
     reason: str | None = None
 
 
@@ -69,12 +71,25 @@ async def probe_document_source(
         if body_length < 100:
             status, reason = DocumentProbeStatus.PARSE_FAILED, "BODY_TOO_SMALL"
         else:
+            edition = None
+            if source.source_type == "academic_calendar":
+                edition = selected_academic_year(response.body)
+                if edition is None:
+                    return DocumentProbeResult(
+                        source.name,
+                        DocumentProbeStatus.PARSE_FAILED,
+                        session.requests_used,
+                        seed,
+                        title,
+                        reason="CALENDAR_YEAR_NOT_FOUND",
+                    )
             return DocumentProbeResult(
                 source.name,
                 DocumentProbeStatus.READY,
                 session.requests_used,
                 seed,
                 title,
+                edition,
             )
 
     return DocumentProbeResult(source.name, status, session.requests_used, seed, reason=reason)

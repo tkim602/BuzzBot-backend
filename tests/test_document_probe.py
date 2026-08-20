@@ -16,6 +16,17 @@ def _source() -> DocumentSource:
     )
 
 
+def _calendar_source() -> DocumentSource:
+    return DocumentSource(
+        name="gt-academic-calendar",
+        source_type="academic_calendar",
+        authority="academic_calendar",
+        allowed_roots=("https://registrar.gatech.edu/",),
+        seed_urls=("https://registrar.gatech.edu/current-academic-calendar",),
+        max_urls=5,
+    )
+
+
 @pytest.mark.asyncio
 async def test_probe_uses_one_public_request_and_accepts_document_body():
     calls = 0
@@ -37,6 +48,55 @@ async def test_probe_uses_one_public_request_and_accepts_document_body():
     assert calls == result.requests_used == 1
     assert result.status is DocumentProbeStatus.READY
     assert result.title == "Registration"
+
+
+@pytest.mark.asyncio
+async def test_calendar_probe_discovers_current_academic_year_in_one_request():
+    page = """
+    <html><title>Current Academic Calendar</title><body>
+      <select id="academic-year">
+        <option value="2026-2027" selected>2026-2027</option>
+      </select>
+      Current Academic Calendar and important Georgia Tech dates.
+      Registration, classes, exams, grades, graduation, holidays, and payment deadlines.
+    </body></html>
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            text=page,
+            headers={"Content-Type": "text/html"},
+            request=request,
+        )
+
+    result = await probe_document_source(_calendar_source(), httpx.MockTransport(handler))
+
+    assert result.status is DocumentProbeStatus.READY
+    assert result.requests_used == 1
+    assert result.edition == "2026-2027"
+
+
+@pytest.mark.asyncio
+async def test_calendar_probe_rejects_shell_without_selected_academic_year():
+    page = (
+        "<html><title>Current Academic Calendar</title><body>"
+        + "calendar shell " * 20
+        + "</body></html>"
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            text=page,
+            headers={"Content-Type": "text/html"},
+            request=request,
+        )
+
+    result = await probe_document_source(_calendar_source(), httpx.MockTransport(handler))
+
+    assert result.status is DocumentProbeStatus.PARSE_FAILED
+    assert result.reason == "CALENDAR_YEAR_NOT_FOUND"
 
 
 @pytest.mark.asyncio

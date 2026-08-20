@@ -6,7 +6,12 @@ import pytest
 
 from app.core.config import settings
 from ingestion.documents.registry import DocumentSource
-from ingestion.documents.sync import DocumentSyncOutcome, _edition, sync_document_source
+from ingestion.documents.sync import (
+    DocumentSyncOutcome,
+    FetchedDocument,
+    _edition,
+    sync_document_source,
+)
 from ingestion.index import get_embedding_function
 
 
@@ -19,6 +24,44 @@ def _source() -> DocumentSource:
         ("https://registrar.gatech.edu/registration",),
         5,
     )
+
+
+def _calendar_source() -> DocumentSource:
+    return DocumentSource(
+        "gt-academic-calendar",
+        "academic_calendar",
+        "academic_calendar",
+        ("https://registrar.gatech.edu/",),
+        ("https://registrar.gatech.edu/current-academic-calendar",),
+        5,
+    )
+
+
+def _calendar_page() -> str:
+    return """
+    <html><title>Current Academic Calendar</title><body>
+      <select id="academic-year">
+        <option value="2026-2027" selected>2026-2027</option>
+      </select>
+      Registration, classes, examinations, grades, graduation, holidays,
+      payment deadlines, faculty deadlines, thesis deadlines, and recess dates.
+    </body></html>
+    """
+
+
+def _calendar_rows(count: int = 25) -> list[dict[str, object]]:
+    return [
+        {
+            "id": str(index),
+            "date": "August 17 (Mon)",
+            "semester": "8",
+            "year": "2026",
+            "category": "Registration",
+            "event": "<p>Registration opens.</p>",
+            "weight": index,
+        }
+        for index in range(count)
+    ]
 
 
 def test_catalog_edition_is_preserved_when_present():
@@ -102,5 +145,93 @@ async def test_ready_probe_allows_one_fetch_and_passes_citation_metadata(
     assert result.changed == 1
     assert result.chunks_indexed == 2
     fetched = captured["result"]
+    assert isinstance(fetched, FetchedDocument)
     assert fetched.etag == '"v1"'
     assert fetched.source_url == "https://registrar.gatech.edu/registration"
+
+
+@pytest.mark.asyncio
+async def test_calendar_sync_fetches_official_proxy_with_public_xhr_headers(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    requests: list[httpx.Request] = []
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/current-academic-calendar":
+            return httpx.Response(
+                200,
+                text=_calendar_page(),
+                headers={"Content-Type": "text/html"},
+                request=request,
+            )
+        return httpx.Response(
+            200,
+            json={"data": _calendar_rows()},
+            request=request,
+        )
+
+    def fake_store(session, source, fetched, embed_fn):
+        captured["fetched"] = fetched
+        return True, 8
+
+    monkeypatch.setattr("ingestion.documents.sync._store_document", fake_store)
+    session = MagicMock()
+    session.scalar.return_value = None
+
+    result = await sync_document_source(
+        _calendar_source(),
+        lambda: nullcontext(session),
+        lambda texts: [[0.0] * 1536 for _ in texts],
+        httpx.MockTransport(handler),
+    )
+
+    assert [request.url.path for request in requests] == [
+        "/current-academic-calendar",
+        "/calevents/proxy",
+    ]
+    assert dict(requests[1].url.params) == {"year": "2026-2027", "status": "current"}
+    assert requests[1].headers["X-Requested-With"] == "XMLHttpRequest"
+    assert requests[1].headers["Referer"] == (
+        "https://registrar.gatech.edu/current-academic-calendar"
+    )
+    assert requests[1].headers["User-Agent"].startswith("Mozilla/5.0")
+    assert result.requests_used == 2
+    assert result.outcome is DocumentSyncOutcome.INDEXED
+    assert result.chunks_indexed == 8
+    fetched = captured["fetched"]
+    assert isinstance(fetched, FetchedDocument)
+    assert fetched.canonical_url == ("https://registrar.gatech.edu/current-academic-calendar")
+    assert fetched.edition == "2026-2027"
+    assert "Event: Registration opens." in fetched.text
+
+
+@pytest.mark.asyncio
+async def test_invalid_calendar_payload_never_opens_database_or_embeds():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/current-academic-calendar":
+            return httpx.Response(
+                200,
+                text=_calendar_page(),
+                headers={"Content-Type": "text/html"},
+                request=request,
+            )
+        return httpx.Response(200, json={"data": _calendar_rows(24)}, request=request)
+
+    def forbidden_session():
+        raise AssertionError("database must not open for an invalid calendar payload")
+
+    def forbidden_embed(texts):
+        raise AssertionError("invalid calendar payload must not be embedded")
+
+    result = await sync_document_source(
+        _calendar_source(),
+        forbidden_session,
+        forbidden_embed,
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is DocumentSyncOutcome.EXTRACT_FAILED
+    assert result.requests_used == 2
+    assert result.reason == "TOO_FEW_EVENTS"

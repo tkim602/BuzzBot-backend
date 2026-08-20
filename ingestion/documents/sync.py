@@ -13,6 +13,12 @@ from sqlalchemy.orm import Session
 
 from db.models import Chunk, Document, FetchState
 from ingestion.chunk import chunk_text
+from ingestion.documents.calendar import (
+    CalendarPayloadError,
+    calendar_request_headers,
+    calendar_request_url,
+    parse_calendar_payload,
+)
 from ingestion.documents.probe import DocumentProbeStatus, probe_document_source
 from ingestion.documents.registry import DocumentSource
 from ingestion.extract import extract_content
@@ -72,53 +78,98 @@ async def sync_document_source(
         )
 
     seed = source.seed_urls[0]
-    with session_factory() as session:
-        headers = _conditional_headers(session, seed)
-
-    async with httpx.AsyncClient(
-        transport=transport,
-        timeout=15,
-        follow_redirects=False,
-        headers={"User-Agent": USER_AGENT, **headers},
-    ) as client:
-        response = await client.get(seed)
-    requests_used = probe.requests_used + 1
-
-    if response.status_code == 304:
-        return DocumentSyncResult(
-            source.name,
-            DocumentSyncOutcome.UNCHANGED,
-            requests_used,
-            fetched=1,
+    if source.source_type == "academic_calendar":
+        if probe.edition is None:
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.EXTRACT_FAILED,
+                probe.requests_used,
+                reason="CALENDAR_YEAR_NOT_FOUND",
+            )
+        data_url = calendar_request_url(seed, probe.edition)
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=15,
+            follow_redirects=False,
+            headers=calendar_request_headers(seed),
+        ) as client:
+            response = await client.get(data_url)
+        requests_used = probe.requests_used + 1
+        if response.status_code != 200 or not source.allows(str(response.url)):
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.FETCH_FAILED,
+                requests_used,
+                reason=f"HTTP_{response.status_code}",
+            )
+        try:
+            calendar = parse_calendar_payload(probe.edition, response.json())
+        except (CalendarPayloadError, ValueError) as exc:
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.EXTRACT_FAILED,
+                requests_used,
+                fetched=1,
+                reason=str(exc) or "INVALID_JSON",
+            )
+        fetched = FetchedDocument(
+            source_url=data_url,
+            canonical_url=normalize_url(seed),
+            title=calendar.title,
+            text=calendar.text,
+            fetched_at=datetime.now(UTC),
+            etag=response.headers.get("ETag"),
+            last_modified=response.headers.get("Last-Modified"),
+            edition=calendar.edition,
         )
-    if response.status_code != 200 or not source.allows(str(response.url)):
-        return DocumentSyncResult(
-            source.name,
-            DocumentSyncOutcome.FETCH_FAILED,
-            requests_used,
-            reason=f"HTTP_{response.status_code}",
-        )
+    else:
+        with session_factory() as session:
+            headers = _conditional_headers(session, seed)
 
-    extracted = extract_content(seed, response.text)
-    if not extracted.success or not extracted.text:
-        return DocumentSyncResult(
-            source.name,
-            DocumentSyncOutcome.EXTRACT_FAILED,
-            requests_used,
-            fetched=1,
-            reason="EXTRACTION_FAILED",
-        )
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=15,
+            follow_redirects=False,
+            headers={"User-Agent": USER_AGENT, **headers},
+        ) as client:
+            response = await client.get(seed)
+        requests_used = probe.requests_used + 1
 
-    fetched = FetchedDocument(
-        source_url=seed,
-        canonical_url=normalize_url(seed),
-        title=extracted.title,
-        text=extracted.text,
-        fetched_at=datetime.now(UTC),
-        etag=response.headers.get("ETag"),
-        last_modified=response.headers.get("Last-Modified"),
-        edition=_edition(f"{extracted.title or ''}\n{extracted.text}"),
-    )
+        if response.status_code == 304:
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.UNCHANGED,
+                requests_used,
+                fetched=1,
+            )
+        if response.status_code != 200 or not source.allows(str(response.url)):
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.FETCH_FAILED,
+                requests_used,
+                reason=f"HTTP_{response.status_code}",
+            )
+
+        extracted = extract_content(seed, response.text)
+        if not extracted.success or not extracted.text:
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.EXTRACT_FAILED,
+                requests_used,
+                fetched=1,
+                reason="EXTRACTION_FAILED",
+            )
+
+        fetched = FetchedDocument(
+            source_url=seed,
+            canonical_url=normalize_url(seed),
+            title=extracted.title,
+            text=extracted.text,
+            fetched_at=datetime.now(UTC),
+            etag=response.headers.get("ETag"),
+            last_modified=response.headers.get("Last-Modified"),
+            edition=_edition(f"{extracted.title or ''}\n{extracted.text}"),
+        )
     with session_factory() as session:
         changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
         session.commit()
