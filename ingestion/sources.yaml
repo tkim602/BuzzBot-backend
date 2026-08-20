@@ -1,126 +1,40 @@
-# BuzzBot — Source registry
-# Each source must have allowed: true to be ingested.
-# Policy gates: set allowed: false + reason to block a source.
-
-sources:
+# Controlled official-document registry. No generic gatech.edu crawl.
+documents:
   - name: gt-registrar
-    base_url: https://registrar.gatech.edu
-    allowed: true
-    reason: "Official Georgia Tech registrar — public academic calendar and policies."
-    sitemap_url: https://registrar.gatech.edu/sitemap.xml
-    include_patterns: [] # Empty = all URLs from sitemap
-    exclude_patterns:
-      - "/node/"
-    max_urls: 500
-    refresh_policy:
-      schedule: daily
-      method: sitemap_incremental
+    source_type: official_policy
+    authority: registrar
+    allowed_roots: [https://registrar.gatech.edu/]
+    seed_urls: [https://registrar.gatech.edu/registration]
+    max_urls: 10
+
+  - name: gt-academic-calendar
+    source_type: academic_calendar
+    authority: academic_calendar
+    allowed_roots: [https://registrar.gatech.edu/]
+    seed_urls: [https://registrar.gatech.edu/current-academic-calendar]
+    max_urls: 5
 
   - name: gt-catalog
-    base_url: https://catalog.gatech.edu
-    allowed: true
-    reason: "Official Georgia Tech course catalog — course descriptions and degree policies."
-    sitemap_url: https://catalog.gatech.edu/sitemap.xml
-    include_patterns: [] # Empty = all URLs from sitemap
-    exclude_patterns: []
-    max_urls: 2000
-    refresh_policy:
-      schedule: weekly
-      method: sitemap_incremental
+    source_type: course_catalog
+    authority: catalog
+    allowed_roots: [https://catalog.gatech.edu/]
+    seed_urls: [https://catalog.gatech.edu/coursesaz/cs/]
+    max_urls: 15
 
   - name: gt-omscs
-    base_url: https://omscs.gatech.edu
-    allowed: true
-    reason: "Official OMSCS site for online MSCS admissions details and deadlines."
-    sitemap_url: https://omscs.gatech.edu/sitemap.xml
-    seed_urls: []
-    include_patterns:
-      - "/admission"
-      - "/apply"
-      - "/deadline"
-      - "/faq"
-    exclude_patterns: []
-    max_urls: 500
-    refresh_policy:
-      schedule: daily
-      method: sitemap_incremental
+    source_type: omscs_policy
+    authority: omscs
+    allowed_roots: [https://www.omscs.gatech.edu/]
+    seed_urls: [https://www.omscs.gatech.edu/admission-criteria]
+    max_urls: 10
 
   - name: gt-admission
-    base_url: https://admission.gatech.edu
-    allowed: true
-    reason: "Official Georgia Tech admissions website for undergraduate and graduate deadlines."
-    sitemap_url: null
-    seed_urls:
-      - https://admission.gatech.edu/first-year/deadlines
-      - https://admission.gatech.edu/transfer/deadlines
-      - https://admission.gatech.edu/graduate
-      - https://admission.gatech.edu/apply
-    include_patterns:
-      - "/deadline"
-      - "/admission"
-      - "/apply"
-      - "/graduate"
-    exclude_patterns: []
-    max_urls: 200
-    refresh_policy:
-      schedule: daily
-      method: seed_urls
+    source_type: admissions
+    authority: admissions
+    allowed_roots: [https://admission.gatech.edu/]
+    seed_urls: [https://admission.gatech.edu/first-year/deadlines]
+    max_urls: 5
 
-  - name: gt-grad
-    base_url: https://grad.gatech.edu
-    allowed: true
-    reason: "Official Georgia Tech Graduate Education pages for admissions and policy context."
-    sitemap_url: null
-    seed_urls:
-      - https://grad.gatech.edu/admissions
-      - https://grad.gatech.edu/degree-programs/computer-science-online
-      - https://grad.gatech.edu/programs
-    include_patterns:
-      - "/admission"
-      - "/deadline"
-      - "/program"
-      - "/degree"
-    exclude_patterns: []
-    max_urls: 200
-    refresh_policy:
-      schedule: weekly
-      method: seed_urls
-
-  - name: gt-library
-    base_url: https://library.gatech.edu
-    allowed: true
-    reason: "Georgia Tech Library — research resources, study spaces, services."
-    sitemap_url: https://library.gatech.edu/sitemap.xml
-    include_patterns: []
-    exclude_patterns: []
-    max_urls: 1000
-    refresh_policy:
-      schedule: weekly
-      method: sitemap_incremental
-
-  - name: gt-calendar-events
-    base_url: https://registrar.gatech.edu/calendar
-    allowed: true
-    reason: "Georgia Tech academic calendar — structured date/event data for semesters."
-    sitemap_url: null
-    include_patterns: []
-    exclude_patterns: []
-    max_urls: 0
-    refresh_policy:
-      schedule: monthly
-      method: manual
-
+blocked_sources:
   - name: ratemyprofessors
-    base_url: https://www.ratemyprofessors.com
-    allowed: false
-    reason: >
-      RateMyProfessors ToS prohibit automated scraping.
-      BuzzBot supports user-provided mode only — paste an excerpt
-      and the system will summarize it. No crawling or spidering.
-    sitemap_url: null
-    include_patterns: []
-    exclude_patterns: ["*"]
-    max_urls: 0
-    refresh_policy:
-      schedule: never
-      method: none
+    reason: Automated scraping is excluded; user-provided excerpts only.
