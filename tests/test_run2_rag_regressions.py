@@ -117,7 +117,12 @@ async def test_major_selection_contradiction_is_rejected_and_policy_uses_tempera
         "First-year applicants apply directly to a specific major or college.",
         [major],
     )
-    call = AsyncMock(return_value='{"answer":"abstain","citations":[],"confidence":0.2,"notes":[]}')
+    call = AsyncMock(
+        side_effect=[
+            "FALSE",
+            '{"answer":"abstain","citations":[],"confidence":0.2,"notes":[]}',
+        ]
+    )
     monkeypatch.setattr("app.rag.answerer._call_llm", call)
     await generate_answer(MAJOR_QUERY, [major], intent="policy")
 
@@ -155,34 +160,87 @@ def test_cross_encoder_receives_title_headings_and_chunk_text(monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("query", "evidence"),
+    ("query", "evidence", "verdict", "expected_answer"),
     [
         (
             "Do I have to submit recommendation letters?",
-            "Recommendation letters are completely optional.",
+            "Students have the option to send recommendations. This is completely optional.",
+            "FALSE",
+            "No, recommendation letters are optional.",
         ),
         (
-            "Are nine OMSCS courses enough?",
+            "Is completing nine courses enough to graduate?",
             "The OMSCS degree requires 30 total credit hours (10 courses).",
+            "FALSE",
+            "No, 10 courses are required.",
         ),
         (
             "Is November 2 the Early Action 1 deadline?",
             "Early Action 1 — Application Deadline: October 15\n"
             "Early Action 2 — Application Deadline: November 2",
+            "FALSE",
+            "No. Early Action 1 is October 15; November 2 is Early Action 2.",
+        ),
+        (
+            "Are recommendation letters optional?",
+            "Recommendation letters are completely optional.",
+            "TRUE",
+            "Yes, recommendation letters are optional.",
         ),
     ],
 )
-async def test_factual_yes_no_prompt_does_not_mirror_user_premise(monkeypatch, query, evidence):
-    call = AsyncMock(return_value='{"answer":"No.","citations":[],"confidence":1.0,"notes":[]}')
+async def test_factual_yes_no_verdict_constrains_generation(
+    monkeypatch, query, evidence, verdict, expected_answer
+):
+    response = f'{{"answer":"{expected_answer}","citations":[],"confidence":1.0,"notes":[]}}'
+    call = AsyncMock(side_effect=[verdict, response])
     monkeypatch.setattr("app.rag.answerer._call_llm", call)
 
     answer = await generate_answer(query, [_chunk("policy", "Policy", evidence)], intent="policy")
 
-    system, user = call.await_args.args
-    assert answer["answer"] == "No."
-    assert "identify the exact proposition" in system
-    assert "true, false, or unknown" in system
-    assert "Only then" in system
-    assert "Do not assume or mirror the premise" in system
-    assert query in user
-    assert evidence in user
+    verdict_system, verdict_user = call.await_args_list[0].args
+    answer_system, answer_user = call.await_args_list[1].args
+    expected_polarity = "Yes" if verdict == "TRUE" else "No"
+    assert answer["answer"] == expected_answer
+    assert "TRUE, FALSE, or UNKNOWN" in verdict_system
+    assert "FALSE when the evidence contradicts it" in verdict_system
+    assert "UNKNOWN when the evidence establishes neither" in verdict_system
+    assert query in verdict_user
+    assert evidence in verdict_user
+    assert f"must begin with {expected_polarity}" in answer_system
+    assert query in answer_user
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("verdict", ["UNKNOWN", "FALSE because optional", ""])
+async def test_factual_yes_no_unknown_or_malformed_verdict_abstains(monkeypatch, verdict):
+    call = AsyncMock(return_value=verdict)
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    answer = await generate_answer(
+        "Is this policy required?",
+        [_chunk("policy", "Policy", "The available evidence does not address that policy.")],
+        intent="policy",
+    )
+
+    assert call.await_count == 1
+    assert answer["citations"] == []
+    assert answer["confidence"] == 0.2
+    assert "enough evidence" in answer["answer"].lower()
+
+
+@pytest.mark.asyncio
+async def test_factual_yes_no_verifier_error_abstains(monkeypatch):
+    monkeypatch.setattr(
+        "app.rag.answerer._call_llm",
+        AsyncMock(side_effect=RuntimeError("provider unavailable")),
+    )
+
+    answer = await generate_answer(
+        "Is this policy required?",
+        [_chunk("policy", "Policy", "The evidence does not address that policy.")],
+        intent="policy",
+    )
+
+    assert answer["citations"] == []
+    assert answer["confidence"] == 0.2

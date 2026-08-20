@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import structlog
@@ -21,6 +22,10 @@ FACTUAL_INTENTS = {
     "course_schedule_sections",
     "policy",
 }
+_BINARY_QUESTION_RE = re.compile(
+    r"^\s*(?:am|are|can|could|did|do|does|has|have|is|must|should|was|were|will|would)\b",
+    re.I,
+)
 
 
 def _load_prompt(name: str) -> str:
@@ -87,6 +92,28 @@ def _format_history(history: list[dict] | None) -> str:
     return "\n".join(lines) if lines else "none"
 
 
+async def _binary_proposition_verdict(query: str, evidence: str) -> str:
+    try:
+        verdict = await _call_llm(
+            (
+                "Determine whether the exact proposition in the question is entailed by the "
+                "evidence. Use only the supplied evidence and no outside knowledge. Be strict "
+                "about negation, numbers, dates, modality, conditions, and exceptions. Return "
+                "TRUE when evidence entails the proposition, FALSE when the evidence contradicts "
+                "it, and UNKNOWN when the evidence establishes neither. Return exactly one word: "
+                "TRUE, FALSE, or UNKNOWN."
+            ),
+            f"QUESTION:\n{query.strip()}\n\nEVIDENCE:\n{evidence}",
+            temperature=0.0,
+            max_tokens=8,
+        )
+    except Exception:
+        logger.warning("binary proposition verifier failed")
+        return "UNKNOWN"
+    verdict = verdict.strip()
+    return verdict if verdict in {"TRUE", "FALSE", "UNKNOWN"} else "UNKNOWN"
+
+
 async def generate_answer(
     query: str,
     chunks: list[RetrievedChunk],
@@ -111,6 +138,21 @@ async def generate_answer(
         context_str += (
             "\n\n---\n\n[Source: user-provided:rmp] [Type: User-provided RateMyProfessors excerpt — unofficial]\n"
             + rmp_excerpt
+        )
+
+    if intent in FACTUAL_INTENTS and _BINARY_QUESTION_RE.search(query):
+        verdict = await _binary_proposition_verdict(query, context_str)
+        if verdict == "UNKNOWN":
+            return {
+                "answer": "I don't have enough evidence to answer that yes/no question reliably.",
+                "citations": [],
+                "confidence": 0.2,
+                "notes": ["The proposition could not be established from retrieved evidence."],
+            }
+        polarity = "Yes" if verdict == "TRUE" else "No"
+        system_prompt += (
+            f"\n\nThe verified proposition verdict is {verdict}. "
+            f"The answer must begin with {polarity}, and its explanation must agree."
         )
 
     user_msg = user_template.replace("{{QUERY}}", query).replace("{{CONTEXT}}", context_str)
@@ -221,8 +263,6 @@ def _extract_json(text: str) -> dict:
         pass
 
     # Try to find JSON block
-    import re
-
     match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if match:
         return json.loads(match.group(1))
