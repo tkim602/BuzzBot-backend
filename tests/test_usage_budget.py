@@ -20,3 +20,9 @@ def test_hard_cap_overrides_legacy_stored_limit(tmp_path, monkeypatch):
 
     with pytest.raises(usage.UsageLimitExceeded):
         usage.check_limit_or_raise()
+
+
+def test_unknown_models_are_costed_conservatively():
+    assert usage.estimate_cost("unexpected-model", 1_000_000, "embedding") == 0.13
+    assert usage.estimate_cost("unexpected-model", 1_000_000, "input") == 10.0
+    assert usage.estimate_cost("unexpected-model", 1_000_000, "output") == 30.0

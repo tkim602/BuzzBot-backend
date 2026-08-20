@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 
@@ -13,7 +13,8 @@ from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
 
-# Cost per 1M tokens (as of 2024)
+# Cost per 1M tokens. Configured OpenAI model prices were verified against official model pages on
+# 2026-08-20; unknown models fail closed to conservative rates below.
 COST_PER_MILLION = {
     # Embeddings
     "text-embedding-3-small": 0.02,
@@ -36,10 +37,16 @@ USAGE_FILE = Path(__file__).resolve().parent.parent / "artifacts" / "usage.json"
 
 _lock = Lock()
 MAX_USAGE_LIMIT = 3.0
+CONSERVATIVE_UNKNOWN_RATE = {
+    "embedding": 0.13,
+    "input": 10.0,
+    "output": 30.0,
+}
 
 
-class UsageLimitExceeded(Exception):
+class UsageLimitExceeded(Exception):  # noqa: N818 - public compatibility
     """Raised when usage limit is exceeded."""
+
     pass
 
 
@@ -55,13 +62,13 @@ def _load_usage() -> dict:
                     MAX_USAGE_LIMIT,
                 )
                 return data
-        except (json.JSONDecodeError, IOError):
+        except (json.JSONDecodeError, OSError):
             pass
     return {
         "total_cost": 0.0,
         "limit": min(settings.usage_limit, MAX_USAGE_LIMIT),
         "history": [],
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -101,12 +108,14 @@ def reset_usage() -> None:
     with _lock:
         data = _load_usage()
         limit = data.get("limit", settings.usage_limit)
-        _save_usage({
-            "total_cost": 0.0,
-            "limit": limit,
-            "history": [],
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
+        _save_usage(
+            {
+                "total_cost": 0.0,
+                "limit": limit,
+                "history": [],
+                "created_at": datetime.now(UTC).isoformat(),
+            }
+        )
     logger.info("usage reset")
 
 
@@ -122,7 +131,7 @@ def check_limit_or_raise() -> None:
     if usage["total_cost"] >= usage["limit"]:
         raise UsageLimitExceeded(
             f"Usage limit exceeded: ${usage['total_cost']:.4f} / ${usage['limit']:.2f}. "
-            "Reset usage or increase limit to continue."
+            "New paid calls are disabled."
         )
 
 
@@ -132,52 +141,52 @@ def record_usage(
     usage_type: str = "embedding",  # embedding, input, output
 ) -> float:
     """Record API usage and return cost.
-    
+
     Args:
         model: Model name (e.g., 'text-embedding-3-small', 'gpt-4o-mini')
         tokens: Number of tokens used
         usage_type: 'embedding', 'input', or 'output'
-    
+
     Returns:
         Cost in dollars
     """
     # Determine cost key
-    if usage_type == "embedding":
-        cost_key = model
-    else:
-        cost_key = f"{model}-{usage_type}"
-    
+    cost_key = model if usage_type == "embedding" else f"{model}-{usage_type}"
+
     # Get cost per million tokens
-    cost_per_million = COST_PER_MILLION.get(cost_key, 0.02)  # Default to embedding cost
+    cost_per_million = COST_PER_MILLION.get(
+        cost_key, CONSERVATIVE_UNKNOWN_RATE.get(usage_type, 30.0)
+    )
     cost = (tokens / 1_000_000) * cost_per_million
-    
+
     with _lock:
         data = _load_usage()
         data["total_cost"] += cost
-        data["history"].append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "model": model,
-            "type": usage_type,
-            "tokens": tokens,
-            "cost": cost,
-        })
-        
+        data["history"].append(
+            {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "model": model,
+                "type": usage_type,
+                "tokens": tokens,
+                "cost": cost,
+            }
+        )
+
         # Keep only last 1000 entries
         if len(data["history"]) > 1000:
             data["history"] = data["history"][-1000:]
-        
+
         _save_usage(data)
-    
+
     logger.debug("usage recorded", model=model, tokens=tokens, cost=cost)
     return cost
 
 
 def estimate_cost(model: str, tokens: int, usage_type: str = "embedding") -> float:
     """Estimate cost without recording."""
-    if usage_type == "embedding":
-        cost_key = model
-    else:
-        cost_key = f"{model}-{usage_type}"
-    
-    cost_per_million = COST_PER_MILLION.get(cost_key, 0.02)
+    cost_key = model if usage_type == "embedding" else f"{model}-{usage_type}"
+
+    cost_per_million = COST_PER_MILLION.get(
+        cost_key, CONSERVATIVE_UNKNOWN_RATE.get(usage_type, 30.0)
+    )
     return (tokens / 1_000_000) * cost_per_million
