@@ -15,7 +15,13 @@ from lxml.etree import ParserError
 from sqlalchemy.orm import Session
 
 from ingestion.probes.cli import USER_AGENT
-from ingestion.probes.core import ProbeBudget, ProbeSession, ProbeStatus, write_probe_artifacts
+from ingestion.probes.core import (
+    ProbeBudget,
+    ProbeHttpResponse,
+    ProbeSession,
+    ProbeStatus,
+    write_probe_artifacts,
+)
 from ingestion.probes.oscar import (
     AUTH_HOSTS,
     OSCAR_LISTING_URL,
@@ -54,6 +60,7 @@ class SyncResult:
     meetings: int = 0
     version_id: uuid.UUID | None = None
     reason: str | None = None
+    retry_after_seconds: int | None = None
 
 
 def build_subject_listing_url(term: str, subject: str) -> str:
@@ -102,22 +109,84 @@ async def sync_subject(
                 probe_result.status,
                 probe_session.requests_used,
                 reason=probe_result.reason,
+                retry_after_seconds=probe_result.retry_after_seconds,
             )
-
-        response = await probe_session.get(
+        return await _collect_with_session(
+            term,
+            subject,
             subject_url,
-            retry_transient=False,
-            follow_redirects=False,
+            output_dir,
+            session_factory,
+            probe_session,
         )
 
+
+async def collect_subject(
+    term: str,
+    subject: str,
+    output_dir: Path,
+    session_factory: Callable[[], AbstractContextManager[Session]],
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> SyncResult:
+    subject = subject.upper()
+    subject_url = build_subject_listing_url(term, subject)
+    budget = ProbeBudget()
+    async with httpx.AsyncClient(
+        transport=transport,
+        timeout=httpx.Timeout(budget.timeout_seconds),
+        follow_redirects=False,
+        headers={"User-Agent": USER_AGENT},
+    ) as client:
+        return await _collect_with_session(
+            term,
+            subject,
+            subject_url,
+            output_dir,
+            session_factory,
+            ProbeSession(client, budget),
+        )
+
+
+async def _collect_with_session(
+    term: str,
+    subject: str,
+    subject_url: str,
+    output_dir: Path,
+    session_factory: Callable[[], AbstractContextManager[Session]],
+    probe_session: ProbeSession,
+) -> SyncResult:
+    response = await probe_session.get(
+        subject_url,
+        retry_transient=False,
+        follow_redirects=False,
+    )
+    return _process_subject_response(
+        term,
+        subject,
+        output_dir,
+        session_factory,
+        probe_session.requests_used,
+        response,
+    )
+
+
+def _process_subject_response(
+    term: str,
+    subject: str,
+    output_dir: Path,
+    session_factory: Callable[[], AbstractContextManager[Session]],
+    requests_used: int,
+    response: ProbeHttpResponse,
+) -> SyncResult:
     failure = _fetch_failure(response)
     if failure is not None:
-        outcome, reason = failure
+        outcome, reason, retry_after_seconds = failure
         return SyncResult(
             outcome,
-            probe_result.status,
-            probe_session.requests_used,
+            ProbeStatus.READY,
+            requests_used,
             reason=reason,
+            retry_after_seconds=retry_after_seconds,
         )
 
     snapshot = _write_subject_snapshot(response, output_dir)
@@ -126,15 +195,15 @@ async def sync_subject(
     except (ParserError, TypeError, ValueError) as exc:
         return SyncResult(
             SyncOutcome.PARSE_FAILED,
-            probe_result.status,
-            probe_session.requests_used,
+            ProbeStatus.READY,
+            requests_used,
             reason=type(exc).__name__,
         )
     if not samples and not parser_failures:
         return SyncResult(
             SyncOutcome.PARSE_FAILED,
-            probe_result.status,
-            probe_session.requests_used,
+            ProbeStatus.READY,
+            requests_used,
             reason="NO_SECTIONS",
         )
 
@@ -169,8 +238,8 @@ async def sync_subject(
 
     return SyncResult(
         SyncOutcome.PUBLISHED if report.valid else SyncOutcome.VALIDATION_FAILED,
-        probe_result.status,
-        probe_session.requests_used,
+        ProbeStatus.READY,
+        requests_used,
         fetched,
         len(sections),
         len(failures),
@@ -182,16 +251,21 @@ async def sync_subject(
     )
 
 
-def _fetch_failure(response) -> tuple[SyncOutcome, str] | None:
+def _fetch_failure(response: ProbeHttpResponse) -> tuple[SyncOutcome, str, int | None] | None:
     urls = (*response.redirect_urls, response.final_url)
     if any(
         httpx.URL(url).host in AUTH_HOSTS or "/login" in httpx.URL(url).path.lower() for url in urls
     ) or response.status_code in {401, 403}:
-        return SyncOutcome.AUTH_REQUIRED, "AUTH_REQUIRED"
+        return SyncOutcome.AUTH_REQUIRED, "AUTH_REQUIRED", None
     if response.status_code == 429:
-        return SyncOutcome.RATE_LIMITED, "HTTP_429"
+        retry_after = (
+            int(response.retry_after)
+            if response.retry_after is not None and response.retry_after.isdigit()
+            else None
+        )
+        return SyncOutcome.RATE_LIMITED, "HTTP_429", retry_after
     if response.status_code != 200:
-        return SyncOutcome.FETCH_FAILED, response.error or f"HTTP_{response.status_code}"
+        return SyncOutcome.FETCH_FAILED, response.error or f"HTTP_{response.status_code}", None
     return None
 
 

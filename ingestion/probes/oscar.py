@@ -143,7 +143,7 @@ async def probe_oscar(
 ) -> tuple[ProbeResult, ProbeHttpResponse | None]:
     response = await session.get(build_listing_url(term, subject, course))
 
-    if _requires_auth(response):
+    if requires_auth(response):
         return _result(
             session, ProbeStatus.AUTH_REQUIRED, response, reason="LOGIN_REDIRECT"
         ), response
@@ -251,7 +251,7 @@ def _result(
     )
 
 
-def _requires_auth(response: ProbeHttpResponse) -> bool:
+def requires_auth(response: ProbeHttpResponse) -> bool:
     urls = (*response.redirect_urls, response.final_url)
     for url in urls:
         parsed = urlparse(url)
