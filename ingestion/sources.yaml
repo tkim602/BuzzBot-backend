@@ -24,8 +24,8 @@ documents:
   - name: gt-omscs
     source_type: omscs_policy
     authority: omscs
-    allowed_roots: [https://www.omscs.gatech.edu/]
-    seed_urls: [https://www.omscs.gatech.edu/admission-criteria]
+    allowed_roots: [https://omscs.gatech.edu/]
+    seed_urls: [https://omscs.gatech.edu/admission-criteria]
     max_urls: 10
 
   - name: gt-admission

@@ -18,6 +18,9 @@ def test_registry_contains_only_bounded_authoritative_sources():
     assert all(source.max_urls <= 25 for source in sources)
     assert all(source.seed_urls for source in sources)
     assert all(root.startswith("https://") for source in sources for root in source.allowed_roots)
+    omscs = next(source for source in sources if source.name == "gt-omscs")
+    assert omscs.allowed_roots == ("https://omscs.gatech.edu/",)
+    assert omscs.seed_urls == ("https://omscs.gatech.edu/admission-criteria",)
 
 
 def test_document_source_rejects_seed_outside_allowed_roots():
