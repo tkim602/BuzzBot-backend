@@ -85,6 +85,7 @@ documents:
     allowed_roots: [https://catalog.gatech.edu/]
     seed_urls: [https://catalog.gatech.edu/programs/]
     allowed_path_prefixes: [/programs, /academics]
+    excluded_paths: [/academics/research-support-facilities/oak-ridge-associated-universities]
     content_types: [text/html, application/pdf]
     freshness_class: low
     profiles: [run3]
