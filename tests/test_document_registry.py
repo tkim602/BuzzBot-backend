@@ -56,6 +56,15 @@ def test_run3_sources_declare_vertical_adapter_paths_and_content_types():
     assert all(source.freshness_class in {"low", "medium", "high"} for source in run3)
 
 
+def test_catalog_programs_excludes_auth_gated_resource():
+    sources = load_document_sources(Path("ingestion/sources.yaml"))
+    programs = next(source for source in sources if source.name == "gt-catalog-programs")
+
+    assert programs.excluded_paths == (
+        "/academics/research-support-facilities/oak-ridge-associated-universities",
+    )
+
+
 def test_registry_rejects_unknown_content_type_and_freshness():
     common = dict(
         name="bad",
@@ -73,6 +82,8 @@ def test_registry_rejects_unknown_content_type_and_freshness():
         DocumentSource(**common, content_types=("image/png",))
     with pytest.raises(ValueError, match="freshness"):
         DocumentSource(**common, freshness_class="hourly")
+    with pytest.raises(ValueError, match="excluded paths"):
+        DocumentSource(**common, excluded_paths=("policy/private",))
 
 
 def test_document_source_rejects_seed_outside_allowed_roots():
