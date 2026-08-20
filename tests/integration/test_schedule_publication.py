@@ -8,7 +8,7 @@ from contextlib import suppress
 from datetime import UTC, date, datetime, time
 
 import pytest
-from sqlalchemy import create_engine, delete, event, insert, select
+from sqlalchemy import create_engine, delete, event, func, insert, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -19,7 +19,7 @@ from ingestion.schedule.repository import (
     publish_collection,
 )
 from ingestion.schedule.types import NormalizedCourse, NormalizedMeeting, NormalizedSection
-from ingestion.schedule.validate import CollectionPlan, ValidationReport
+from ingestion.schedule.validate import CollectionPlan, ValidationReport, validate_collection
 
 pytestmark = pytest.mark.skipif(
     os.getenv("RUN_DB_TESTS") != "1", reason="set RUN_DB_TESTS=1 for PostgreSQL tests"
@@ -239,6 +239,77 @@ def test_different_collection_units_are_not_globally_serialized():
                 )
             ]
         assert results == [True, True]
+    finally:
+        _delete_provider(engine, provider)
+        engine.dispose()
+
+
+def test_verified_empty_publication_supersedes_older_nonempty_subject():
+    engine = create_engine(settings.database_url_sync)
+    provider = f"test-{uuid.uuid4()}"
+    requested_unit = "202608:CS"
+    snapshot, plan, courses, sections = _valid_collection()
+
+    try:
+        with Session(engine) as session:
+            old_id = publish_collection(
+                session,
+                provider,
+                requested_unit,
+                snapshot,
+                plan,
+                courses,
+                sections,
+                [],
+                ValidationReport(True, 1.0, ()),
+            )
+
+        empty_plan = CollectionPlan(
+            "202608",
+            ("CS",),
+            ("CS",),
+            (),
+            0,
+            0,
+            verified_empty_subjects=("CS",),
+        )
+        empty_report = validate_collection(empty_plan, [], [], [], snapshot.fetched_at)
+        assert empty_report.valid is True
+        with Session(engine) as session:
+            empty_id = publish_collection(
+                session,
+                provider,
+                requested_unit,
+                snapshot,
+                empty_plan,
+                [],
+                [],
+                [],
+                empty_report,
+            )
+
+        with Session(engine) as session:
+            versions = {
+                version.id: version
+                for version in session.scalars(
+                    select(DataVersion).where(DataVersion.provider == provider)
+                ).all()
+            }
+            authoritative_courses = session.scalar(
+                select(func.count())
+                .select_from(DataVersion)
+                .join(DataVersion.courses)
+                .where(
+                    DataVersion.provider == provider,
+                    DataVersion.requested_unit == requested_unit,
+                    DataVersion.status == "PUBLISHED",
+                )
+            )
+
+        assert versions[old_id].status == "SUPERSEDED"
+        assert versions[empty_id].status == "PUBLISHED"
+        assert versions[empty_id].row_counts_json["verified_empty_subjects"] == ["CS"]
+        assert authoritative_courses == 0
     finally:
         _delete_provider(engine, provider)
         engine.dispose()

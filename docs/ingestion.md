@@ -107,3 +107,50 @@ Enable with `ENABLE_COMMONCRAWL=true`. Restricted to:
 - Structured logs with `structlog` (request IDs, source names, URL counts)
 - Artifacts uploaded as GitHub Actions artifacts on nightly runs
 - `GET /stats` endpoint shows document/chunk counts
+
+## Versioned OSCAR Schedule Runs
+
+OSCAR schedule rows use a separate structured pipeline and are published atomically per
+`term:subject`. A term run discovers the offered subjects once, stores that immutable plan in
+PostgreSQL, and records each subject result for resume.
+
+Fresh full-term run (operator initiated):
+
+```bash
+make sync-oscar-all term=202608
+```
+
+Bounded one-subject run:
+
+```bash
+python3 -m ingestion.schedule.sync_term \
+  --term 202608 \
+  --probe-subject CS \
+  --probe-course 7650 \
+  --subjects CS \
+  --concurrency 1
+```
+
+Resume the original fixed manifest without rediscovery:
+
+```bash
+python3 -m ingestion.schedule.sync_term --run-id <run-uuid> --resume
+```
+
+Retry selected failed units in that manifest:
+
+```bash
+python3 -m ingestion.schedule.sync_term \
+  --run-id <run-uuid> \
+  --resume \
+  --retry-failed ARCH,ECE
+```
+
+An authentication response fails the run globally. A 429 pauses new scheduling, honors
+`Retry-After` or bounded backoff, and leaves the run resumable if the retry budget is exhausted.
+Failed or partial subject collections never replace the last published version.
+
+An official OSCAR listing that contains the recognized no-results message is published as a
+verified-empty `term:subject` version with zero rows. This supersedes an older non-empty version so
+stale offerings cannot remain authoritative. Any other HTTP 200 response that produces zero
+sections remains a parse failure and cannot publish.

@@ -14,6 +14,8 @@ SCHEDULE_TABLES = {
     "meetings",
     "source_snapshots",
     "ingestion_errors",
+    "ingestion_runs",
+    "ingestion_run_units",
 }
 
 
@@ -168,3 +170,55 @@ def test_only_version_relationships_delete_owned_rows():
 
     section_relationships = inspect(models.Section).relationships
     assert "delete-orphan" not in section_relationships["meetings"].cascade
+
+
+def test_ingestion_run_manifest_constraints_match_migration(monkeypatch):
+    run_checks = {
+        constraint.name: str(constraint.sqltext)
+        for constraint in models.IngestionRun.__table__.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
+    unit_checks = {
+        constraint.name: str(constraint.sqltext)
+        for constraint in models.IngestionRunUnit.__table__.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
+    unit_uniques = {
+        tuple(constraint.columns.keys())
+        for constraint in models.IngestionRunUnit.__table__.constraints
+        if isinstance(constraint, UniqueConstraint)
+    }
+
+    assert set(run_checks) == {
+        "ck_ingestion_runs_status",
+        "ck_ingestion_runs_concurrency",
+        "ck_ingestion_runs_retry_limit",
+    }
+    assert set(unit_checks) == {
+        "ck_ingestion_run_units_status",
+        "ck_ingestion_run_units_attempts",
+        "ck_ingestion_run_units_position",
+    }
+    assert unit_uniques >= {("run_id", "unit_key"), ("run_id", "position")}
+    run_fk = next(iter(models.IngestionRunUnit.__table__.c.run_id.foreign_keys))
+    assert run_fk.target_fullname == "ingestion_runs.id"
+    assert run_fk.ondelete == "CASCADE"
+
+    migration = importlib.import_module("db.migrations.versions.004_ingestion_runs")
+    migration_checks: dict[str, str] = {}
+
+    def capture_table(name, *items):
+        if name in {"ingestion_runs", "ingestion_run_units"}:
+            migration_checks.update(
+                {
+                    item.name: str(item.sqltext)
+                    for item in items
+                    if isinstance(item, CheckConstraint)
+                }
+            )
+
+    monkeypatch.setattr(migration.op, "create_table", capture_table)
+    monkeypatch.setattr(migration.op, "create_index", lambda *args, **kwargs: None)
+    migration.upgrade()
+
+    assert migration_checks == {**run_checks, **unit_checks}

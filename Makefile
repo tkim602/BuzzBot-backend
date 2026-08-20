@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-oscar run-backend run-frontend test test-db lint fmt usage eval-v2
+.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-oscar sync-oscar-all run-backend run-frontend test test-db lint fmt usage eval-v2
 
 setup:
 	pip install -e ".[dev]"
@@ -26,6 +26,9 @@ sync-doc:
 
 sync-oscar:
 	$(PYTHON) -m ingestion.schedule.cli --term "$(term)" --subject "$(subject)" --probe-course "$(course)"
+
+sync-oscar-all:
+	$(PYTHON) -m ingestion.schedule.sync_term --term "$(term)" --probe-subject "$(or $(probe_subject),CS)" --probe-course "$(or $(course),7650)"
 
 ingest:
 	$(PYTHON) -m ingestion.run_ingestion

@@ -50,3 +50,17 @@ Students can add and drop classes until the posted deadline.
     result = chunk_text(text, chunk_size=80, chunk_overlap=10)
     assert len(result) >= 1
     assert any("section_heading" in r.metadata for r in result)
+
+
+def test_structured_field_labels_stay_inside_explicit_heading_section():
+    text = """## Event 1
+Semester: Fall 2026
+Category: Registration
+Date: August 17 (Mon), 2026
+Event: Registration opens.
+""".strip()
+
+    result = chunk_text(text, min_chunk_size=10)
+
+    assert len(result) == 1
+    assert result[0].text == text.removeprefix("## ")

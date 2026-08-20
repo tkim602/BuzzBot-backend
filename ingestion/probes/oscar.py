@@ -20,6 +20,7 @@ SECTION_TITLE_RE = re.compile(
 )
 CREDITS_RE = re.compile(r"(\d+(?:\.\d+)?)\s+Credits", re.IGNORECASE)
 AUTH_HOSTS = {"sso.gatech.edu", "login.gatech.edu", "authn.gatech.edu"}
+NO_RESULTS_MESSAGE = "No classes were found that meet your search criteria"
 
 
 @dataclass(frozen=True)
@@ -135,6 +136,18 @@ def parse_schedule_listing(
     return sections, failures
 
 
+def is_verified_empty_listing(body: str) -> bool:
+    try:
+        tree = lxml_html.fromstring(body)
+    except (TypeError, ValueError):
+        return False
+    titles = [_text(item) for item in tree.xpath("//h2")]
+    messages = tree.xpath("//table[@summary='This layout table holds message information']")
+    return "Class Schedule Listing" in titles and any(
+        _text(table) == NO_RESULTS_MESSAGE for table in messages
+    )
+
+
 async def probe_oscar(
     session: ProbeSession,
     term: str,
@@ -143,7 +156,7 @@ async def probe_oscar(
 ) -> tuple[ProbeResult, ProbeHttpResponse | None]:
     response = await session.get(build_listing_url(term, subject, course))
 
-    if _requires_auth(response):
+    if requires_auth(response):
         return _result(
             session, ProbeStatus.AUTH_REQUIRED, response, reason="LOGIN_REDIRECT"
         ), response
@@ -251,7 +264,7 @@ def _result(
     )
 
 
-def _requires_auth(response: ProbeHttpResponse) -> bool:
+def requires_auth(response: ProbeHttpResponse) -> bool:
     urls = (*response.redirect_urls, response.final_url)
     for url in urls:
         parsed = urlparse(url)

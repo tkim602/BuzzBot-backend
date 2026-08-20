@@ -10,9 +10,16 @@ import pytest
 
 from ingestion.probes.core import ProbeStatus
 from ingestion.schedule import cli
-from ingestion.schedule.sync import SyncOutcome, SyncResult, build_subject_listing_url, sync_subject
+from ingestion.schedule.sync import (
+    SyncOutcome,
+    SyncResult,
+    build_subject_listing_url,
+    collect_subject,
+    sync_subject,
+)
 
 FIXTURE = Path("tests/fixtures/oscar_schedule_sample.html")
+NO_RESULTS_FIXTURE = Path("tests/fixtures/oscar_no_results_sample.html")
 
 
 def _never_open_database():
@@ -154,7 +161,32 @@ async def test_subject_429_stops_without_database_publication(tmp_path: Path):
     assert result.outcome is SyncOutcome.RATE_LIMITED
     assert result.requests_used == 2
     assert result.reason == "HTTP_429"
+    assert result.retry_after_seconds == 60
     assert calls == 2
+
+
+@pytest.mark.asyncio
+async def test_post_probe_collection_uses_exactly_one_request(tmp_path: Path, monkeypatch):
+    html = FIXTURE.read_text()
+    urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        urls.append(str(request.url))
+        return httpx.Response(200, text=html, request=request)
+
+    monkeypatch.setattr("ingestion.schedule.sync.publish_collection", lambda *args: uuid.uuid4())
+
+    result = await collect_subject(
+        "202608",
+        "CS",
+        tmp_path,
+        lambda: nullcontext(object()),
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is SyncOutcome.PUBLISHED
+    assert result.requests_used == len(urls) == 1
+    assert urls == [build_subject_listing_url("202608", "CS")]
 
 
 @pytest.mark.asyncio
@@ -233,6 +265,55 @@ async def test_unparseable_subject_body_stops_without_database_access(tmp_path: 
 
     assert result.outcome is SyncOutcome.PARSE_FAILED
     assert calls == 2
+
+
+@pytest.mark.asyncio
+async def test_recognized_no_results_page_publishes_verified_empty(tmp_path: Path, monkeypatch):
+    published_version = uuid.UUID("77c4e4f2-5fd8-4b5f-982c-7258b04bde2a")
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=NO_RESULTS_FIXTURE.read_text(), request=request)
+
+    def capture_publish(*args):
+        captured["plan"] = args[4]
+        captured["report"] = args[8]
+        return published_version
+
+    monkeypatch.setattr("ingestion.schedule.sync.publish_collection", capture_publish)
+
+    result = await collect_subject(
+        "202608",
+        "COA",
+        tmp_path,
+        lambda: nullcontext(object()),
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is SyncOutcome.VERIFIED_EMPTY
+    assert result.version_id == published_version
+    assert result.records_fetched == result.records_parsed == result.sections == 0
+    assert captured["plan"].verified_empty_subjects == ("COA",)
+    assert captured["report"].valid is True
+
+
+@pytest.mark.asyncio
+async def test_unexpected_http_200_zero_row_page_remains_parse_failure(tmp_path: Path):
+    html = "<html><body><h2>Class Schedule Listing</h2><p>Temporary response</p></body></html>"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=html, request=request)
+
+    result = await collect_subject(
+        "202608",
+        "COA",
+        tmp_path,
+        _never_open_database,
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is SyncOutcome.PARSE_FAILED
+    assert result.reason == "NO_SECTIONS"
 
 
 @pytest.mark.asyncio
@@ -332,5 +413,6 @@ def test_cli_prints_one_compact_count_only_json_line(
         "meetings": 2,
         "version_id": "b561fa08-9975-4fbd-a8f4-a50b11163314",
         "reason": None,
+        "retry_after_seconds": None,
     }
     assert "Natural Language" not in output
