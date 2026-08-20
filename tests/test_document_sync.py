@@ -16,6 +16,7 @@ from ingestion.documents.sync import (
     sync_document_url,
 )
 from ingestion.index import get_embedding_function
+from ingestion.normalize import content_hash
 
 
 def _source() -> DocumentSource:
@@ -412,3 +413,35 @@ def test_calendar_store_uses_short_fact_chunk_threshold(monkeypatch: pytest.Monk
     _store_document(session, source, fetched, lambda texts: [])
 
     assert captured["min_chunk_size"] == 10
+
+
+def test_unchanged_document_reindexes_only_when_stored_chunks_are_invalid(monkeypatch):
+    source = _source()
+    fetched = FetchedDocument(
+        source.seed_urls[0],
+        source.seed_urls[0],
+        "Registration",
+        "Official registration policy details. " * 80,
+        datetime.now(UTC),
+        None,
+        None,
+        None,
+    )
+    existing = MagicMock()
+    existing.content_hash = content_hash(fetched.text)
+    existing.doc_id = "doc-id"
+    bad_chunk = MagicMock(token_count=1, metadata_json={})
+    session = MagicMock()
+    session.scalar.return_value = existing
+    session.scalars.return_value.all.return_value = [bad_chunk]
+
+    monkeypatch.setattr("ingestion.documents.sync.upsert_source", lambda *args: "source-id")
+    monkeypatch.setattr("ingestion.documents.sync.upsert_document", lambda *args: "doc-id")
+    monkeypatch.setattr("ingestion.documents.sync.chunk_text", lambda *args, **kwargs: [object()])
+    monkeypatch.setattr("ingestion.documents.sync.index_chunks", lambda *args: 2)
+    monkeypatch.setattr("ingestion.documents.sync.update_fetch_state", lambda *args: None)
+
+    changed, indexed = _store_document(session, source, fetched, lambda texts: [])
+
+    assert changed is True
+    assert indexed == 2

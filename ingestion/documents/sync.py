@@ -284,6 +284,7 @@ def _store_document(
     }
     if fetched.edition:
         metadata["edition"] = fetched.edition
+    min_chunk_size = 10 if source.source_type == "academic_calendar" else 50
     existing = session.scalar(
         select(Document).where(Document.canonical_url == fetched.canonical_url)
     )
@@ -294,21 +295,22 @@ def _store_document(
         existing.last_modified = fetched.last_modified
         existing.metadata_json = metadata
         stored_chunks = session.scalars(select(Chunk).where(Chunk.doc_id == existing.doc_id)).all()
-        for chunk in stored_chunks:
-            chunk.source_id = source_id
-            chunk.url = fetched.canonical_url
-            chunk.title = fetched.title
-            chunk.fetched_at = fetched.fetched_at
-            chunk.metadata_json = {**(chunk.metadata_json or {}), **metadata}
-        update_fetch_state(
-            session,
-            fetched.source_url,
-            source_id,
-            fetched.etag,
-            fetched.last_modified,
-            digest,
-        )
-        return False, len(stored_chunks)
+        if stored_chunks and all(chunk.token_count >= min_chunk_size for chunk in stored_chunks):
+            for chunk in stored_chunks:
+                chunk.source_id = source_id
+                chunk.url = fetched.canonical_url
+                chunk.title = fetched.title
+                chunk.fetched_at = fetched.fetched_at
+                chunk.metadata_json = {**(chunk.metadata_json or {}), **metadata}
+            update_fetch_state(
+                session,
+                fetched.source_url,
+                source_id,
+                fetched.etag,
+                fetched.last_modified,
+                digest,
+            )
+            return False, len(stored_chunks)
 
     document_id = upsert_document(
         session,
@@ -324,7 +326,7 @@ def _store_document(
         fetched.text,
         chunk_size=500,
         chunk_overlap=80,
-        min_chunk_size=10 if source.source_type == "academic_calendar" else 50,
+        min_chunk_size=min_chunk_size,
         metadata=metadata,
     )
     indexed = index_chunks(
