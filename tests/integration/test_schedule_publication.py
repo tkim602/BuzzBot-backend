@@ -11,6 +11,7 @@ import pytest
 from sqlalchemy import create_engine, delete, event, insert, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from db.models import DataVersion
 from ingestion.schedule.repository import (
     SafeSnapshot,
@@ -69,12 +70,7 @@ def _delete_provider(engine, provider: str) -> None:
 
 
 def test_exception_before_commit_preserves_previous_published_version():
-    engine = create_engine(
-        os.getenv(
-            "DATABASE_URL_SYNC",
-            "postgresql://buzzbot:buzzbot_dev@localhost:5432/buzzbot",
-        )
-    )
+    engine = create_engine(settings.database_url_sync)
     provider = f"test-{uuid.uuid4()}"
     requested_unit = "202608:CS"
     old_id = uuid.uuid4()
@@ -132,12 +128,7 @@ def test_exception_before_commit_preserves_previous_published_version():
 
 
 def test_concurrent_publications_leave_exactly_one_published_version():
-    engine = create_engine(
-        os.getenv(
-            "DATABASE_URL_SYNC",
-            "postgresql://buzzbot:buzzbot_dev@localhost:5432/buzzbot",
-        )
-    )
+    engine = create_engine(settings.database_url_sync)
     provider = f"test-{uuid.uuid4()}"
     requested_unit = "202608:CS"
     old_id = uuid.uuid4()
@@ -205,12 +196,7 @@ def test_concurrent_publications_leave_exactly_one_published_version():
 
 
 def test_different_collection_units_are_not_globally_serialized():
-    engine = create_engine(
-        os.getenv(
-            "DATABASE_URL_SYNC",
-            "postgresql://buzzbot:buzzbot_dev@localhost:5432/buzzbot",
-        )
-    )
+    engine = create_engine(settings.database_url_sync)
     provider = f"test-{uuid.uuid4()}"
     start = threading.Barrier(2)
     before_commit = threading.Barrier(2)

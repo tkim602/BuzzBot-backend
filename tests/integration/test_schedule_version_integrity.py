@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, insert
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import settings
 from db.models import AcademicTerm, Course, DataVersion, Meeting, Section
 
 pytestmark = pytest.mark.skipif(
@@ -17,12 +18,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 def connection():
-    engine = create_engine(
-        os.getenv(
-            "DATABASE_URL_SYNC",
-            "postgresql://buzzbot:buzzbot_dev@localhost:5432/buzzbot",
-        )
-    )
+    engine = create_engine(settings.database_url_sync)
     with engine.connect() as connection:
         transaction = connection.begin()
         yield connection

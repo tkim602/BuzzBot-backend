@@ -193,9 +193,17 @@ def test_required_timed_meeting_fields_must_be_non_empty(field):
     assert "MEETING_FIELD_MISSING" in _codes(report)
 
 
-def test_meeting_must_be_present_or_explicitly_tba():
+def test_source_arranged_section_without_meeting_rows_is_valid():
     plan, courses, sections = _collection()
     missing = replace(sections[0], meetings=())
+
+    report = validate_collection(plan, courses, [missing], [], NOW)
+
+    assert report.valid is True
+
+
+def test_explicit_tba_meeting_must_not_have_times():
+    plan, courses, sections = _collection()
     inconsistent_tba = replace(
         sections[0].meetings[0],
         is_tba=True,
@@ -204,7 +212,6 @@ def test_meeting_must_be_present_or_explicitly_tba():
         room=None,
     )
 
-    missing_report = validate_collection(plan, courses, [missing], [], NOW)
     inconsistent_report = validate_collection(
         plan,
         courses,
@@ -213,7 +220,6 @@ def test_meeting_must_be_present_or_explicitly_tba():
         NOW,
     )
 
-    assert "MEETING_MISSING" in _codes(missing_report)
     assert "MEETING_INCOMPLETE" in _codes(inconsistent_report)
 
 

@@ -59,3 +59,26 @@ def test_normalize_sections_parses_timed_and_tba_meetings():
     assert tba.building is None
     assert tba.room is None
     assert failures == []
+
+
+def test_normalize_sections_keeps_source_schedule_type_without_meetings():
+    samples = [
+        OscarSectionSample(
+            title="Special Problems",
+            crn="84494",
+            subject="CS",
+            course="8903",
+            section="QA2",
+            term_name="Fall 2026",
+            campus="Video Campus",
+            credits=1.0,
+            meetings=(),
+            schedule_type="Directed Study",
+        )
+    ]
+
+    _, sections, failures = normalize_sections("202608", samples)
+
+    assert failures == []
+    assert sections[0].schedule_type == "Directed Study"
+    assert sections[0].meetings == ()

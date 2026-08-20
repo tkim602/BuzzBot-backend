@@ -110,6 +110,31 @@ make sync-oscar term=202608 subject=CS course=7650
 The sync saves a safe snapshot, normalizes courses/sections/meetings, checks completeness and
 freshness, and publishes atomically. A failed collection never replaces the last good version.
 
+### Clean `buzzbot_v2` database
+
+`DATABASE_URL` is the only database setting. The application, Alembic, document ingestion,
+OSCAR ingestion, LangGraph checkpoints, and audit scripts derive their async or sync driver from
+that one URL.
+
+For a first clean setup:
+
+```bash
+docker compose up -d db
+docker compose exec db createdb -U buzzbot buzzbot_v2
+# Set DATABASE_URL=postgresql+asyncpg://buzzbot:buzzbot_dev@localhost:5432/buzzbot_v2 in .env
+make migrate
+
+make probe-doc source=gt-registrar
+make sync-doc source=gt-registrar
+make sync-oscar term=202608 subject=CS course=7650
+
+make run-backend
+curl -s http://localhost:8000/ready
+```
+
+Probe each additional controlled document source before syncing it. Do not run a term-wide subject
+loop until one representative subject has published successfully and the API is ready.
+
 ## Health semantics
 
 - `GET /live`: process liveness only; it has no database or external dependency.

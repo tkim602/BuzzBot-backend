@@ -62,12 +62,7 @@ async def test_hybrid_document_retrieval_returns_official_citation(monkeypatch):
         source_name,
     )
     monkeypatch.setattr(settings, "rag_enable_reranking", False)
-    async_engine = create_async_engine(
-        os.getenv(
-            "DATABASE_URL",
-            "postgresql+asyncpg://buzzbot:buzzbot_dev@localhost:5432/buzzbot",
-        )
-    )
+    async_engine = create_async_engine(settings.database_url)
     try:
         sessions = async_sessionmaker(async_engine, expire_on_commit=False)
         async with sessions() as session:

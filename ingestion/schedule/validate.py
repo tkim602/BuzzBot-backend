@@ -190,14 +190,6 @@ def validate_collection(
                 )
             )
 
-        if not section.meetings:
-            issues.append(
-                ValidationIssue(
-                    "MEETING_MISSING",
-                    section.crn,
-                    "Section must include a meeting or explicit TBA meeting",
-                )
-            )
         for meeting in section.meetings:
             if not meeting.meeting_type.strip() or (
                 not meeting.is_tba and not meeting.days.strip()

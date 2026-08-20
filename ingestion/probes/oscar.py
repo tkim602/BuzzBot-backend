@@ -44,6 +44,7 @@ class OscarSectionSample:
     campus: str
     credits: float
     meetings: tuple[OscarMeetingSample, ...]
+    schedule_type: str = ""
 
 
 @dataclass(frozen=True)
@@ -69,9 +70,7 @@ def parse_schedule_listing(
     max_records: int | None,
 ) -> tuple[list[OscarSectionSample], list[OscarParseFailure]]:
     tree = lxml_html.fromstring(html)
-    tables = tree.xpath(
-        "//table[caption[normalize-space(.)='Sections Found']]"
-    )
+    tables = tree.xpath("//table[caption[normalize-space(.)='Sections Found']]")
     if not tables:
         return [], []
 
@@ -80,7 +79,9 @@ def parse_schedule_listing(
     records_seen = 0
     rows = tables[0].xpath("./tr | ./tbody/tr")
     for row in rows:
-        title_cells = row.xpath("./th[contains(concat(' ', normalize-space(@class), ' '), ' ddtitle ')]")
+        title_cells = row.xpath(
+            "./th[contains(concat(' ', normalize-space(@class), ' '), ' ddtitle ')]"
+        )
         if not title_cells:
             continue
         if max_records is not None and records_seen >= max_records:
@@ -108,6 +109,14 @@ def parse_schedule_listing(
             (line for line in _lines(detail) if line.endswith("Campus")),
             "",
         )
+        schedule_type = next(
+            (
+                line.removesuffix("Schedule Type").strip().removesuffix("*").strip()
+                for line in _lines(detail)
+                if line.endswith("Schedule Type")
+            ),
+            "",
+        )
         meetings = _parse_meetings(detail)
         sections.append(
             OscarSectionSample(
@@ -120,6 +129,7 @@ def parse_schedule_listing(
                 campus=campus,
                 credits=float(credits_match.group(1)) if credits_match else 0.0,
                 meetings=tuple(meetings),
+                schedule_type=schedule_type,
             )
         )
     return sections, failures
@@ -134,7 +144,9 @@ async def probe_oscar(
     response = await session.get(build_listing_url(term, subject, course))
 
     if _requires_auth(response):
-        return _result(session, ProbeStatus.AUTH_REQUIRED, response, reason="LOGIN_REDIRECT"), response
+        return _result(
+            session, ProbeStatus.AUTH_REQUIRED, response, reason="LOGIN_REDIRECT"
+        ), response
     if response.status_code == 429:
         retry_header = response.retry_after
         retry_after = int(retry_header) if retry_header and retry_header.isdigit() else None

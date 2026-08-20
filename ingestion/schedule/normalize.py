@@ -42,12 +42,10 @@ def normalize_sections(
                 course_key=key,
                 section_code=sample.section,
                 campus=sample.campus,
-                schedule_type=_schedule_type(sample.meetings),
+                schedule_type=sample.schedule_type or _schedule_type(sample.meetings),
                 instructors=tuple(
                     dict.fromkeys(
-                        meeting.instructor
-                        for meeting in sample.meetings
-                        if meeting.instructor
+                        meeting.instructor for meeting in sample.meetings if meeting.instructor
                     )
                 ),
                 meetings=meetings,

@@ -3,26 +3,23 @@
 from __future__ import annotations
 
 import json
-import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
-load_dotenv(".env")
+from app.core.config import settings
 
 ARTIFACT_PATH = Path(__file__).resolve().parent.parent / "artifacts" / "db_coverage_audit.json"
 
 
 def _engine():
-    url = os.getenv("DATABASE_URL_SYNC", "postgresql://buzzbot:buzzbot_dev@localhost:5432/buzzbot")
-    return create_engine(url)
+    return create_engine(settings.database_url_sync)
 
 
 def run() -> dict:
     report: dict = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "source_summary": [],
         "entity_presence": {},
     }
@@ -94,7 +91,9 @@ def run() -> dict:
                     "chunks": int(row.chunks),
                     "documents_missing_title": int(row.docs_null_title),
                     "chunks_missing_title": int(row.chunks_null_title),
-                    "latest_doc_fetch": row.latest_doc_fetch.isoformat() if row.latest_doc_fetch else None,
+                    "latest_doc_fetch": row.latest_doc_fetch.isoformat()
+                    if row.latest_doc_fetch
+                    else None,
                 }
             )
 

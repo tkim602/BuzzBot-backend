@@ -49,6 +49,27 @@ def test_parse_schedule_listing_unlimited_retains_malformed_sections():
     assert failures[0].error_code == "SECTION_HEADER_INVALID"
 
 
+def test_parse_schedule_listing_keeps_arranged_section_without_meeting_table():
+    html = """
+    <table><caption>Sections Found</caption>
+      <tr><th class="ddtitle">Special Problems - 84494 - CS 8903 - QA2</th></tr>
+      <tr><td class="dddefault">
+        <span>Associated Term:</span>Fall 2026<br>
+        Video Campus<br>
+        Directed Study* Schedule Type<br>
+        1.000 TO 21.000 Credits<br>
+      </td></tr>
+    </table>
+    """
+
+    sections, failures = parse_schedule_listing(html, max_records=None)
+
+    assert failures == []
+    assert len(sections) == 1
+    assert sections[0].schedule_type == "Directed Study"
+    assert sections[0].meetings == ()
+
+
 def test_build_listing_url_encodes_query():
     url = build_listing_url("202608", "CS", "7650")
 

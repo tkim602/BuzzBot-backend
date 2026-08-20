@@ -10,6 +10,7 @@ from sqlalchemy import engine_from_config, pool
 # Ensure project root is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from app.core.config import settings  # noqa: E402
 from db.models import Base  # noqa: E402
 
 config = context.config
@@ -19,10 +20,8 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# Override URL from env var if available
-url_override = os.getenv("DATABASE_URL_SYNC")
-if url_override:
-    config.set_main_option("sqlalchemy.url", url_override)
+# DATABASE_URL is the single source of truth. Escape percent signs for ConfigParser interpolation.
+config.set_main_option("sqlalchemy.url", settings.database_url_sync.replace("%", "%%"))
 
 
 def run_migrations_offline() -> None:

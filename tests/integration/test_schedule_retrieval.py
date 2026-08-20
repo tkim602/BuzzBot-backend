@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, delete
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.retrieval.schedule import CourseQuery, lookup_course_offerings
 from db.models import DataVersion
 from ingestion.probes.oscar import parse_schedule_listing
@@ -74,12 +75,7 @@ def _publish(
     sections: list[NormalizedSection],
     courses: list[NormalizedCourse] | None = None,
 ) -> uuid.UUID:
-    sync_engine = create_engine(
-        os.getenv(
-            "DATABASE_URL_SYNC",
-            "postgresql://buzzbot:buzzbot_dev@localhost:5432/buzzbot",
-        )
-    )
+    sync_engine = create_engine(settings.database_url_sync)
     try:
         with Session(sync_engine) as session:
             return publish_collection(
@@ -140,12 +136,7 @@ async def test_lookup_returns_grouped_published_offerings_and_precise_filters():
         sections,
         courses,
     )
-    async_engine = create_async_engine(
-        os.getenv(
-            "DATABASE_URL",
-            "postgresql+asyncpg://buzzbot:buzzbot_dev@localhost:5432/buzzbot",
-        )
-    )
+    async_engine = create_async_engine(settings.database_url)
 
     try:
         sessions = async_sessionmaker(async_engine, expire_on_commit=False)
@@ -200,12 +191,7 @@ async def test_lookup_returns_grouped_published_offerings_and_precise_filters():
             )
     finally:
         await async_engine.dispose()
-        sync_engine = create_engine(
-            os.getenv(
-                "DATABASE_URL_SYNC",
-                "postgresql://buzzbot:buzzbot_dev@localhost:5432/buzzbot",
-            )
-        )
+        sync_engine = create_engine(settings.database_url_sync)
         try:
             with Session(sync_engine) as cleanup:
                 cleanup.execute(delete(DataVersion).where(DataVersion.provider == provider))

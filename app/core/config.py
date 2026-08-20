@@ -5,10 +5,26 @@ from __future__ import annotations
 from pydantic_settings import BaseSettings
 
 
+def sync_database_url(database_url: str) -> str:
+    replacements = {
+        "postgresql+asyncpg://": "postgresql+psycopg://",
+        "postgresql+psycopg_async://": "postgresql+psycopg://",
+    }
+    for async_scheme, sync_scheme in replacements.items():
+        if database_url.startswith(async_scheme):
+            return database_url.replace(async_scheme, sync_scheme, 1)
+    if database_url.startswith(("postgresql+psycopg://", "postgresql://")):
+        return database_url
+    raise ValueError("DATABASE_URL must use PostgreSQL")
+
+
 class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://buzzbot:buzzbot_dev@localhost:5432/buzzbot"
-    database_url_sync: str = "postgresql://buzzbot:buzzbot_dev@localhost:5432/buzzbot"
+
+    @property
+    def database_url_sync(self) -> str:
+        return sync_database_url(self.database_url)
 
     # LLM
     llm_provider: str = "openai"
