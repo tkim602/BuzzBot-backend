@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-oscar sync-oscar-all run-backend run-frontend test test-db lint fmt usage eval-v2
+.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-oscar sync-oscar-all run-backend run-frontend test test-db lint fmt usage eval-v2
 
 setup:
 	pip install -e ".[dev]"
@@ -23,6 +23,12 @@ probe-doc:
 
 sync-doc:
 	$(PYTHON) -m ingestion.documents.cli sync --source "$(source)"
+
+sync-doc-many:
+	$(PYTHON) -m ingestion.documents.cli sync-many --source "$(source)" $(if $(verification_limit),--verification-limit "$(verification_limit)",)
+
+resume-doc-run:
+	$(PYTHON) -m ingestion.documents.cli sync-many --source "$(source)" --resume --run-id "$(run_id)"
 
 sync-oscar:
 	$(PYTHON) -m ingestion.schedule.cli --term "$(term)" --subject "$(subject)" --probe-course "$(course)"

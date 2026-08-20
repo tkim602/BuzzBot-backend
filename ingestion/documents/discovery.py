@@ -9,6 +9,10 @@ from ingestion.documents.registry import DocumentSource
 from ingestion.normalize import normalize_url
 
 
+class MaxUrlsExceededError(ValueError):
+    pass
+
+
 def bounded_urls(
     source: DocumentSource,
     body: str,
@@ -26,6 +30,6 @@ def bounded_urls(
             and canonical not in urls
         ):
             urls.append(canonical)
-            if len(urls) == source.max_urls:
-                break
+            if len(urls) > source.max_urls:
+                raise MaxUrlsExceededError
     return tuple(urls)

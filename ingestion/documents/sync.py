@@ -47,6 +47,7 @@ class DocumentSyncResult:
     changed: int = 0
     chunks_indexed: int = 0
     reason: str | None = None
+    retry_after_seconds: int | None = None
 
 
 @dataclass(frozen=True)
@@ -188,6 +189,7 @@ async def sync_document_url(
             DocumentSyncOutcome.RATE_LIMITED,
             1,
             reason="HTTP_429",
+            retry_after_seconds=_retry_after_seconds(response.headers.get("Retry-After")),
         )
     if 300 <= response.status_code < 400:
         target = urljoin(canonical_url, response.headers.get("Location", ""))
@@ -340,3 +342,7 @@ def _store_document(
 def _edition(text: str) -> str | None:
     match = re.search(r"\b(20\d{2}-20\d{2})\b", text)
     return match.group(1) if match else None
+
+
+def _retry_after_seconds(value: str | None) -> int | None:
+    return int(value) if value and value.isdigit() else None

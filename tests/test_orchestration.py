@@ -58,6 +58,13 @@ def test_manifest_is_immutable_ordered_and_isolated(sessions):
     assert load_run_summary(sessions, second).planned_units == ("MATH",)
 
 
+def test_manifest_preserves_opaque_unit_key_case(sessions):
+    url = "https://catalog.gatech.edu/coursesaz/cs"
+    run_id = _planned_run(sessions, url)
+
+    assert load_run_summary(sessions, run_id).planned_units == (url,)
+
+
 @pytest.mark.asyncio
 async def test_scheduler_respects_bounded_concurrency(sessions):
     run_id = _planned_run(sessions, "AE", "CS", "ECE", concurrency=2)

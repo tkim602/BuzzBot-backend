@@ -205,6 +205,30 @@ async def test_one_url_sync_rejects_outside_allowlist_without_request():
 
 
 @pytest.mark.asyncio
+async def test_one_url_sync_reports_retry_after_without_retrying_itself():
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(429, headers={"Retry-After": "30"}, request=request)
+
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        _source().seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert calls == result.requests_used == 1
+    assert result.outcome is DocumentSyncOutcome.RATE_LIMITED
+    assert result.retry_after_seconds == 30
+
+
+@pytest.mark.asyncio
 async def test_calendar_sync_fetches_official_proxy_with_public_xhr_headers(
     monkeypatch: pytest.MonkeyPatch,
 ):

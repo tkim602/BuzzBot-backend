@@ -5,7 +5,7 @@ documents:
     authority: registrar
     allowed_roots: [https://registrar.gatech.edu/]
     seed_urls: [https://registrar.gatech.edu/registration]
-    max_urls: 10
+    max_urls: 50
 
   - name: gt-academic-calendar
     source_type: academic_calendar
@@ -18,8 +18,8 @@ documents:
     source_type: course_catalog
     authority: catalog
     allowed_roots: [https://catalog.gatech.edu/]
-    seed_urls: [https://catalog.gatech.edu/coursesaz/cs/]
-    max_urls: 15
+    seed_urls: [https://catalog.gatech.edu/coursesaz/]
+    max_urls: 150
 
   - name: gt-omscs
     source_type: omscs_policy

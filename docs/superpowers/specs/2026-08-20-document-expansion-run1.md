@@ -11,7 +11,9 @@ resumable URL manifests without changing the existing document storage or embedd
 
 - One ingestion run represents one document source.
 - Each immutable run unit is one normalized canonical URL.
-- Fresh runs discover once, enforce the source `max_urls`, and persist the ordered URL manifest.
+- Fresh runs discover once, then allowlist, canonicalize, and deduplicate before checking the
+  source `max_urls` safety ceiling. At or below the ceiling every URL enters the manifest; above
+  it planning fails with `MAX_URLS_EXCEEDED` and no URL is silently dropped.
 - Resume loads only the stored incomplete URLs and never performs discovery again.
 - The existing ingestion orchestration kernel owns retries, status, and per-URL result summaries.
 - A source run is complete only when every planned URL succeeds.
@@ -23,7 +25,9 @@ resumable URL manifests without changing the existing document storage or embedd
 - Registrar discovers only official links under the configured registration path prefix.
 - Catalog discovers only official course A-Z links under the configured course path prefix.
 - Adapters resolve relative links, normalize URLs, remove fragments and duplicates, reject URLs
-  outside their allowlist, preserve source order, and stop at `max_urls`.
+  outside their allowlist and preserve source order.
+- `verification_limit` is a separate explicit smoke-test option applied only after the safety
+  ceiling passes. Production runs do not set it.
 
 ## Storage safety
 
@@ -45,4 +49,3 @@ resumable URL manifests without changing the existing document storage or embedd
 
 - generic same-domain crawling, sitemaps, distributed workers, implicit deletion, tombstones,
   source-wide atomic publication, and new orchestration tables
-

@@ -33,8 +33,8 @@ class DocumentSource:
             raise ValueError("name, source_type, and authority are required")
         if not self.allowed_roots or not self.seed_urls:
             raise ValueError("allowed roots and seed URLs are required")
-        if not 1 <= self.max_urls <= 25:
-            raise ValueError("max_urls must be between 1 and 25")
+        if not 1 <= self.max_urls <= 500:
+            raise ValueError("max_urls must be between 1 and 500")
         if any(not root.startswith("https://") for root in self.allowed_roots):
             raise ValueError("allowed roots must use HTTPS")
         if any(

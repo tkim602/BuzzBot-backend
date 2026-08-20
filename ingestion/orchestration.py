@@ -89,7 +89,7 @@ def plan_run(
     run_id: uuid.UUID,
     units: Sequence[str],
 ) -> None:
-    planned = tuple(unit.strip().upper() for unit in units)
+    planned = tuple(unit.strip() for unit in units)
     if not planned or any(not unit for unit in planned) or len(set(planned)) != len(planned):
         raise ValueError("planned units must be nonempty and unique")
     with session_factory() as session, session.begin():
@@ -135,7 +135,7 @@ def reset_failed_units(
     run_id: uuid.UUID,
     units: Sequence[str],
 ) -> None:
-    selected = tuple(unit.strip().upper() for unit in units)
+    selected = tuple(unit.strip() for unit in units)
     if not selected:
         return
     with session_factory() as session, session.begin():

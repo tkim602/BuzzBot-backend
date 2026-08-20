@@ -29,7 +29,8 @@
 - Create: `tests/test_document_discovery.py`
 
 - [ ] Write failing tests with small HTML fixtures proving relative-link resolution,
-  allowlisted-prefix filtering, canonicalization, deduplication, source order, and `max_urls`.
+  allowlisted-prefix filtering, canonicalization, deduplication, source order, and that exceeding
+  the `max_urls` safety ceiling fails rather than truncates.
 - [ ] Run `PYTHONPATH=$PWD python3 -m pytest -q tests/test_document_discovery.py` and verify RED
   because the adapter modules do not exist.
 - [ ] Implement one `discover_urls(source, html)` function in each adapter using
@@ -62,14 +63,15 @@
 - Modify: `ingestion/documents/cli.py`
 - Modify: `Makefile`
 
-- [ ] Write failing tests proving a fresh source run fetches its discovery page once, plans no
-  more than `max_urls`, records per-URL counts, maps auth/rate-limit/fetch/extract outcomes to the
-  existing `UnitOutcome`, and a resume uses the stored manifest without rediscovery.
+- [ ] Write failing tests proving a fresh source run fetches its discovery page once, plans every
+  discovered URL within `max_urls`, fails planning with `MAX_URLS_EXCEEDED` above the ceiling,
+  records per-URL counts, maps auth/rate-limit/fetch/extract outcomes to the existing
+  `UnitOutcome`, and a resume uses the stored manifest without rediscovery.
 - [ ] Run `PYTHONPATH=$PWD python3 -m pytest -q tests/test_document_source_runner.py` and verify RED.
 - [ ] Implement `sync_document_source_urls()` as a thin adapter around `create_run()`,
   `plan_run()`, `load_run_summary()`, and `run_batch()`. Dispatch directly by the two supported
   source names; do not add a base class or factory.
-- [ ] Add CLI `sync-many --source ... [--limit 2]` for fresh bounded runs and
+- [ ] Add CLI `sync-many --source ... [--verification-limit 2]` for explicit smoke runs and
   `sync-many --run-id ... --resume` for stored manifests. Add matching Make targets.
 - [ ] Run runner and CLI tests and verify GREEN.
 
@@ -83,9 +85,8 @@
   expected.
 - [ ] Run focused tests, the full suite, PostgreSQL integration tests, Ruff, mypy, diff check, and
   secret scan.
-- [ ] Run bounded live Registrar and Catalog discovery/sync with `--limit 2` only. Never run the
+- [ ] Run bounded live Registrar and Catalog discovery/sync with `--verification-limit 2` only. Never run the
   full source manifests.
 - [ ] Run one retrieval citation smoke query against the bounded documents.
 - [ ] Record exact operator commands, expected JSON summaries, coverage limits, and verification
   evidence, then stop.
-
