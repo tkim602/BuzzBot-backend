@@ -85,12 +85,22 @@ def test_url_not_in_retrieved_chunks_removed():
         ),
         (
             "The OMSCS degree requires 30 total credit hours (10 courses).",
+            "Nine courses are not enough to graduate.",
+            "SUPPORTED",
+        ),
+        (
+            "The OMSCS degree requires 30 total credit hours (10 courses).",
             "Nine courses are enough to graduate.",
             "CONTRADICTED",
         ),
         (
             "Early Action 2 — Application Deadline: November 2.",
             "November 2 is the Early Action 2 deadline.",
+            "SUPPORTED",
+        ),
+        (
+            "Early Action 1 — October 15. Early Action 2 — November 2.",
+            "November 2 is not the Early Action 1 deadline.",
             "SUPPORTED",
         ),
     ],
@@ -102,6 +112,23 @@ async def test_semantic_claim_verdict_is_reusable(monkeypatch, evidence, claim, 
     assert await semantic_claim_verdict(claim, evidence) == verdict
     assert claim in call.await_args.args[1]
     assert evidence in call.await_args.args[1]
+
+
+@pytest.mark.asyncio
+async def test_claim_support_strips_answer_polarity_without_inverting_factual_negation(monkeypatch):
+    call = AsyncMock(return_value="SUPPORTED")
+    monkeypatch.setattr("app.rag.grounding._call_llm", call)
+
+    supported, notes = await check_claim_support(
+        "No, completing nine OMSCS courses is not enough to graduate, as a minimum of 30 credit hours is required.",
+        [_make_chunk("The OMSCS degree requires 30 total credit hours (10 courses).")],
+    )
+
+    semantic_input = call.await_args.args[1]
+    assert supported
+    assert not notes
+    assert "CLAIM:\ncompleting nine OMSCS courses is not enough" in semantic_input
+    assert "CLAIM:\nNo," not in semantic_input
 
 
 @pytest.mark.asyncio

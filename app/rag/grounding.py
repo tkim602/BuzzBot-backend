@@ -16,6 +16,7 @@ _YES_NO_QUESTION_RE = re.compile(
     re.I,
 )
 _LEADING_POLARITY_RE = re.compile(r"^\s*(?:yes|no)\b", re.I)
+_LEADING_ANSWER_TOKEN_RE = re.compile(r"^\s*(?:yes|no)\s*[,.;:—–-]\s*", re.I)
 _CLAIM_SPLIT_RE = re.compile(r"(?:\n+|[!?;](?:\s+|$)|\.(?!\d)(?:\s+|$)|\s+(?:and|but)\s+)", re.I)
 _STOPWORDS = {
     "a",
@@ -170,7 +171,8 @@ async def check_claim_support(
         if sentence.strip()
     ]
     notes: list[str] = []
-    for claim in _CLAIM_SPLIT_RE.split(answer):
+    normalized_answer = _LEADING_ANSWER_TOKEN_RE.sub("", answer, count=1)
+    for claim in _CLAIM_SPLIT_RE.split(normalized_answer):
         claim_tokens = _content_tokens(claim)
         if len(claim_tokens) < 2:
             continue
