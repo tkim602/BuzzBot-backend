@@ -7,7 +7,14 @@ import pytest
 from fastapi import FastAPI
 
 from app.api.agent import router
+from app.schemas.chat import Citation
 from db.session import get_async_session
+
+
+def test_pdf_citation_accepts_one_based_page_number():
+    citation = Citation(url="https://example.gatech.edu/guide.pdf", quote="Exact text", page=4)
+
+    assert citation.page == 4
 
 
 @pytest.mark.asyncio

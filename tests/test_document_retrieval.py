@@ -95,4 +95,54 @@ async def test_explicit_admissions_authority_is_not_overridden_by_deadline_word(
         [0.1] * 1536,
     )
 
-    assert captured["source_filter"] == ["gt-admission"]
+    assert captured["source_filter"] == [
+        "gt-admission",
+        "gt-transfer-admission",
+        "gt-graduate-admission",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_one_source_type_filters_all_registered_sources(monkeypatch):
+    captured: dict[str, object] = {}
+
+    async def fake_hybrid(session, query, query_embedding, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr("app.retrieval.documents.hybrid_retrieve", fake_hybrid)
+    await search_policy_docs(
+        object(),
+        PolicyQuery("How do I pay tuition?", source_types=("finance",)),
+        [0.1] * 1536,
+    )
+
+    assert captured["source_filter"] == ["gt-bursar", "gt-financial-aid"]
+
+
+@pytest.mark.asyncio
+async def test_pdf_page_metadata_is_preserved_in_document_evidence(monkeypatch):
+    async def fake_hybrid(session, query, query_embedding, **kwargs):
+        return [
+            RetrievedChunk(
+                chunk_id="pdf-page",
+                url="https://housing.gatech.edu/guide.pdf",
+                title="Housing Guide",
+                chunk_text="Cancellation deadline is July 1.",
+                score=0.9,
+                source_name="gt-housing",
+                fetched_at="2026-08-21T00:00:00+00:00",
+                metadata_json={
+                    "source_type": "housing",
+                    "authority": "housing",
+                    "page_start": 4,
+                },
+            )
+        ]
+
+    monkeypatch.setattr("app.retrieval.documents.hybrid_retrieve", fake_hybrid)
+    evidence = await search_policy_docs(
+        object(), PolicyQuery("What is the cancellation deadline?", source_types=("housing",)), []
+    )
+
+    assert evidence[0].page == 4

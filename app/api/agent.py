@@ -62,6 +62,7 @@ async def agent_chat(
                 title=item.get("title"),
                 fetched_at=item.get("fetched_at"),
                 quote=item["quote"],
+                page=item.get("page"),
             )
             for item in cast(list[CitationItem], result.get("citations", []))
         ]

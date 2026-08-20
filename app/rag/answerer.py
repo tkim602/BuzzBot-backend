@@ -105,11 +105,13 @@ def _ground_citation_quotes(
         if _lexical_match_score(answer, chunk) <= 0:
             continue
         grounded_citation = {
-            **citation,
             "url": chunk.url,
             "title": chunk.title,
             "fetched_at": chunk.fetched_at,
         }
+        page = (chunk.metadata_json or {}).get("page_start")
+        if isinstance(page, int):
+            grounded_citation["page"] = page
         claim_words = _lexical_terms(answer)
         sentences = [
             part.strip() for part in _SENTENCE_SPLIT_RE.split(chunk.chunk_text) if part.strip()

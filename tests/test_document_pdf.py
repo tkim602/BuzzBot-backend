@@ -6,6 +6,8 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 
+from app.rag.answerer import _ground_citation_quotes
+from app.rag.retrieval import RetrievedChunk
 from ingestion.documents.pdf import PdfExtractionError, extract_pdf
 from ingestion.documents.registry import DocumentSource
 from ingestion.documents.sync import (
@@ -217,3 +219,31 @@ async def test_broken_pdf_fails_before_replacing_trusted_document(monkeypatch):
 
     assert result.outcome is DocumentSyncOutcome.EXTRACT_FAILED
     assert result.reason == "QUALITY_GATE_FAILED"
+
+
+def test_grounded_pdf_citation_uses_selected_chunk_page():
+    chunk = RetrievedChunk(
+        chunk_id="page-4",
+        url="https://guide.gatech.edu/guides/student.pdf",
+        title="Student Guide",
+        chunk_text="The cancellation deadline is July 1.",
+        score=0.9,
+        source_name="gt-guide",
+        metadata_json={"content_type": "application/pdf", "page_start": 4},
+    )
+
+    citations = _ground_citation_quotes(
+        [{"url": "invented", "quote": "invented", "page": 99}],
+        [chunk],
+        "The cancellation deadline is July 1.",
+    )
+
+    assert citations == [
+        {
+            "url": chunk.url,
+            "title": chunk.title,
+            "fetched_at": None,
+            "page": 4,
+            "quote": "The cancellation deadline is July 1.",
+        }
+    ]

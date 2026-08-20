@@ -25,6 +25,7 @@ class CitationItem(TypedDict):
     title: str | None
     fetched_at: str | None
     quote: str
+    page: NotRequired[int]
 
 
 class AgentState(TypedDict):
