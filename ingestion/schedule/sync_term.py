@@ -148,8 +148,9 @@ def _unit_result(result: SyncResult) -> UnitResult:
         "courses": result.courses,
         "sections": result.sections,
         "meetings": result.meetings,
+        "verified_empty": result.outcome is SyncOutcome.VERIFIED_EMPTY,
     }
-    if result.outcome is SyncOutcome.PUBLISHED:
+    if result.outcome in {SyncOutcome.PUBLISHED, SyncOutcome.VERIFIED_EMPTY}:
         outcome = UnitOutcome.SUCCEEDED
     elif result.outcome is SyncOutcome.RATE_LIMITED:
         outcome = UnitOutcome.RATE_LIMITED

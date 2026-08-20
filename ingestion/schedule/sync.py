@@ -25,6 +25,7 @@ from ingestion.probes.core import (
 from ingestion.probes.oscar import (
     AUTH_HOSTS,
     OSCAR_LISTING_URL,
+    is_verified_empty_listing,
     parse_schedule_listing,
     probe_oscar,
 )
@@ -39,6 +40,7 @@ PARSER_VERSION = "oscar-v1"
 
 class SyncOutcome(StrEnum):
     PUBLISHED = "PUBLISHED"
+    VERIFIED_EMPTY = "VERIFIED_EMPTY"
     PROBE_FAILED = "PROBE_FAILED"
     RATE_LIMITED = "RATE_LIMITED"
     AUTH_REQUIRED = "AUTH_REQUIRED"
@@ -199,7 +201,10 @@ def _process_subject_response(
             requests_used,
             reason=type(exc).__name__,
         )
-    if not samples and not parser_failures:
+    verified_empty = (
+        not samples and not parser_failures and is_verified_empty_listing(response.body)
+    )
+    if not samples and not parser_failures and not verified_empty:
         return SyncResult(
             SyncOutcome.PARSE_FAILED,
             ProbeStatus.READY,
@@ -221,6 +226,7 @@ def _process_subject_response(
         failed_units=(),
         records_fetched=fetched,
         records_parsed=len(sections),
+        verified_empty_subjects=(subject,) if verified_empty else (),
     )
     report = validate_collection(plan, courses, sections, failures, snapshot.fetched_at)
     with session_factory() as session:
@@ -236,8 +242,11 @@ def _process_subject_response(
             report,
         )
 
+    outcome = SyncOutcome.VALIDATION_FAILED
+    if report.valid:
+        outcome = SyncOutcome.VERIFIED_EMPTY if verified_empty else SyncOutcome.PUBLISHED
     return SyncResult(
-        SyncOutcome.PUBLISHED if report.valid else SyncOutcome.VALIDATION_FAILED,
+        outcome,
         ProbeStatus.READY,
         requests_used,
         fetched,

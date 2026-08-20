@@ -179,3 +179,10 @@ def test_cli_prints_one_compact_summary_line(monkeypatch, capsys):
         "stop_reason": None,
         "planned_units": ["CS"],
     }
+
+
+def test_verified_empty_sync_result_is_a_successful_run_unit():
+    result = sync_term._unit_result(SyncResult(SyncOutcome.VERIFIED_EMPTY, ProbeStatus.READY, 1))
+
+    assert result.outcome.value == "SUCCEEDED"
+    assert result.summary["verified_empty"] is True

@@ -149,3 +149,8 @@ python3 -m ingestion.schedule.sync_term \
 An authentication response fails the run globally. A 429 pauses new scheduling, honors
 `Retry-After` or bounded backoff, and leaves the run resumable if the retry budget is exhausted.
 Failed or partial subject collections never replace the last published version.
+
+An official OSCAR listing that contains the recognized no-results message is published as a
+verified-empty `term:subject` version with zero rows. This supersedes an older non-empty version so
+stale offerings cannot remain authoritative. Any other HTTP 200 response that produces zero
+sections remains a parse failure and cannot publish.

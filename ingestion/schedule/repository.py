@@ -97,6 +97,7 @@ def publish_collection(
                     "sections": len(sections),
                     "meetings": meeting_count,
                     "errors": len(errors),
+                    "verified_empty_subjects": list(plan.verified_empty_subjects),
                 },
             },
         )

@@ -22,6 +22,7 @@ class CollectionPlan:
     failed_units: tuple[str, ...]
     records_fetched: int
     records_parsed: int
+    verified_empty_subjects: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -106,18 +107,36 @@ def validate_collection(
             )
         )
 
-    if not courses or not sections or plan.records_fetched == 0:
+    planned_subjects = set(plan.planned_subjects)
+    completed_subjects = set(plan.completed_subjects)
+    verified_empty_subjects = set(plan.verified_empty_subjects)
+    if not verified_empty_subjects <= planned_subjects & completed_subjects:
+        issues.append(
+            ValidationIssue(
+                "VERIFIED_EMPTY_INVALID",
+                None,
+                "Verified-empty subjects must be planned and completed",
+            )
+        )
+
+    expected_record_subjects = planned_subjects - verified_empty_subjects
+    valid_all_empty = (
+        verified_empty_subjects == planned_subjects
+        and not courses
+        and not sections
+        and plan.records_fetched == 0
+    )
+    if (not courses or not sections or plan.records_fetched == 0) and not valid_all_empty:
         issues.append(ValidationIssue("EMPTY_COLLECTION", None, "Collection has no usable records"))
 
-    planned_subjects = set(plan.planned_subjects)
     course_subjects = {course.subject for course in courses}
     section_subjects = {section.course_key[0] for section in sections}
-    if course_subjects != planned_subjects or section_subjects != planned_subjects:
+    if course_subjects != expected_record_subjects or section_subjects != expected_record_subjects:
         issues.append(
             ValidationIssue(
                 "SUBJECT_COVERAGE_MISMATCH",
                 None,
-                "Normalized course and section subjects must exactly match the plan",
+                "Normalized subjects must match the non-empty portion of the plan",
             )
         )
 

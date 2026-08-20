@@ -132,6 +132,36 @@ def test_empty_collection_is_invalid_without_dividing_by_zero():
     assert "EMPTY_COLLECTION" in _codes(report)
 
 
+def test_verified_empty_subject_is_a_valid_zero_row_collection():
+    plan, _, _ = _collection()
+    plan = replace(
+        plan,
+        records_fetched=0,
+        records_parsed=0,
+        verified_empty_subjects=("CS",),
+    )
+
+    report = validate_collection(plan, [], [], [], NOW)
+
+    assert report.valid is True
+    assert report.parse_success_rate == 0.0
+
+
+def test_verified_empty_subject_must_belong_to_the_completed_plan():
+    plan, _, _ = _collection()
+    plan = replace(
+        plan,
+        records_fetched=0,
+        records_parsed=0,
+        verified_empty_subjects=("MATH",),
+    )
+
+    report = validate_collection(plan, [], [], [], NOW)
+
+    assert report.valid is False
+    assert "VERIFIED_EMPTY_INVALID" in _codes(report)
+
+
 def test_invalid_parse_denominator_is_reported():
     plan, courses, sections = _collection()
     plan = replace(plan, records_fetched=1, records_parsed=2)
