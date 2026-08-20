@@ -97,6 +97,9 @@ keywords. There is no second reranker or general web-search fallback in v2.
 application-scoped `AsyncPostgresSaver` is created during FastAPI lifespan and runs its idempotent
 setup. A bounded client `thread_id` is passed through LangGraph configuration.
 
+The already-hashed request fingerprint is used as `checkpoint_ns`, so two unauthenticated clients
+that choose the same visible thread ID do not share checkpoint state.
+
 Checkpoint startup is best-effort: a failure is logged by exception type without printing the
 connection URL. The process remains live, while `/ready` reports checkpoint failure. No in-process
 memory saver is substituted in production.

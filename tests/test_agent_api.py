@@ -34,7 +34,10 @@ async def test_v2_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
     )
     build = MagicMock(return_value=graph)
     monkeypatch.setattr("app.api.agent.build_workflow", build)
-    monkeypatch.setattr("app.api.agent.enforce_request_guardrails", MagicMock())
+    monkeypatch.setattr(
+        "app.api.agent.enforce_request_guardrails",
+        MagicMock(return_value=("client-a", "normalized-query")),
+    )
 
     @asynccontextmanager
     async def free_slot():
@@ -67,7 +70,12 @@ async def test_v2_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
     assert body["citations"][0]["url"].startswith("https://registrar.gatech.edu/")
     state, config = graph.ainvoke.await_args.args
     assert state["user_term"] == "Fall 2026"
-    assert config == {"configurable": {"thread_id": "portfolio-demo-1"}}
+    assert config == {
+        "configurable": {
+            "thread_id": "portfolio-demo-1",
+            "checkpoint_ns": "client:client-a",
+        }
+    }
     assert build.call_args.kwargs["checkpointer"] is app.state.checkpointer
 
 

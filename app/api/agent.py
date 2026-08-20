@@ -37,7 +37,7 @@ async def agent_chat(
     started = time.perf_counter()
     thread_id = payload.thread_id or str(uuid.uuid4())
     try:
-        enforce_request_guardrails(request, payload.query)
+        client_id, _ = enforce_request_guardrails(request, payload.query)
         checkpointer = getattr(request.app.state, "checkpointer", None)
         graph = build_workflow(WorkflowServices(session), checkpointer=checkpointer)
         user_term = payload.user_context.term if payload.user_context else None
@@ -46,7 +46,12 @@ async def agent_chat(
             "history": [turn.model_dump() for turn in payload.history],
             "user_term": user_term,
         }
-        config = {"configurable": {"thread_id": thread_id}}
+        config = {
+            "configurable": {
+                "thread_id": thread_id,
+                "checkpoint_ns": f"client:{client_id}",
+            }
+        }
         async with acquire_chat_slot():
             result = cast(AgentState, await graph.ainvoke(initial_state, config))
 
