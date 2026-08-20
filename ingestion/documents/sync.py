@@ -24,6 +24,7 @@ from ingestion.documents.calendar import (
     parse_calendar_payload,
 )
 from ingestion.documents.catalog import accepts_path as accepts_catalog_path
+from ingestion.documents.discovery import _declared_path_allowed
 from ingestion.documents.omscs import accepts_path as accepts_omscs_path
 from ingestion.documents.probe import DocumentProbeStatus, probe_document_source
 from ingestion.documents.registrar import accepts_path as accepts_registrar_path
@@ -374,8 +375,11 @@ def _conditional_headers(session: Session, url: str) -> dict[str, str]:
 
 
 def _redirect_in_scope(source: DocumentSource, url: str) -> bool:
-    accepts_path = _REDIRECT_SCOPES.get(source.authority)
-    return accepts_path is not None and accepts_path(urlsplit(normalize_url(url)).path)
+    path = urlsplit(normalize_url(url)).path
+    if source.adapter == "paths":
+        return _declared_path_allowed(source, path)
+    accepts_path = _REDIRECT_SCOPES.get(source.adapter or source.authority)
+    return accepts_path is not None and accepts_path(path)
 
 
 def _uses_current_chunking(document: Document) -> bool:

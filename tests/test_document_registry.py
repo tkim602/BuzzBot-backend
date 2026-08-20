@@ -8,13 +8,13 @@ from ingestion.documents.registry import DocumentSource, load_document_sources
 def test_registry_contains_only_bounded_authoritative_sources():
     sources = load_document_sources(Path("ingestion/sources.yaml"))
 
-    assert {source.name for source in sources} == {
+    assert {
         "gt-registrar",
         "gt-academic-calendar",
         "gt-catalog",
         "gt-omscs",
         "gt-admission",
-    }
+    } <= {source.name for source in sources}
     assert all(source.max_urls <= 500 for source in sources)
     assert all(source.seed_urls for source in sources)
     assert all(root.startswith("https://") for source in sources for root in source.allowed_roots)
@@ -32,6 +32,47 @@ def test_registry_contains_only_bounded_authoritative_sources():
     assert registrar.max_urls == 50
     assert catalog.max_urls == 150
     assert catalog.seed_urls == ("https://catalog.gatech.edu/coursesaz/",)
+
+
+def test_run3_sources_declare_vertical_adapter_paths_and_content_types():
+    sources = load_document_sources(Path("ingestion/sources.yaml"))
+    run3 = [source for source in sources if "run3" in source.profiles]
+
+    assert run3
+    assert {source.vertical for source in run3} >= {
+        "academics",
+        "finance",
+        "housing_dining",
+        "health_support",
+        "international",
+        "career",
+        "campus_operations",
+        "student_life",
+        "admissions",
+    }
+    assert all(source.adapter for source in run3)
+    assert all(source.allowed_path_prefixes for source in run3)
+    assert all(source.content_types for source in run3)
+    assert all(source.freshness_class in {"low", "medium", "high"} for source in run3)
+
+
+def test_registry_rejects_unknown_content_type_and_freshness():
+    common = dict(
+        name="bad",
+        source_type="policy",
+        authority="official",
+        allowed_roots=("https://example.gatech.edu/",),
+        seed_urls=("https://example.gatech.edu/policy",),
+        max_urls=1,
+        vertical="test",
+        adapter="paths",
+        allowed_path_prefixes=("/policy",),
+    )
+
+    with pytest.raises(ValueError, match="content type"):
+        DocumentSource(**common, content_types=("image/png",))
+    with pytest.raises(ValueError, match="freshness"):
+        DocumentSource(**common, freshness_class="hourly")
 
 
 def test_document_source_rejects_seed_outside_allowed_roots():
