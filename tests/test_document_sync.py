@@ -433,6 +433,59 @@ async def test_one_url_sync_rejects_external_redirect_without_following():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("source", "start", "target"),
+    (
+        (
+            DocumentSource(
+                "gt-omscs",
+                "omscs_policy",
+                "omscs",
+                ("https://omscs.gatech.edu/",),
+                ("https://omscs.gatech.edu/degree-requirements",),
+                10,
+            ),
+            "https://omscs.gatech.edu/degree-requirements",
+            "https://omscs.gatech.edu/news/foo",
+        ),
+        (
+            DocumentSource(
+                "gt-admission",
+                "admissions",
+                "admissions",
+                ("https://admission.gatech.edu/first-year/",),
+                ("https://admission.gatech.edu/first-year/foo",),
+                30,
+            ),
+            "https://admission.gatech.edu/first-year/foo",
+            "https://admission.gatech.edu/first-year/foo/bar",
+        ),
+    ),
+)
+async def test_one_url_sync_rejects_redirect_outside_adapter_scope(source, start, target):
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(301, headers={"Location": target}, request=request)
+
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        source,
+        start,
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert calls == [start]
+    assert result.outcome is DocumentSyncOutcome.FETCH_FAILED
+    assert result.reason == "REDIRECT_NOT_ALLOWED"
+    assert result.requests_used == 1
+
+
+@pytest.mark.asyncio
 async def test_304_repairs_invalid_chunks_from_trusted_stored_content(monkeypatch):
     source = _source()
     state = MagicMock(etag='"v1"', last_modified=None)

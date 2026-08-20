@@ -108,6 +108,7 @@ def test_admission_discovery_accepts_only_direct_first_year_pages():
     <a href="/first-year/application-review">Application review</a>
     <a href="/first-year/personal-essays">Essays</a>
     <a href="/first-year/personal-essays/examples">Nested</a>
+    <a href="/first-year/checklist.pdf">PDF</a>
     <a href="/transfer/deadlines">Transfer</a>
     <a href="/visit">Visit</a>
     <a href="https://apply.gatech.edu/apply/">Portal</a>

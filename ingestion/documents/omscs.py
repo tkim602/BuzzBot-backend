@@ -13,5 +13,9 @@ _POLICY_PATHS = {
 }
 
 
+def accepts_path(path: str) -> bool:
+    return path in _POLICY_PATHS
+
+
 def discover_urls(source: DocumentSource, body: str) -> tuple[str, ...]:
-    return bounded_urls(source, body, _POLICY_PATHS.__contains__)
+    return bounded_urls(source, body, accepts_path)

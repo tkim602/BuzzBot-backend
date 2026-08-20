@@ -6,7 +6,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 from lxml import html as lxml_html
@@ -16,13 +16,17 @@ from sqlalchemy.orm import Session
 
 from db.models import Chunk, Document, FetchState
 from ingestion.chunk import chunk_text
+from ingestion.documents.admission import accepts_path as accepts_admission_path
 from ingestion.documents.calendar import (
     CalendarPayloadError,
     calendar_request_headers,
     calendar_request_url,
     parse_calendar_payload,
 )
+from ingestion.documents.catalog import accepts_path as accepts_catalog_path
+from ingestion.documents.omscs import accepts_path as accepts_omscs_path
 from ingestion.documents.probe import DocumentProbeStatus, probe_document_source
+from ingestion.documents.registrar import accepts_path as accepts_registrar_path
 from ingestion.documents.registry import DocumentSource
 from ingestion.extract import extract_content
 from ingestion.index import index_chunks, update_fetch_state, upsert_document, upsert_source
@@ -42,6 +46,14 @@ class DocumentSyncOutcome(StrEnum):
 
 class DocumentQualityError(ValueError):
     pass
+
+
+_REDIRECT_SCOPES = {
+    "registrar": accepts_registrar_path,
+    "catalog": accepts_catalog_path,
+    "omscs": accepts_omscs_path,
+    "admissions": accepts_admission_path,
+}
 
 
 @dataclass(frozen=True)
@@ -201,7 +213,11 @@ async def sync_document_url(
                     requests_used,
                     reason="AUTH_REDIRECT",
                 )
-            if not response.headers.get("Location") or not source.allows(target_url):
+            if (
+                not response.headers.get("Location")
+                or not source.allows(target_url)
+                or not _redirect_in_scope(source, target_url)
+            ):
                 return DocumentSyncResult(
                     source.name,
                     DocumentSyncOutcome.FETCH_FAILED,
@@ -350,6 +366,11 @@ def _conditional_headers(session: Session, url: str) -> dict[str, str]:
     if state and state.last_modified:
         headers["If-Modified-Since"] = state.last_modified
     return headers
+
+
+def _redirect_in_scope(source: DocumentSource, url: str) -> bool:
+    accepts_path = _REDIRECT_SCOPES.get(source.authority)
+    return accepts_path is not None and accepts_path(urlsplit(normalize_url(url)).path)
 
 
 def _store_document(
