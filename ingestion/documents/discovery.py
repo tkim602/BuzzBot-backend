@@ -16,6 +16,8 @@ class MaxUrlsExceededError(ValueError):
 
 def _declared_path_allowed(source: DocumentSource, path: str) -> bool:
     normalized = path.rstrip("/") or "/"
+    if normalized in {excluded.rstrip("/") or "/" for excluded in source.excluded_paths}:
+        return False
     within_prefix = any(
         normalized == prefix.rstrip("/") or normalized.startswith(prefix.rstrip("/") + "/")
         for prefix in source.allowed_path_prefixes
@@ -42,7 +44,7 @@ def bounded_urls(
     root = lxml_html.fromstring(body)
     urls: list[str] = []
     for raw_url in (*source.seed_urls, *(root.xpath("//a[@href]/@href"))):
-        absolute = urljoin(source.seed_urls[0], str(raw_url))
+        absolute = urljoin(source.seed_urls[0], str(raw_url).strip())
         parsed = urlsplit(absolute)
         canonical = normalize_url(urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", "")))
         if (
