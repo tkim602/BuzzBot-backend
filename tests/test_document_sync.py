@@ -338,6 +338,101 @@ async def test_one_url_sync_follows_one_safe_canonical_redirect(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_one_url_sync_follows_safe_alias_without_duplicate_document(monkeypatch):
+    alias = "https://registrar.gatech.edu/registration/registration-information"
+    target = "https://registrar.gatech.edu/registration/registration-assistance"
+    calls: list[httpx.Request] = []
+    captured: dict[str, FetchedDocument] = {}
+    html = (
+        "<html><title>Registration Assistance</title><body>"
+        + "official registration assistance " * 20
+        + "</body></html>"
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if str(request.url) == alias:
+            return httpx.Response(301, headers={"Location": target}, request=request)
+        return httpx.Response(200, text=html, request=request)
+
+    def fake_store(session, source, fetched, embed_fn):
+        captured["fetched"] = fetched
+        return False, 3
+
+    monkeypatch.setattr("ingestion.documents.sync._store_document", fake_store)
+    session = MagicMock()
+    session.scalar.return_value = None
+
+    result = await sync_document_url(
+        _source(),
+        alias,
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert [str(request.url) for request in calls] == [alias, target]
+    assert result.outcome is DocumentSyncOutcome.UNCHANGED
+    assert result.requests_used == 2
+    assert captured["fetched"].source_url == target
+    assert captured["fetched"].canonical_url == target
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_rejects_second_redirect():
+    alias = "https://registrar.gatech.edu/registration/registration-faqs"
+    target = "https://registrar.gatech.edu/registration/registration-faq"
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        location = target if str(request.url) == alias else "/registration/third"
+        return httpx.Response(301, headers={"Location": location}, request=request)
+
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        alias,
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert calls == [alias, target]
+    assert result.outcome is DocumentSyncOutcome.FETCH_FAILED
+    assert result.requests_used == 2
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_rejects_external_redirect_without_following():
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(
+            301,
+            headers={"Location": "https://example.com/registration"},
+            request=request,
+        )
+
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        _source().seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert calls == [_source().seed_urls[0]]
+    assert result.outcome is DocumentSyncOutcome.FETCH_FAILED
+    assert result.reason == "REDIRECT_NOT_ALLOWED"
+    assert result.requests_used == 1
+
+
+@pytest.mark.asyncio
 async def test_304_repairs_invalid_chunks_from_trusted_stored_content(monkeypatch):
     source = _source()
     state = MagicMock(etag='"v1"', last_modified=None)

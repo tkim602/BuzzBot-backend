@@ -187,28 +187,31 @@ async def sync_document_url(
         transport=transport,
         timeout=15,
         follow_redirects=False,
-        headers={"User-Agent": USER_AGENT, **headers},
+        headers={"User-Agent": USER_AGENT},
     ) as client:
-        response = await client.get(canonical_url)
-    requests_used = 1
+        response = await client.get(canonical_url, headers=headers)
+        requests_used = 1
 
-    if 300 <= response.status_code < 400 and response.status_code != 304:
-        target = urljoin(canonical_url, response.headers.get("Location", ""))
-        if "login" in target.lower() or "sso" in target.lower():
-            return DocumentSyncResult(
-                source.name,
-                DocumentSyncOutcome.AUTH_REQUIRED,
-                requests_used,
-                reason="AUTH_REDIRECT",
-            )
-        if source.allows(target) and normalize_url(target) == canonical_url:
-            async with httpx.AsyncClient(
-                transport=transport,
-                timeout=15,
-                follow_redirects=False,
-                headers={"User-Agent": USER_AGENT, **headers},
-            ) as client:
-                response = await client.get(target)
+        if 300 <= response.status_code < 400 and response.status_code != 304:
+            target_url = urljoin(canonical_url, response.headers.get("Location", ""))
+            if "login" in target_url.lower() or "sso" in target_url.lower():
+                return DocumentSyncResult(
+                    source.name,
+                    DocumentSyncOutcome.AUTH_REQUIRED,
+                    requests_used,
+                    reason="AUTH_REDIRECT",
+                )
+            if not response.headers.get("Location") or not source.allows(target_url):
+                return DocumentSyncResult(
+                    source.name,
+                    DocumentSyncOutcome.FETCH_FAILED,
+                    requests_used,
+                    reason="REDIRECT_NOT_ALLOWED",
+                )
+            canonical_url = normalize_url(target_url)
+            with session_factory() as session:
+                headers = _conditional_headers(session, canonical_url)
+            response = await client.get(target_url, headers=headers)
             requests_used += 1
     if response.status_code == 304:
         with session_factory() as session:
