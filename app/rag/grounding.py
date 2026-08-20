@@ -181,6 +181,18 @@ async def check_claim_support(
         if citations is not None
         else [chunk.chunk_text for chunk in chunks]
     )
+    source_urls = list(
+        dict.fromkeys(
+            str(url)
+            for url in (
+                [citation.get("url") for citation in citations]
+                if citations is not None
+                else [chunk.url for chunk in chunks]
+            )
+            if url
+        )
+    )
+    semantic_evidence = "\n\n".join(evidence_texts)
     evidence_sentences = [
         sentence
         for evidence in evidence_texts
@@ -203,8 +215,15 @@ async def check_claim_support(
             break
         if supported:
             continue
-        verdict = await semantic_claim_verdict(claim, "\n\n".join(evidence_texts))
+        verdict = await semantic_claim_verdict(claim, semantic_evidence)
         if verdict != "SUPPORTED":
+            logger.debug(
+                "factual claim rejected",
+                claim=claim.strip(),
+                evidence=semantic_evidence,
+                source_urls=source_urls,
+                semantic_verdict=verdict,
+            )
             notes.append(f"{verdict} factual claim: '{claim.strip()[:100]}'")
     return not notes, notes
 

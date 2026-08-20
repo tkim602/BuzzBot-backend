@@ -1,6 +1,6 @@
 """Tests for citation grounding check."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -292,3 +292,30 @@ async def test_exact_but_unrelated_citation_does_not_support_claim(monkeypatch):
     assert notes
     assert citation["quote"] in call.await_args.args[1]
     assert "Recommendations are completely optional." not in call.await_args.args[1]
+
+
+@pytest.mark.asyncio
+async def test_rejected_omscs_claim_logs_exact_semantic_evidence_and_source(monkeypatch):
+    evidence = "The OMSCS degree requires students to complete 30 total credit hours (10 courses)."
+    claim = "OMSCS requires 30 credit hours for graduation, which is equivalent to 10 courses."
+    source_url = "https://omscs.gatech.edu/degree-requirements"
+    debug = Mock()
+    monkeypatch.setattr("app.rag.grounding.logger.debug", debug)
+    monkeypatch.setattr("app.rag.grounding._call_llm", AsyncMock(return_value="INSUFFICIENT"))
+
+    supported, notes = await check_claim_support(
+        claim,
+        [_make_chunk(evidence, url=source_url)],
+        min_overlap_ratio=1.1,
+        citations=[{"url": source_url, "quote": evidence}],
+    )
+
+    assert not supported
+    assert notes
+    debug.assert_called_once_with(
+        "factual claim rejected",
+        claim=claim.rstrip("."),
+        evidence=evidence,
+        source_urls=[source_url],
+        semantic_verdict="INSUFFICIENT",
+    )
