@@ -118,6 +118,36 @@ async def test_repeated_rate_limit_pauses_a_resumable_run(sessions):
 
 
 @pytest.mark.asyncio
+async def test_transient_failure_retries_after_unrelated_units(sessions):
+    run_id = _planned_run(sessions, "AE", "CS", concurrency=1, retry_limit=1)
+    calls: list[str] = []
+    ae_attempts = 0
+
+    async def run_unit(unit: str) -> UnitResult:
+        nonlocal ae_attempts
+        calls.append(unit)
+        if unit == "AE":
+            ae_attempts += 1
+            if ae_attempts == 1:
+                return UnitResult(UnitOutcome.RETRYABLE, {}, reason="HTTP_503")
+        return UnitResult(UnitOutcome.SUCCEEDED, {})
+
+    async def fake_sleep(delay: float) -> None:
+        calls.append(f"sleep:{delay:g}")
+
+    summary = await run_batch(
+        run_id,
+        sessions,
+        run_unit,
+        sleep=fake_sleep,
+        jitter=lambda _low, _high: 0,
+    )
+
+    assert calls == ["AE", "CS", "sleep:1", "AE"]
+    assert summary.status == "COMPLETED"
+
+
+@pytest.mark.asyncio
 async def test_auth_failure_is_a_global_stop(sessions):
     run_id = _planned_run(sessions, "AE", "CS", concurrency=1)
     called: list[str] = []

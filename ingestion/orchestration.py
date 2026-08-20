@@ -20,6 +20,7 @@ SessionFactory = Callable[[], AbstractContextManager[Session]]
 
 class UnitOutcome(StrEnum):
     SUCCEEDED = "SUCCEEDED"
+    RETRYABLE = "RETRYABLE"
     RATE_LIMITED = "RATE_LIMITED"
     AUTH_REQUIRED = "AUTH_REQUIRED"
     FAILED = "FAILED"
@@ -124,6 +125,11 @@ def fail_run(session_factory: SessionFactory, run_id: uuid.UUID, reason: str) ->
     return load_run_summary(session_factory, run_id)
 
 
+def pause_run(session_factory: SessionFactory, run_id: uuid.UUID, reason: str) -> RunSummary:
+    _set_run_status(session_factory, run_id, "PAUSED", reason)
+    return load_run_summary(session_factory, run_id)
+
+
 def reset_failed_units(
     session_factory: SessionFactory,
     run_id: uuid.UUID,
@@ -196,12 +202,16 @@ async def run_batch(
     queue = deque(pending)
     active: dict[asyncio.Future[UnitResult], str] = {}
     rate_limit_retries: dict[str, int] = {}
+    transient_retries: dict[str, int] = {}
+    retry_delays: dict[str, float] = {}
     hard_stop: str | None = None
     pause = False
 
     while queue or active:
         while queue and len(active) < run.concurrency and not hard_stop and not pause:
             unit = queue.popleft()
+            if unit in retry_delays:
+                await sleep(retry_delays.pop(unit))
             _start_unit(session_factory, run_id, unit)
             active[asyncio.ensure_future(run_unit(unit))] = unit
         if not active:
@@ -226,6 +236,15 @@ async def run_batch(
                     rate_limit_retries[unit] = retries + 1
                     delay = _retry_delay(result.retry_after_seconds, retries, jitter)
                     retry_units.append((unit, result, delay))
+            elif result.outcome is UnitOutcome.RETRYABLE:
+                retries = transient_retries.get(unit, 0)
+                if retries >= run.retry_limit:
+                    _record_unit(session_factory, run_id, unit, "FAILED", result)
+                else:
+                    transient_retries[unit] = retries + 1
+                    _record_unit(session_factory, run_id, unit, "PENDING", result)
+                    retry_delays[unit] = _retry_delay(None, retries, jitter)
+                    queue.append(unit)
             else:
                 _record_unit(session_factory, run_id, unit, "FAILED", result)
 
