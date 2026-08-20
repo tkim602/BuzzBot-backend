@@ -11,6 +11,10 @@ def test_normalize_removes_trailing_slash():
     assert normalize_url("https://example.com/page/") == "https://example.com/page"
 
 
+def test_normalize_trims_surrounding_whitespace():
+    assert normalize_url("  https://example.com/page/  ") == "https://example.com/page"
+
+
 def test_normalize_lowercases_scheme_and_host():
     assert normalize_url("HTTPS://Example.COM/Path") == "https://example.com/Path"
 
