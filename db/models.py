@@ -128,6 +128,60 @@ class FetchState(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class IngestionRun(Base):
+    __tablename__ = "ingestion_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    scope_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="PLANNED")
+    stop_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    concurrency: Mapped[int] = mapped_column(Integer, nullable=False)
+    retry_limit: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('PLANNED', 'RUNNING', 'PAUSED', 'COMPLETED', 'PARTIAL', 'FAILED')",
+            name="ck_ingestion_runs_status",
+        ),
+        CheckConstraint("concurrency > 0", name="ck_ingestion_runs_concurrency"),
+        CheckConstraint("retry_limit >= 0", name="ck_ingestion_runs_retry_limit"),
+    )
+
+
+class IngestionRunUnit(Base):
+    __tablename__ = "ingestion_run_units"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ingestion_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    unit_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="PENDING")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    result_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    published_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED')",
+            name="ck_ingestion_run_units_status",
+        ),
+        CheckConstraint("attempts >= 0", name="ck_ingestion_run_units_attempts"),
+        CheckConstraint("position >= 0", name="ck_ingestion_run_units_position"),
+        UniqueConstraint("run_id", "unit_key", name="uq_ingestion_run_units_key"),
+        UniqueConstraint("run_id", "position", name="uq_ingestion_run_units_position"),
+    )
+
+
 class DataVersion(Base):
     __tablename__ = "data_versions"
 
