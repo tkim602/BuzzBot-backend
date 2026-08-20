@@ -1,0 +1,12 @@
+{"id":"schedule-1","query":"Is CS 7650 offered in Fall 2026?","expected_intent":"course_schedule","expected_fields":{"subject":"CS","course_number":"7650","term_code":"202608","needs_clarification":false}}
+{"id":"schedule-2","query":"What sections does CS 6515 have?","expected_intent":"course_schedule","expected_fields":{"subject":"CS","course_number":"6515","needs_clarification":true}}
+{"id":"schedule-3","query":"Tell me the CS 1332 times for 2027 Summer","expected_intent":"course_schedule","expected_fields":{"subject":"CS","course_number":"1332","term_code":"202705","needs_clarification":false}}
+{"id":"catalog-1","query":"What are the prerequisites for CS 6515?","expected_intent":"course_details","expected_fields":{"subject":"CS","course_number":"6515","needs_clarification":false}}
+{"id":"catalog-2","query":"How many credits is cs-7650?","expected_intent":"course_details","expected_fields":{"subject":"CS","course_number":"7650","needs_clarification":false}}
+{"id":"calendar-1","query":"When is the Fall 2026 registration deadline?","expected_intent":"registration_calendar","expected_fields":{"term_code":"202608","needs_clarification":false}}
+{"id":"calendar-2","query":"What is the withdrawal policy?","expected_intent":"registration_calendar","expected_fields":{"needs_clarification":false}}
+{"id":"calendar-3","query":"When is Spring 2027 add/drop?","expected_intent":"registration_calendar","expected_fields":{"term_code":"202702","needs_clarification":false}}
+{"id":"policy-1","query":"What documents are required for OMSCS admission?","expected_intent":"policy","expected_fields":{"needs_clarification":false}}
+{"id":"policy-2","query":"What are the first-year application requirements?","expected_intent":"policy","expected_fields":{"needs_clarification":false}}
+{"id":"policy-3","query":"Tell me about Georgia Tech","expected_intent":"policy","expected_fields":{"needs_clarification":false}}
+{"id":"schedule-context","query":"What sections does CS 7650 have?","user_term":"Summer 2027","expected_intent":"course_schedule","expected_fields":{"term_code":"202705","needs_clarification":false}}
