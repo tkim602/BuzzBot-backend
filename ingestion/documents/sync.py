@@ -192,6 +192,7 @@ async def sync_document_url(
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> DocumentSyncResult:
     canonical_url = normalize_url(url)
+    source_url = canonical_url
     if not source.allows(canonical_url):
         return DocumentSyncResult(
             source.name,
@@ -201,7 +202,7 @@ async def sync_document_url(
         )
 
     with session_factory() as session:
-        headers = _conditional_headers(session, canonical_url)
+        headers = _conditional_headers(session, source_url)
     async with httpx.AsyncClient(
         transport=transport,
         timeout=15,
@@ -212,7 +213,8 @@ async def sync_document_url(
         requests_used = 1
 
         if 300 <= response.status_code < 400 and response.status_code != 304:
-            target_url = urljoin(canonical_url, response.headers.get("Location", ""))
+            location = response.headers.get("Location")
+            target_url = urljoin(canonical_url, location or "")
             if "login" in target_url.lower() or "sso" in target_url.lower():
                 return DocumentSyncResult(
                     source.name,
@@ -220,21 +222,26 @@ async def sync_document_url(
                     requests_used,
                     reason="AUTH_REDIRECT",
                 )
-            if (
-                not response.headers.get("Location")
-                or not source.allows(target_url)
-                or not _redirect_in_scope(source, target_url)
-            ):
+            same_source_redirect = (
+                bool(location)
+                and source.allows(target_url)
+                and _redirect_in_scope(source, target_url)
+            )
+            external_allowed_redirect = bool(location) and source.allows_redirect(target_url)
+            if not same_source_redirect and not external_allowed_redirect:
                 return DocumentSyncResult(
                     source.name,
                     DocumentSyncOutcome.FETCH_FAILED,
                     requests_used,
                     reason="REDIRECT_NOT_ALLOWED",
                 )
-            canonical_url = normalize_url(target_url)
+            fetch_url = normalize_url(target_url)
+            if same_source_redirect:
+                canonical_url = fetch_url
+                source_url = fetch_url
             with session_factory() as session:
-                headers = _conditional_headers(session, canonical_url)
-            response = await client.get(target_url, headers=headers)
+                headers = _conditional_headers(session, source_url)
+            response = await client.get(fetch_url, headers=headers)
             requests_used += 1
     if response.status_code == 304:
         with session_factory() as session:
@@ -260,7 +267,7 @@ async def sync_document_url(
                     or not _uses_current_chunking(document)
                 ):
                     fetched = FetchedDocument(
-                        source_url=canonical_url,
+                        source_url=source_url,
                         canonical_url=canonical_url,
                         title=document.title,
                         text=document.content_text,
@@ -306,7 +313,9 @@ async def sync_document_url(
             reason="HTTP_429",
             retry_after_seconds=_retry_after_seconds(response.headers.get("Retry-After")),
         )
-    if response.status_code != 200 or not source.allows(str(response.url)):
+    if response.status_code != 200 or not (
+        source.allows(str(response.url)) or source.allows_redirect(str(response.url))
+    ):
         return DocumentSyncResult(
             source.name,
             DocumentSyncOutcome.FETCH_FAILED,
@@ -314,7 +323,7 @@ async def sync_document_url(
             reason=f"HTTP_{response.status_code}",
         )
 
-    content_type = _response_content_type(response, canonical_url)
+    content_type = _response_content_type(response, str(response.url))
     if content_type not in source.content_types:
         return DocumentSyncResult(
             source.name,
@@ -363,7 +372,7 @@ async def sync_document_url(
         title = extracted.title
         text = extracted.text
     fetched = FetchedDocument(
-        source_url=canonical_url,
+        source_url=source_url,
         canonical_url=canonical_url,
         title=title,
         text=text,
