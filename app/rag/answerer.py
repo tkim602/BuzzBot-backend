@@ -94,24 +94,32 @@ def _format_history(history: list[dict] | None) -> str:
 
 async def _binary_proposition_verdict(query: str, evidence: str) -> str:
     try:
-        verdict = await _call_llm(
+        proposition = await _call_llm(
             (
-                "Determine whether the exact proposition in the question is entailed by the "
-                "evidence. Use only the supplied evidence and no outside knowledge. Be strict "
-                "about negation, numbers, dates, modality, conditions, and exceptions. Return "
-                "TRUE when evidence entails the proposition, FALSE when the evidence contradicts "
-                "it, and UNKNOWN when the evidence establishes neither. Return exactly one word: "
-                "TRUE, FALSE, or UNKNOWN."
+                "Extract the single atomic factual proposition that a Yes answer would assert. "
+                "Return only that proposition as a declarative sentence, with no verdict or "
+                "explanation. Preserve negation, numbers, dates, modality, conditions, and "
+                "exceptions from the question."
             ),
-            f"QUESTION:\n{query.strip()}\n\nEVIDENCE:\n{evidence}",
+            f"QUESTION:\n{query.strip()}",
             temperature=0.0,
-            max_tokens=8,
+            max_tokens=64,
         )
     except Exception:
-        logger.warning("binary proposition verifier failed")
+        logger.warning("binary proposition extraction failed")
         return "UNKNOWN"
-    verdict = verdict.strip()
-    return verdict if verdict in {"TRUE", "FALSE", "UNKNOWN"} else "UNKNOWN"
+    proposition = proposition.strip()
+    if not proposition:
+        return "UNKNOWN"
+
+    from app.rag.grounding import semantic_claim_verdict
+
+    verdict = await semantic_claim_verdict(proposition, evidence)
+    return {
+        "SUPPORTED": "TRUE",
+        "CONTRADICTED": "FALSE",
+        "INSUFFICIENT": "UNKNOWN",
+    }[verdict]
 
 
 async def generate_answer(

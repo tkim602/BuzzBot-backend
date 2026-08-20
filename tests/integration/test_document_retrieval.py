@@ -92,10 +92,14 @@ async def test_deadline_table_relationships_reach_answer_context(monkeypatch):
         async def answer(system, user, **kwargs):
             nonlocal calls
             calls += 1
-            assert expected in user
-            assert "Early Action 2 — Application Deadline: November 2" in user
             if calls == 1:
-                return "FALSE"
+                assert "Is November 2 the Early Action 1 deadline?" in user
+                return "November 2 is the Early Action 1 deadline."
+            if calls == 2:
+                assert expected in user
+                assert "Early Action 2 — Application Deadline: November 2" in user
+                return "CONTRADICTED"
+            assert expected in user
             return '{"answer":"No. EA1 is October 15; November 2 is EA2.","citations":[],"confidence":1.0,"notes":[]}'
 
         monkeypatch.setattr("app.rag.answerer._call_llm", answer)

@@ -119,7 +119,8 @@ async def test_major_selection_contradiction_is_rejected_and_policy_uses_tempera
     )
     call = AsyncMock(
         side_effect=[
-            "FALSE",
+            "First-year applicants apply directly to a specific major or college.",
+            "CONTRADICTED",
             '{"answer":"abstain","citations":[],"confidence":0.2,"notes":[]}',
         ]
     )
@@ -160,17 +161,21 @@ def test_cross_encoder_receives_title_headings_and_chunk_text(monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("query", "evidence", "verdict", "expected_answer"),
+    ("query", "evidence", "proposition", "semantic_verdict", "binary_verdict", "expected_answer"),
     [
         (
             "Do I have to submit recommendation letters?",
             "Students have the option to send recommendations. This is completely optional.",
+            "Recommendation letters are required.",
+            "CONTRADICTED",
             "FALSE",
             "No, recommendation letters are optional.",
         ),
         (
             "Is completing nine courses enough to graduate?",
             "The OMSCS degree requires 30 total credit hours (10 courses).",
+            "Nine courses are enough to graduate.",
+            "CONTRADICTED",
             "FALSE",
             "No, 10 courses are required.",
         ),
@@ -178,43 +183,48 @@ def test_cross_encoder_receives_title_headings_and_chunk_text(monkeypatch):
             "Is November 2 the Early Action 1 deadline?",
             "Early Action 1 — Application Deadline: October 15\n"
             "Early Action 2 — Application Deadline: November 2",
+            "November 2 is the Early Action 1 deadline.",
+            "CONTRADICTED",
             "FALSE",
             "No. Early Action 1 is October 15; November 2 is Early Action 2.",
         ),
         (
-            "Are recommendation letters optional?",
-            "Recommendation letters are completely optional.",
+            "Is November 2 the Early Action 2 deadline?",
+            "Early Action 2 — Application Deadline: November 2.",
+            "November 2 is the Early Action 2 deadline.",
+            "SUPPORTED",
             "TRUE",
-            "Yes, recommendation letters are optional.",
+            "Yes, November 2 is the Early Action 2 deadline.",
         ),
     ],
 )
 async def test_factual_yes_no_verdict_constrains_generation(
-    monkeypatch, query, evidence, verdict, expected_answer
+    monkeypatch, query, evidence, proposition, semantic_verdict, binary_verdict, expected_answer
 ):
     response = f'{{"answer":"{expected_answer}","citations":[],"confidence":1.0,"notes":[]}}'
-    call = AsyncMock(side_effect=[verdict, response])
+    call = AsyncMock(side_effect=[proposition, semantic_verdict, response])
     monkeypatch.setattr("app.rag.answerer._call_llm", call)
 
     answer = await generate_answer(query, [_chunk("policy", "Policy", evidence)], intent="policy")
 
-    verdict_system, verdict_user = call.await_args_list[0].args
-    answer_system, answer_user = call.await_args_list[1].args
-    expected_polarity = "Yes" if verdict == "TRUE" else "No"
+    proposition_system, proposition_user = call.await_args_list[0].args
+    semantic_system, semantic_user = call.await_args_list[1].args
+    answer_system, answer_user = call.await_args_list[2].args
+    expected_polarity = "Yes" if binary_verdict == "TRUE" else "No"
     assert answer["answer"] == expected_answer
-    assert "TRUE, FALSE, or UNKNOWN" in verdict_system
-    assert "FALSE when the evidence contradicts it" in verdict_system
-    assert "UNKNOWN when the evidence establishes neither" in verdict_system
-    assert query in verdict_user
-    assert evidence in verdict_user
+    assert "atomic factual proposition" in proposition_system
+    assert query in proposition_user
+    assert proposition in semantic_user
+    assert evidence in semantic_user
+    assert "SUPPORTED" in semantic_system
     assert f"must begin with {expected_polarity}" in answer_system
     assert query in answer_user
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("verdict", ["UNKNOWN", "FALSE because optional", ""])
-async def test_factual_yes_no_unknown_or_malformed_verdict_abstains(monkeypatch, verdict):
-    call = AsyncMock(return_value=verdict)
+@pytest.mark.parametrize("semantic_verdict", ["INSUFFICIENT", "SUPPORTED because optional", ""])
+async def test_factual_yes_no_unknown_or_malformed_verdict_abstains(monkeypatch, semantic_verdict):
+    call = AsyncMock(side_effect=["This policy is required.", semantic_verdict])
     monkeypatch.setattr("app.rag.answerer._call_llm", call)
 
     answer = await generate_answer(
@@ -223,7 +233,7 @@ async def test_factual_yes_no_unknown_or_malformed_verdict_abstains(monkeypatch,
         intent="policy",
     )
 
-    assert call.await_count == 1
+    assert call.await_count == 2
     assert answer["citations"] == []
     assert answer["confidence"] == 0.2
     assert "enough evidence" in answer["answer"].lower()

@@ -5,7 +5,12 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.rag import grounding
-from app.rag.grounding import _is_grounded, check_claim_support, check_grounding
+from app.rag.grounding import (
+    _is_grounded,
+    check_claim_support,
+    check_grounding,
+    semantic_claim_verdict,
+)
 from app.rag.retrieval import RetrievedChunk
 
 
@@ -67,6 +72,36 @@ def test_url_not_in_retrieved_chunks_removed():
     valid, notes = check_grounding(citations, chunks)
     assert len(valid) == 0
     assert len(notes) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("evidence", "claim", "verdict"),
+    [
+        (
+            "Students have the option to send recommendations. This is completely optional.",
+            "Recommendation letters are required.",
+            "CONTRADICTED",
+        ),
+        (
+            "The OMSCS degree requires 30 total credit hours (10 courses).",
+            "Nine courses are enough to graduate.",
+            "CONTRADICTED",
+        ),
+        (
+            "Early Action 2 — Application Deadline: November 2.",
+            "November 2 is the Early Action 2 deadline.",
+            "SUPPORTED",
+        ),
+    ],
+)
+async def test_semantic_claim_verdict_is_reusable(monkeypatch, evidence, claim, verdict):
+    call = AsyncMock(return_value=verdict)
+    monkeypatch.setattr("app.rag.grounding._call_llm", call)
+
+    assert await semantic_claim_verdict(claim, evidence) == verdict
+    assert claim in call.await_args.args[1]
+    assert evidence in call.await_args.args[1]
 
 
 @pytest.mark.asyncio
