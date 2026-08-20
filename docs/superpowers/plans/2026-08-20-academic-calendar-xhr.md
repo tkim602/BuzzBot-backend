@@ -4,7 +4,7 @@
 
 **Goal:** Replace false-success static-page extraction with validated ingestion of the official Georgia Tech Academic Calendar XHR data.
 
-**Architecture:** The existing one-request document probe discovers the selected current academic year. A focused calendar module builds the official proxy request, validates and normalizes its JSON, and returns deterministic document text. The existing document store, chunker, embedder, and canonical URL replacement path remain unchanged.
+**Architecture:** The existing one-request document probe discovers the selected current academic year. A focused calendar module builds the official proxy request, validates and normalizes its JSON, and returns deterministic Markdown event sections. The generic chunker keeps structured field labels inside those sections, while the existing document store, embedder, and canonical URL replacement path remain unchanged.
 
 **Tech Stack:** Python 3.11, httpx, lxml, SQLAlchemy/PostgreSQL, pytest.
 
@@ -166,3 +166,82 @@ Expected: `READY`, one request, and edition `2026-2027` in the compact result.
 Run: `git diff --stat && git status --short`
 
 The handoff must identify `make sync-doc source=gt-academic-calendar` as the command that replaces the stale 11-token calendar document. Do not run paid embedding during verification.
+
+### Task 4: Preserve every calendar event through chunking
+
+**Files:**
+- Modify: `ingestion/documents/calendar.py`
+- Modify: `ingestion/chunk.py`
+- Modify: `ingestion/documents/sync.py`
+- Modify: `tests/test_academic_calendar.py`
+- Modify: `tests/test_chunk.py`
+
+- [ ] **Step 1: Write failing event-preservation tests**
+
+```python
+def test_structured_field_labels_are_not_headings():
+    text = "## Event 1\nSemester: Fall 2026\nCategory: Registration\nDate: August 17\nEvent: Registration opens."
+    chunks = chunk_text(text, min_chunk_size=10)
+    assert len(chunks) == 1
+    assert chunks[0].text == text
+
+def test_every_calendar_event_survives_chunking():
+    document = parse_calendar_payload("2026-2027", {"data": _rows()})
+    chunks = chunk_text(document.text, min_chunk_size=10)
+    assert len(chunks) == document.event_count
+    assert sum(chunk.text.count(" — Event ") for chunk in chunks) == document.event_count
+```
+
+- [ ] **Step 2: Run tests and verify RED**
+
+Run: `PYTHONPATH=$PWD python3 -m pytest -q tests/test_chunk.py tests/test_academic_calendar.py`
+
+Expected: the structured label test splits one event into multiple sections, and calendar chunks do not contain every event ID.
+
+- [ ] **Step 3: Implement explicit event sections and the structured-label guard**
+
+```python
+STRUCTURED_FIELD_RE = re.compile(r"^[A-Za-z][A-Za-z ]{0,30}:\s+\S")
+
+def _looks_like_heading(line: str) -> bool:
+    if not line or STRUCTURED_FIELD_RE.match(line):
+        return False
+    match = MARKDOWN_HEADING_RE.match(line)
+    if match:
+        return True
+
+block = (
+    f"## Georgia Tech Academic Calendar {edition} — Event {event_id}\n"
+    f"Semester: {semester} {year}\n"
+    f"Category: {category}\n"
+    f"Date: {date}, {year}\n"
+    f"Event: {event_text}"
+)
+
+minimum = 10 if source.source_type == "academic_calendar" else 50
+chunks = chunk_text(
+    fetched.text,
+    chunk_size=500,
+    chunk_overlap=80,
+    min_chunk_size=minimum,
+    metadata=metadata,
+)
+```
+
+- [ ] **Step 4: Run focused tests and verify GREEN**
+
+Run: `PYTHONPATH=$PWD python3 -m pytest -q tests/test_chunk.py tests/test_academic_calendar.py tests/test_document_sync.py`
+
+Expected: every focused test passes and every input calendar event heading appears exactly once across chunks.
+
+- [ ] **Step 5: Run full verification and commit**
+
+```bash
+PYTHONPATH=$PWD python3 -m pytest -q
+python3 -m ruff check ingestion/chunk.py ingestion/documents/calendar.py ingestion/documents/sync.py tests/test_chunk.py tests/test_academic_calendar.py
+python3 -m ruff format --check ingestion/chunk.py ingestion/documents/calendar.py ingestion/documents/sync.py tests/test_chunk.py tests/test_academic_calendar.py
+python3 -m mypy --follow-imports=skip ingestion/chunk.py ingestion/documents/calendar.py ingestion/documents/sync.py
+git diff --check
+git add -- docs/superpowers/specs/2026-08-20-academic-calendar-xhr.md docs/superpowers/plans/2026-08-20-academic-calendar-xhr.md ingestion/chunk.py ingestion/documents/calendar.py ingestion/documents/sync.py tests/test_chunk.py tests/test_academic_calendar.py
+git commit -m "fix: preserve every academic calendar event"
+```

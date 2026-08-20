@@ -14,7 +14,8 @@ Keep the existing controlled document registry and add one source-specific colle
 2. Fetch `/calevents/proxy?year=<edition>&status=current` with the public XHR headers expected by the official site.
 3. Validate the JSON before any database or embedding operation.
 4. Convert every event into deterministic plain text and store it under the existing canonical calendar page URL.
-5. Reuse the existing content hash, chunking, embedding, and transactional document replacement path.
+5. Mark every event as an explicit Markdown section so chunking preserves event boundaries.
+6. Reuse the existing content hash, embedding, and transactional document replacement path.
 
 The current academic year only is in scope. Historical calendar enumeration, a headless browser, and client-generated CSV/PDF parsing are excluded until the public XHR becomes unusable.
 
@@ -23,6 +24,12 @@ The current academic year only is in scope. Historical calendar enumeration, a h
 A collection is rejected when the payload is not a JSON object with a `data` list, contains fewer than 25 events, or any event is missing `id`, `date`, `semester`, `year`, `category`, or `event`. Semester codes are normalized to their official names, HTML in event descriptions is converted to text, and records are ordered deterministically by numeric weight and ID.
 
 Validation finishes before `_store_document` opens a write transaction. Failed collection therefore cannot replace the currently indexed document. A changed valid collection replaces the existing document and chunks under the same canonical URL; an identical normalized collection skips re-embedding.
+
+## Chunk Integrity
+
+Every normalized event starts with `## Georgia Tech Academic Calendar <edition> — Event <id>` and contains its semester, category, date, and event text in the same section. Generic heading detection must treat `Field: value` lines as structured content rather than headings. Calendar sections use a 10-token minimum because a short official deadline is still a complete retrievable fact.
+
+The normalized format change changes the document hash once, so the next successful sync replaces the incomplete index without a manual database edit. Automated tests require every input event ID to appear exactly once across the produced chunks. Other document source thresholds remain unchanged.
 
 ## Operational Behavior
 
