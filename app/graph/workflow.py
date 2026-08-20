@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.graph.state import AgentState, CitationItem, EvidenceItem, GraphIntent
 from app.graph.understanding import understand_query
 from app.rag.answerer import generate_answer
-from app.rag.grounding import check_grounding
+from app.rag.grounding import check_claim_support, check_grounding
 from app.rag.retrieval import RetrievedChunk, get_query_embedding
 from app.retrieval import (
     CourseDetailsQuery,
@@ -125,7 +125,7 @@ async def _default_document_answer(
     answer_intent = {
         "course_details": "catalog_course",
         "registration_calendar": "registrar_calendar",
-        "policy": "general",
+        "policy": "policy",
     }.get(intent, "general")
     return cast(
         dict[str, object],
@@ -137,7 +137,21 @@ def _policy_source_types(query: str) -> tuple[str, ...]:
     lowered = query.lower()
     if "omscs" in lowered:
         return ("omscs_policy",)
-    if "admission" in lowered or "apply" in lowered or "application" in lowered:
+    if any(
+        cue in lowered
+        for cue in (
+            "admission",
+            "apply",
+            "application",
+            "first-year",
+            "first year",
+            "early action",
+            "common app",
+            "recommendation",
+            "intended major",
+            "major selection",
+        )
+    ):
         return ("admissions",)
     return ()
 
@@ -240,11 +254,13 @@ def build_workflow(
 
     async def validate_answer_node(state: AgentState) -> dict[str, object]:
         citations = cast(list[dict[str, object]], state.get("citations", []))
-        valid, grounding_notes = check_grounding(citations, _as_chunks(state.get("evidence", [])))
+        chunks = _as_chunks(state.get("evidence", []))
+        valid, grounding_notes = check_grounding(citations, chunks)
+        claims_supported, claim_notes = check_claim_support(state.get("answer", ""), chunks)
         return {
             "citations": cast(list[CitationItem], valid),
-            "answer_valid": bool(valid and state.get("answer", "").strip()),
-            "notes": [*state.get("notes", []), *grounding_notes],
+            "answer_valid": bool(valid and claims_supported and state.get("answer", "").strip()),
+            "notes": [*state.get("notes", []), *grounding_notes, *claim_notes],
         }
 
     async def abstain_node(state: AgentState) -> dict[str, object]:

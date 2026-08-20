@@ -48,6 +48,9 @@ class DocumentQualityError(ValueError):
     pass
 
 
+CHUNKING_VERSION = 2
+
+
 _REDIRECT_SCOPES = {
     "registrar": accepts_registrar_path,
     "catalog": accepts_catalog_path,
@@ -247,8 +250,10 @@ async def sync_document_url(
                     select(Chunk).where(Chunk.doc_id == document.doc_id)
                 ).all()
                 min_chunk_size = 10 if source.source_type == "academic_calendar" else 50
-                if not stored_chunks or any(
-                    chunk.token_count < min_chunk_size for chunk in stored_chunks
+                if (
+                    not stored_chunks
+                    or any(chunk.token_count < min_chunk_size for chunk in stored_chunks)
+                    or not _uses_current_chunking(document)
                 ):
                     fetched = FetchedDocument(
                         source_url=canonical_url,
@@ -373,6 +378,11 @@ def _redirect_in_scope(source: DocumentSource, url: str) -> bool:
     return accepts_path is not None and accepts_path(urlsplit(normalize_url(url)).path)
 
 
+def _uses_current_chunking(document: Document) -> bool:
+    metadata = document.metadata_json if isinstance(document.metadata_json, dict) else {}
+    return metadata.get("chunking_version") == CHUNKING_VERSION
+
+
 def _store_document(
     session: Session,
     source: DocumentSource,
@@ -396,6 +406,7 @@ def _store_document(
         "source_type": source.source_type,
         "authority": source.authority,
         "fetched_at": fetched.fetched_at.isoformat(),
+        "chunking_version": CHUNKING_VERSION,
     }
     if fetched.edition:
         metadata["edition"] = fetched.edition
@@ -404,13 +415,18 @@ def _store_document(
         select(Document).where(Document.canonical_url == fetched.canonical_url)
     )
     if existing is not None and existing.content_hash == digest:
+        uses_current_chunking = _uses_current_chunking(existing)
         existing.source_id = source_id
         existing.fetched_at = fetched.fetched_at
         existing.etag = fetched.etag
         existing.last_modified = fetched.last_modified
         existing.metadata_json = metadata
         stored_chunks = session.scalars(select(Chunk).where(Chunk.doc_id == existing.doc_id)).all()
-        if stored_chunks and all(chunk.token_count >= min_chunk_size for chunk in stored_chunks):
+        if (
+            uses_current_chunking
+            and stored_chunks
+            and all(chunk.token_count >= min_chunk_size for chunk in stored_chunks)
+        ):
             for chunk in stored_chunks:
                 chunk.source_id = source_id
                 chunk.url = fetched.canonical_url
@@ -446,6 +462,9 @@ def _store_document(
         fetched.etag,
         fetched.last_modified,
     )
+    stored_document = existing or session.get(Document, document_id)
+    if stored_document is not None:
+        stored_document.metadata_json = metadata
     indexed = index_chunks(
         session,
         document_id,

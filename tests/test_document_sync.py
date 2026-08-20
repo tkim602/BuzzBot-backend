@@ -527,6 +527,39 @@ async def test_304_repairs_invalid_chunks_from_trusted_stored_content(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_304_reindexes_trusted_content_when_chunking_version_is_stale(monkeypatch):
+    source = _source()
+    state = MagicMock(etag='"v1"', last_modified=None)
+    document = MagicMock(
+        content_text="Official registration policy details. " * 80,
+        title="Registration",
+        etag='"v1"',
+        last_modified=None,
+        doc_id="doc-id",
+        metadata_json={"chunking_version": 1},
+    )
+    healthy_chunk = MagicMock(token_count=100)
+    session = MagicMock()
+    session.scalar.side_effect = [state, document]
+    session.scalars.return_value.all.return_value = [healthy_chunk]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(304, request=request)
+
+    monkeypatch.setattr("ingestion.documents.sync._store_document", lambda *args: (True, 2))
+    result = await sync_document_url(
+        source,
+        source.seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is DocumentSyncOutcome.INDEXED
+    assert result.chunks_indexed == 2
+
+
+@pytest.mark.asyncio
 async def test_one_url_sync_never_follows_auth_redirect():
     calls: list[str] = []
 

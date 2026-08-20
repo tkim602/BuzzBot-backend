@@ -19,6 +19,7 @@ FACTUAL_INTENTS = {
     "admissions_deadline",
     "catalog_course",
     "course_schedule_sections",
+    "policy",
 }
 
 

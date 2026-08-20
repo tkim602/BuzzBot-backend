@@ -24,7 +24,7 @@ from app.core.guardrails import (
 )
 from app.core.usage import UsageLimitExceeded, get_usage
 from app.rag.answerer import generate_answer
-from app.rag.grounding import check_grounding
+from app.rag.grounding import check_claim_support, check_grounding
 from app.rag.live_fetch import live_fetch_for_query
 from app.rag.query_rewrite import generate_hyde_passage, rewrite_query
 from app.rag.retrieval import (
@@ -55,6 +55,7 @@ FACTUAL_INTENTS = {
     "admissions_deadline",
     "catalog_course",
     "course_schedule_sections",
+    "policy",
 }
 DATE_HINT_RE = re.compile(
     r"\b(?:"
@@ -740,6 +741,12 @@ async def chat(
             stage_timings_ms["grounding_ms"] = int((time.perf_counter() - t) * 1000)
 
         is_factual = _is_factual_intent(route_result.intent, rewrite.date_sensitive)
+        claims_supported = True
+        if is_factual:
+            claims_supported, claim_notes = check_claim_support(
+                raw_answer.get("answer", ""), chunks
+            )
+            grounding_notes.extend(claim_notes)
         program_evidence_ok = _program_specific_evidence_supported(query, valid_citations)
         if (
             route_result.intent == "admissions_deadline"
@@ -753,8 +760,17 @@ async def chat(
                     raw_answer.get("answer", ""), valid_citations
                 )
                 program_evidence_ok = _program_specific_evidence_supported(query, valid_citations)
+                claims_supported, claim_notes = check_claim_support(
+                    raw_answer.get("answer", ""), chunks
+                )
+                grounding_notes.extend(claim_notes)
 
-        if is_factual and (not valid_citations or not date_verified or not program_evidence_ok):
+        if is_factual and (
+            not valid_citations
+            or not date_verified
+            or not program_evidence_ok
+            or not claims_supported
+        ):
             abstain_answer = (
                 "I don't have enough grounded evidence in the current retrieved sources to answer "
                 "that reliably. Please try a more specific query (program + term) or check the "

@@ -151,6 +151,14 @@ REGISTRAR_PRIORITY_KEYWORDS = [
     "withdrawal",
     "academic calendar",
 ]
+FIRST_YEAR_POLICY_KEYWORDS = [
+    "first-year",
+    "first year",
+    "early action",
+    "common app",
+    "intended major",
+    "major selection",
+]
 
 
 def _extract_course_code(query: str) -> str | None:
@@ -195,14 +203,14 @@ def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
         or ("drop" in q and "course" in q)
     )
 
-    if has_admission_deadline or (
-        has_admission_context and ("deadline" in q or "apply" in q or "application" in q)
-    ):
+    if has_admission_deadline or (has_admission_context and "deadline" in q):
         has_omscs_token = bool(re.search(r"\bomscs\b", q))
         has_mscs_token = (
             bool(re.search(r"\bmscs\b", q)) or "master of science in computer science" in q
         )
-        if has_mscs_token and not has_omscs_token:
+        if any(keyword in q for keyword in FIRST_YEAR_POLICY_KEYWORDS):
+            admission_sources = "gt-admission"
+        elif has_mscs_token and not has_omscs_token:
             admission_sources = ["gt-catalog", "gt-grad", "gt-admission"]
         elif has_omscs_token:
             admission_sources = ["gt-omscs", "gt-admission", "gt-grad", "gt-catalog"]
@@ -213,6 +221,14 @@ def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
             freshness_strategy="indexed",
             source_filter=admission_sources,
         )
+
+    if "omscs" in q:
+        return RouterResult("policy", "indexed", "gt-omscs")
+
+    has_first_year_policy = any(keyword in q for keyword in FIRST_YEAR_POLICY_KEYWORDS)
+    has_admission_recommendation = "recommendation" in q and has_admission_context
+    if has_first_year_policy or has_admission_recommendation:
+        return RouterResult("policy", "indexed", "gt-admission")
 
     if has_course_code and (has_schedule_keyword or has_term_keyword) and not has_calendar_keyword:
         return RouterResult(

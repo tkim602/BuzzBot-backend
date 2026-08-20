@@ -279,7 +279,7 @@ def rerank_with_cross_encoder(
             logger.info("cross-encoder loaded", model=settings.rag_rerank_model)
 
         model = _cross_encoder_model
-        pairs = [[query, c.chunk_text] for c in chunks]
+        pairs = [[query, _ranking_text(c)] for c in chunks]
         scores = model.predict(pairs)
         for chunk, score in zip(chunks, scores, strict=True):
             chunk.score = float(score)
@@ -392,13 +392,17 @@ async def fts_search(
     metadata_course_code: str | None = None,
     metadata_term_name: str | None = None,
     metadata_semester: str | None = None,
+    match_any: bool = False,
 ) -> list[RetrievedChunk]:
     """Full-text search fallback using PostgreSQL tsvector."""
     if not query.strip():
         return []
 
     optimized_query = _compact_query_for_fts(query)
-    ts_vector = func.to_tsvector("simple", Chunk.chunk_text)
+    if match_any:
+        optimized_query = " OR ".join(_TOKEN_RE.findall(optimized_query))
+    search_text = func.concat_ws(" ", Chunk.title, Chunk.headings, Chunk.chunk_text)
+    ts_vector = func.to_tsvector("simple", search_text)
     ts_query = func.websearch_to_tsquery("simple", optimized_query)
     rank_expr = func.ts_rank_cd(ts_vector, ts_query)
 
@@ -560,6 +564,28 @@ def _signal_match_count(chunk: RetrievedChunk, hints: QueryHints) -> int:
     return score
 
 
+def _ranking_text(chunk: RetrievedChunk) -> str:
+    return "\n".join(
+        value.strip() for value in (chunk.title, chunk.headings, chunk.chunk_text) if value
+    )
+
+
+def _lexical_match_score(query: str, chunk: RetrievedChunk) -> float:
+    query_tokens = {
+        token.lower()
+        for token in _TOKEN_RE.findall(query)
+        if len(token) > 1 and token.lower() not in FTS_STOPWORDS
+    }
+    if not query_tokens:
+        return 0.0
+    body_tokens = {token.lower() for token in _TOKEN_RE.findall(chunk.chunk_text)}
+    context_tokens = {
+        token.lower() for token in _TOKEN_RE.findall(f"{chunk.title or ''} {chunk.headings or ''}")
+    }
+    weighted_matches = len(query_tokens & body_tokens) + 2 * len(query_tokens & context_tokens)
+    return weighted_matches / len(query_tokens)
+
+
 async def hybrid_retrieve(
     session: AsyncSession,
     query: str,
@@ -609,6 +635,7 @@ async def hybrid_retrieve(
             metadata_course_code=metadata_course_code,
             metadata_term_name=metadata_term_name,
             metadata_semester=metadata_semester,
+            match_any=force_fts,
         )
     else:
         vector_results = await vector_search(
@@ -636,6 +663,7 @@ async def hybrid_retrieve(
             metadata_course_code=metadata_course_code,
             metadata_term_name=metadata_term_name,
             metadata_semester=metadata_semester,
+            match_any=force_fts,
         )
 
     merged = _rrf_fuse_results(vector_results, fts_results, top_k=top_k)
@@ -656,7 +684,7 @@ async def hybrid_retrieve(
         merged = prioritized[:top_k]
 
     merged.sort(
-        key=lambda c: (_signal_match_count(c, hints), c.score),
+        key=lambda c: (_signal_match_count(c, hints), _lexical_match_score(query, c), c.score),
         reverse=True,
     )
 

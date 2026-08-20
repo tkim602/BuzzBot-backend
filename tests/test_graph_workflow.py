@@ -129,6 +129,52 @@ async def test_grounded_document_answer_keeps_official_citation(monkeypatch):
     assert result["confidence"] == 0.8
 
 
+@pytest.mark.asyncio
+async def test_policy_answer_with_grounded_quote_but_contradictory_claim_abstains(monkeypatch):
+    evidence = DocumentEvidence(
+        chunk_id="major-selection",
+        text=(
+            "When you apply to Georgia Tech as a first-year applicant, "
+            "you do not apply to a specific major or college."
+        ),
+        title="Major Selection in the Application Process",
+        canonical_url="https://admission.gatech.edu/first-year/major-selection",
+        source_name="gt-admission",
+        source_type="admissions",
+        authority="admissions",
+        fetched_at="2026-08-20T00:00:00+00:00",
+        edition=None,
+        score=0.9,
+        retrieval_method="hybrid_rrf",
+    )
+    search = AsyncMock(return_value=[evidence])
+    monkeypatch.setattr("app.graph.workflow.search_policy_docs", search)
+    answer = AsyncMock(
+        return_value={
+            "answer": "First-year applicants apply directly to a specific major or college.",
+            "citations": [
+                {
+                    "url": evidence.canonical_url,
+                    "title": evidence.title,
+                    "quote": "you do not apply to a specific major or college",
+                }
+            ],
+            "confidence": 0.9,
+            "notes": [],
+        }
+    )
+    graph = build_workflow(WorkflowServices(object(), AsyncMock(return_value=[0.1]), answer))
+
+    result = await graph.ainvoke(
+        {"query": "Do first-year applicants apply directly to a specific major or college?"}
+    )
+
+    assert result["answer_valid"] is False
+    assert result["citations"] == []
+    assert "enough official evidence" in result["answer"].lower()
+    assert search.await_args.args[1].source_types == ("admissions",)
+
+
 def _document_evidence() -> DocumentEvidence:
     return DocumentEvidence(
         chunk_id="chunk-1",

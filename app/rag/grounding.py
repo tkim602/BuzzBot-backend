@@ -2,11 +2,46 @@
 
 from __future__ import annotations
 
+import re
+
 import structlog
 
 from app.rag.retrieval import RetrievedChunk
 
 logger = structlog.get_logger(__name__)
+_WORD_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)?", re.I)
+_CLAIM_SPLIT_RE = re.compile(r"(?:[.!?;]\s*|\s+(?:and|but)\s+)", re.I)
+_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "according",
+    "be",
+    "by",
+    "for",
+    "from",
+    "in",
+    "is",
+    "it",
+    "may",
+    "of",
+    "official",
+    "or",
+    "source",
+    "the",
+    "their",
+    "they",
+    "to",
+    "up",
+    "we",
+    "you",
+}
+_NEGATION_RE = re.compile(r"\b(?:no|not|never|without)\b", re.I)
+_REQUIRED_RE = re.compile(r"\b(?:required|must|mandatory)\b", re.I)
+_OPTIONAL_RE = re.compile(r"\boptional\b|\bnot\s+required\b", re.I)
 
 
 def check_grounding(
@@ -86,3 +121,52 @@ def _is_grounded(quote: str, text: str, min_ratio: float) -> bool:
         return True
     overlap = len(quote_words & text_words) / len(quote_words)
     return overlap >= min_ratio
+
+
+def check_claim_support(
+    answer: str,
+    chunks: list[RetrievedChunk],
+    min_overlap_ratio: float = 0.5,
+) -> tuple[bool, list[str]]:
+    evidence_sentences = [
+        sentence
+        for chunk in chunks
+        for sentence in _CLAIM_SPLIT_RE.split(chunk.chunk_text)
+        if sentence.strip()
+    ]
+    notes: list[str] = []
+    for claim in _CLAIM_SPLIT_RE.split(answer):
+        claim_tokens = _content_tokens(claim)
+        if len(claim_tokens) < 2:
+            continue
+        supported = False
+        for evidence in evidence_sentences:
+            evidence_tokens = _content_tokens(evidence)
+            overlap = len(claim_tokens & evidence_tokens) / len(claim_tokens)
+            if overlap < min_overlap_ratio or _contradicts(claim, evidence):
+                continue
+            supported = True
+            break
+        if not supported:
+            notes.append(f"Unsupported factual claim: '{claim.strip()[:100]}'")
+    return not notes, notes
+
+
+def _content_tokens(text: str) -> set[str]:
+    return {token.lower() for token in _WORD_RE.findall(text) if token.lower() not in _STOPWORDS}
+
+
+def _contradicts(claim: str, evidence: str) -> bool:
+    claim_requirement = _requirement_polarity(claim)
+    evidence_requirement = _requirement_polarity(evidence)
+    if claim_requirement and evidence_requirement:
+        return claim_requirement != evidence_requirement
+    return bool(_NEGATION_RE.search(claim)) != bool(_NEGATION_RE.search(evidence))
+
+
+def _requirement_polarity(text: str) -> str | None:
+    if _OPTIONAL_RE.search(text):
+        return "optional"
+    if _REQUIRED_RE.search(text):
+        return "required"
+    return None
