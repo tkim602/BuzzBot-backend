@@ -3,9 +3,10 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
+from urllib.parse import urljoin
 
 import httpx
 from sqlalchemy import select
@@ -33,6 +34,8 @@ class DocumentSyncOutcome(StrEnum):
     PROBE_FAILED = "PROBE_FAILED"
     FETCH_FAILED = "FETCH_FAILED"
     EXTRACT_FAILED = "EXTRACT_FAILED"
+    RATE_LIMITED = "RATE_LIMITED"
+    AUTH_REQUIRED = "AUTH_REQUIRED"
 
 
 @dataclass(frozen=True)
@@ -78,6 +81,16 @@ async def sync_document_source(
         )
 
     seed = source.seed_urls[0]
+    if source.source_type != "academic_calendar":
+        result = await sync_document_url(
+            source,
+            seed,
+            session_factory,
+            embed_fn,
+            transport,
+        )
+        return replace(result, requests_used=probe.requests_used + result.requests_used)
+
     if source.source_type == "academic_calendar":
         if probe.edition is None:
             return DocumentSyncResult(
@@ -122,54 +135,6 @@ async def sync_document_source(
             last_modified=response.headers.get("Last-Modified"),
             edition=calendar.edition,
         )
-    else:
-        with session_factory() as session:
-            headers = _conditional_headers(session, seed)
-
-        async with httpx.AsyncClient(
-            transport=transport,
-            timeout=15,
-            follow_redirects=False,
-            headers={"User-Agent": USER_AGENT, **headers},
-        ) as client:
-            response = await client.get(seed)
-        requests_used = probe.requests_used + 1
-
-        if response.status_code == 304:
-            return DocumentSyncResult(
-                source.name,
-                DocumentSyncOutcome.UNCHANGED,
-                requests_used,
-                fetched=1,
-            )
-        if response.status_code != 200 or not source.allows(str(response.url)):
-            return DocumentSyncResult(
-                source.name,
-                DocumentSyncOutcome.FETCH_FAILED,
-                requests_used,
-                reason=f"HTTP_{response.status_code}",
-            )
-
-        extracted = extract_content(seed, response.text)
-        if not extracted.success or not extracted.text:
-            return DocumentSyncResult(
-                source.name,
-                DocumentSyncOutcome.EXTRACT_FAILED,
-                requests_used,
-                fetched=1,
-                reason="EXTRACTION_FAILED",
-            )
-
-        fetched = FetchedDocument(
-            source_url=seed,
-            canonical_url=normalize_url(seed),
-            title=extracted.title,
-            text=extracted.text,
-            fetched_at=datetime.now(UTC),
-            etag=response.headers.get("ETag"),
-            last_modified=response.headers.get("Last-Modified"),
-            edition=_edition(f"{extracted.title or ''}\n{extracted.text}"),
-        )
     with session_factory() as session:
         changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
         session.commit()
@@ -178,6 +143,95 @@ async def sync_document_source(
         source.name,
         DocumentSyncOutcome.INDEXED if changed else DocumentSyncOutcome.UNCHANGED,
         requests_used,
+        fetched=1,
+        changed=int(changed),
+        chunks_indexed=chunks_indexed,
+    )
+
+
+async def sync_document_url(
+    source: DocumentSource,
+    url: str,
+    session_factory: Callable[[], AbstractContextManager[Session]],
+    embed_fn,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> DocumentSyncResult:
+    canonical_url = normalize_url(url)
+    if not source.allows(canonical_url):
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.FETCH_FAILED,
+            0,
+            reason="URL_NOT_ALLOWED",
+        )
+
+    with session_factory() as session:
+        headers = _conditional_headers(session, canonical_url)
+    async with httpx.AsyncClient(
+        transport=transport,
+        timeout=15,
+        follow_redirects=False,
+        headers={"User-Agent": USER_AGENT, **headers},
+    ) as client:
+        response = await client.get(canonical_url)
+
+    if response.status_code == 304:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.UNCHANGED,
+            1,
+            fetched=1,
+        )
+    if response.status_code == 429:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.RATE_LIMITED,
+            1,
+            reason="HTTP_429",
+        )
+    if 300 <= response.status_code < 400:
+        target = urljoin(canonical_url, response.headers.get("Location", ""))
+        if "login" in target.lower() or "sso" in target.lower():
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.AUTH_REQUIRED,
+                1,
+                reason="AUTH_REDIRECT",
+            )
+    if response.status_code != 200 or not source.allows(str(response.url)):
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.FETCH_FAILED,
+            1,
+            reason=f"HTTP_{response.status_code}",
+        )
+
+    extracted = extract_content(canonical_url, response.text)
+    if not extracted.success or not extracted.text:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.EXTRACT_FAILED,
+            1,
+            fetched=1,
+            reason="EXTRACTION_FAILED",
+        )
+    fetched = FetchedDocument(
+        source_url=canonical_url,
+        canonical_url=canonical_url,
+        title=extracted.title,
+        text=extracted.text,
+        fetched_at=datetime.now(UTC),
+        etag=response.headers.get("ETag"),
+        last_modified=response.headers.get("Last-Modified"),
+        edition=_edition(f"{extracted.title or ''}\n{extracted.text}"),
+    )
+    with session_factory() as session:
+        changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
+        session.commit()
+    return DocumentSyncResult(
+        source.name,
+        DocumentSyncOutcome.INDEXED if changed else DocumentSyncOutcome.UNCHANGED,
+        1,
         fetched=1,
         changed=int(changed),
         chunks_indexed=chunks_indexed,

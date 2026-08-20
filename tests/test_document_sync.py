@@ -13,6 +13,7 @@ from ingestion.documents.sync import (
     _edition,
     _store_document,
     sync_document_source,
+    sync_document_url,
 )
 from ingestion.index import get_embedding_function
 
@@ -150,6 +151,57 @@ async def test_ready_probe_allows_one_fetch_and_passes_citation_metadata(
     assert isinstance(fetched, FetchedDocument)
     assert fetched.etag == '"v1"'
     assert fetched.source_url == "https://registrar.gatech.edu/registration"
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_fetches_once_and_uses_canonical_citation(monkeypatch):
+    calls: list[httpx.Request] = []
+    captured: dict[str, object] = {}
+    url = "https://registrar.gatech.edu/registration/holds/#details"
+    html = "<html><title>Holds</title><body>" + "official holds policy " * 20 + "</body></html>"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, text=html, request=request)
+
+    def fake_store(session, source, fetched, embed_fn):
+        captured["fetched"] = fetched
+        return True, 1
+
+    monkeypatch.setattr("ingestion.documents.sync._store_document", fake_store)
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        url,
+        lambda: nullcontext(session),
+        lambda texts: [[0.0] * 1536 for _ in texts],
+        httpx.MockTransport(handler),
+    )
+
+    assert len(calls) == result.requests_used == 1
+    assert result.outcome is DocumentSyncOutcome.INDEXED
+    fetched = captured["fetched"]
+    assert isinstance(fetched, FetchedDocument)
+    assert fetched.canonical_url == "https://registrar.gatech.edu/registration/holds"
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_rejects_outside_allowlist_without_request():
+    def forbidden(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("disallowed URL must not be requested")
+
+    result = await sync_document_url(
+        _source(),
+        "https://example.com/registration/holds",
+        lambda: nullcontext(MagicMock()),
+        lambda texts: [],
+        httpx.MockTransport(forbidden),
+    )
+
+    assert result.outcome is DocumentSyncOutcome.FETCH_FAILED
+    assert result.requests_used == 0
+    assert result.reason == "URL_NOT_ALLOWED"
 
 
 @pytest.mark.asyncio

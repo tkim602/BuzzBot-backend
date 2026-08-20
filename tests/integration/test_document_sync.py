@@ -12,7 +12,11 @@ from sqlalchemy.orm import Session
 from db.models import Chunk, Document, FetchState, Source
 from db.session import sync_engine
 from ingestion.documents.registry import DocumentSource
-from ingestion.documents.sync import DocumentSyncOutcome, sync_document_source
+from ingestion.documents.sync import (
+    DocumentSyncOutcome,
+    sync_document_source,
+    sync_document_url,
+)
 
 pytestmark = pytest.mark.skipif(
     os.getenv("RUN_DB_TESTS") != "1", reason="set RUN_DB_TESTS=1 for PostgreSQL tests"
@@ -152,4 +156,72 @@ def test_same_content_reclassifies_authority_without_reembedding():
                 stored_source = session.scalar(select(Source).where(Source.name == name))
                 if stored_source is not None:
                     session.delete(stored_source)
+            session.commit()
+
+
+@pytest.mark.asyncio
+async def test_failed_embedding_rolls_back_one_url_replacement():
+    suffix = uuid.uuid4().hex
+    url = f"https://registrar.gatech.edu/registration/test-atomic-{suffix}"
+    source = DocumentSource(
+        f"test-atomic-{suffix}",
+        "official_policy",
+        "registrar",
+        ("https://registrar.gatech.edu/registration",),
+        (url,),
+        1,
+    )
+
+    @contextmanager
+    def sessions():
+        with Session(sync_engine) as session:
+            yield session
+
+    def response(text: str):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                text=f"<html><title>Atomic</title><body>{text * 100}</body></html>",
+                request=request,
+            )
+
+        return httpx.MockTransport(handler)
+
+    def embed(texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 1536 for _ in texts]
+
+    try:
+        await sync_document_url(source, url, sessions, embed, response("trusted policy "))
+        with Session(sync_engine) as session:
+            original = session.scalar(select(Document).where(Document.canonical_url == url))
+            assert original is not None
+            original_text = original.content_text
+            original_chunks = tuple(chunk.chunk_text for chunk in original.chunks)
+
+        def fail_embedding(_texts: list[str]) -> list[list[float]]:
+            raise RuntimeError("embedding failed")
+
+        with pytest.raises(RuntimeError, match="embedding failed"):
+            await sync_document_url(
+                source,
+                url,
+                sessions,
+                fail_embedding,
+                response("untrusted replacement "),
+            )
+
+        with Session(sync_engine) as session:
+            preserved = session.scalar(select(Document).where(Document.canonical_url == url))
+            assert preserved is not None
+            assert preserved.content_text == original_text
+            assert tuple(chunk.chunk_text for chunk in preserved.chunks) == original_chunks
+    finally:
+        with Session(sync_engine) as session:
+            document = session.scalar(select(Document).where(Document.canonical_url == url))
+            if document is not None:
+                session.delete(document)
+            session.execute(delete(FetchState).where(FetchState.url == url))
+            stored_source = session.scalar(select(Source).where(Source.name == source.name))
+            if stored_source is not None:
+                session.delete(stored_source)
             session.commit()
