@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 from pydantic_settings import BaseSettings
 
 
@@ -64,6 +62,9 @@ class Settings(BaseSettings):
 
     # Usage tracking
     usage_limit: float = 3.0  # Maximum API cost in USD
+
+    # LangGraph
+    langgraph_checkpoint_enabled: bool = True
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

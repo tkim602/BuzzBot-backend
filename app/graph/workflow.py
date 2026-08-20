@@ -157,9 +157,9 @@ def build_workflow(
             offerings = await lookup_course_offerings(
                 services.session,
                 CourseQuery(
-                    term_code=state["term_code"],
-                    subject=state["subject"],
-                    course_number=state["course_number"],
+                    term_code=cast(str, state["term_code"]),
+                    subject=cast(str, state["subject"]),
+                    course_number=cast(str, state["course_number"]),
                 ),
             )
             evidence = [_schedule_item(offering) for offering in offerings]
@@ -168,7 +168,11 @@ def build_workflow(
             if intent == "course_details":
                 documents = await lookup_course_details(
                     services.session,
-                    CourseDetailsQuery(state["subject"], state["course_number"], top_k=top_k),
+                    CourseDetailsQuery(
+                        cast(str, state["subject"]),
+                        cast(str, state["course_number"]),
+                        top_k=top_k,
+                    ),
                     embedding,
                 )
             elif intent == "registration_calendar":

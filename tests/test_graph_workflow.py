@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from langgraph.checkpoint.memory import InMemorySaver
 
 from app.graph.workflow import WorkflowServices, build_workflow
 from app.retrieval.documents import DocumentEvidence
@@ -142,3 +143,21 @@ def _document_evidence() -> DocumentEvidence:
         score=0.9,
         retrieval_method="hybrid_rrf",
     )
+
+
+@pytest.mark.asyncio
+async def test_checkpointed_thread_clears_optional_fields_between_queries(monkeypatch):
+    monkeypatch.setattr("app.graph.workflow.search_policy_docs", AsyncMock(return_value=[]))
+    graph = build_workflow(
+        WorkflowServices(object(), AsyncMock(return_value=[0.1]), AsyncMock()),
+        checkpointer=InMemorySaver(),
+    )
+    config = {"configurable": {"thread_id": "thread-1"}}
+
+    first = await graph.ainvoke({"query": "What sections does CS 7650 have?"}, config)
+    second = await graph.ainvoke({"query": "What documents are required for OMSCS?"}, config)
+
+    assert first["subject"] == "CS"
+    assert second["subject"] is None
+    assert second["course_number"] is None
+    assert second["term_code"] is None

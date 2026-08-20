@@ -51,8 +51,16 @@ def understand_query(query: str, user_term: str | None = None) -> dict[str, obje
 
     result: dict[str, object] = {
         "intent": intent,
+        "subject": None,
+        "course_number": None,
+        "term_code": None,
         "needs_clarification": False,
         "retry_count": 0,
+        "evidence": [],
+        "citations": [],
+        "notes": [],
+        "answer": "",
+        "answer_valid": False,
     }
     if course is not None:
         result["subject"], result["course_number"] = course
