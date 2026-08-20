@@ -107,6 +107,36 @@ def test_url_not_in_retrieved_chunks_removed():
             False,
             1,
         ),
+        (
+            "A complete application includes the Common Application, transcript, and test scores.",
+            "Recommendation letters are required for a complete application.",
+            "INSUFFICIENT",
+            False,
+            1,
+        ),
+        (
+            "The OMSCS degree requires 30 total credit hours (10 courses).",
+            "Nine courses are enough to graduate.",
+            "CONTRADICTED",
+            False,
+            1,
+        ),
+        (
+            "A cumulative GPA of 3.0 is required to graduate.",
+            "A student can graduate with a GPA below 3.0, even if you complete all 10 courses.",
+            "CONTRADICTED",
+            False,
+            1,
+        ),
+        (
+            "Early Action 1 — Application Deadline: October 15\n"
+            "Early Action 2 — Application Deadline: November 2\n"
+            "Regular Decision — Application Deadline: January 6",
+            "November 2 is the Early Action 1 deadline.",
+            "CONTRADICTED",
+            False,
+            1,
+        ),
     ],
 )
 async def test_claim_support_uses_strict_semantic_fallback(
@@ -126,6 +156,7 @@ async def test_claim_support_uses_strict_semantic_fallback(
         assert evidence in user
         assert call.await_args.kwargs == {"temperature": 0.0, "max_tokens": 8}
         assert "outside knowledge" in system
+        assert "absence" in system
 
 
 @pytest.mark.asyncio

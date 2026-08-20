@@ -1,6 +1,7 @@
 """Tests for chunking logic."""
 
 from ingestion.chunk import chunk_text
+from ingestion.extract import extract_content
 
 
 def test_short_text_single_chunk():
@@ -114,3 +115,23 @@ def test_every_section_marker_survives_chunking():
     chunks = chunk_text(text, chunk_size=80, chunk_overlap=10, min_chunk_size=50)
 
     assert all(any(marker in chunk.text for chunk in chunks) for marker in markers)
+
+
+def test_html_table_relationships_survive_chunking():
+    html = """
+    <html><head><title>First-Year Deadlines</title></head><body>
+      <p>Official application deadline information for first-year applicants.</p>
+      <p>This page explains the available application plans and their deadlines.</p>
+      <table>
+        <tr><th></th><th>Early Action 1</th><th>Early Action 2</th><th>Regular Decision</th></tr>
+        <tr><th>Application Deadline</th><td>October 15</td><td>November 2</td><td>January 6</td></tr>
+      </table>
+    </body></html>
+    """
+
+    extracted = extract_content("https://example.gatech.edu/deadlines", html)
+    indexed = "\n".join(chunk.text for chunk in chunk_text(extracted.text, min_chunk_size=10))
+
+    assert "Early Action 1 — Application Deadline: October 15" in indexed
+    assert "Early Action 2 — Application Deadline: November 2" in indexed
+    assert "Regular Decision — Application Deadline: January 6" in indexed
