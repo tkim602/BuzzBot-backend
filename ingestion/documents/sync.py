@@ -235,10 +235,10 @@ async def sync_document_url(
                     requests_used,
                     reason="REDIRECT_NOT_ALLOWED",
                 )
-            fetch_url = normalize_url(target_url)
+            fetch_url = target_url
             if same_source_redirect:
-                canonical_url = fetch_url
-                source_url = fetch_url
+                canonical_url = normalize_url(target_url)
+                source_url = canonical_url
             with session_factory() as session:
                 headers = _conditional_headers(session, source_url)
             response = await client.get(fetch_url, headers=headers)
