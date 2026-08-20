@@ -4,7 +4,7 @@ import pytest
 
 from app.core.config import settings
 from app.rag import retrieval
-from app.rag.answerer import generate_answer
+from app.rag.answerer import _ground_citation_quotes, generate_answer
 from app.rag.grounding import check_claim_support
 from app.rag.retrieval import RetrievedChunk, _lexical_match_score
 from app.rag.router import classify_query
@@ -95,6 +95,132 @@ async def test_first_year_recommendation_query_prefers_recommendations_page():
         RECOMMENDATIONS_QUERY, preparation
     )
     assert supported
+
+
+def test_recommendation_letters_query_outranks_generic_deadline_page():
+    query = (
+        "Do I have to submit recommendation letters when applying to Georgia Tech "
+        "as a first-year student?"
+    )
+    recommendations = _chunk(
+        "recommendations",
+        "Recommendations | Undergraduate Admission",
+        "Students have the option to send recommendations to Georgia Tech. "
+        "This is completely optional.",
+        "Recommendations",
+    )
+    deadlines = _chunk(
+        "deadlines",
+        "First-Year Application Plans and Deadlines | Undergraduate Admission",
+        "Georgia Tech uses the Common Application for all first-year applicants. "
+        "The application review process is the same in Early Action and Regular Decision.",
+        "First-Year Admission",
+    )
+
+    assert _lexical_match_score(query, recommendations) > _lexical_match_score(query, deadlines)
+
+
+def test_omscs_claim_selects_degree_requirements_not_workload_faq():
+    claim = "OMSCS requires 30 credit hours for graduation, which is equivalent to 10 courses."
+    degree = _chunk(
+        "degree-requirements",
+        "Degree Requirements | Online Master of Science in Computer Science (OMSCS)",
+        "The OMSCS degree requires students to complete 30 total credit hours (10 courses).",
+        "Degree Requirements",
+    )
+    faq = _chunk(
+        "prospective-student-faqs",
+        "Prospective Student FAQs | Online Master of Science in Computer Science (OMSCS)",
+        "About OMSCS. When can students sign up for courses? What courses are available? "
+        "How many total hours are required? How does the student workload compare to a "
+        "residential degree? How many hours a week should students expect to spend on it?",
+        "About OMSCS",
+    )
+    citations = [{"url": faq.url, "title": faq.title, "quote": faq.chunk_text, "fetched_at": None}]
+
+    selected = _ground_citation_quotes(citations, [faq, degree], claim)
+
+    assert selected[0]["url"] == degree.url
+    assert selected[0]["quote"] == degree.chunk_text
+
+
+def test_claim_span_selection_ignores_unrelated_text_from_same_source():
+    claim = "Recommendations are optional."
+    url = "https://example.gatech.edu/first-year/recommendations"
+    unrelated = RetrievedChunk(
+        chunk_id="unrelated",
+        url=url,
+        title="Recommendations",
+        headings="Application Review",
+        chunk_text=(
+            "The application review process is the same in both Early Action "
+            "and Regular Decision plans."
+        ),
+        source_name="gt-admission",
+        score=0.9,
+    )
+    decisive = RetrievedChunk(
+        chunk_id="decisive",
+        url=url,
+        title="Recommendations",
+        headings="Recommendations",
+        chunk_text=(
+            "Students have the option to send recommendations to Georgia Tech. "
+            "This is completely optional."
+        ),
+        source_name="gt-admission",
+        score=0.8,
+    )
+    citations = [
+        {
+            "url": url,
+            "title": "Recommendations",
+            "quote": unrelated.chunk_text,
+            "fetched_at": None,
+        }
+    ]
+
+    selected = _ground_citation_quotes(citations, [unrelated, decisive], claim)
+
+    assert "completely optional" in selected[0]["quote"]
+    assert unrelated.chunk_text not in selected[0]["quote"]
+
+
+@pytest.mark.asyncio
+async def test_claim_validation_receives_decisive_recommendation_evidence(monkeypatch):
+    claim = "Recommendations are optional."
+    decisive = _chunk(
+        "recommendations",
+        "Recommendations",
+        "Students have the option to send recommendations to Georgia Tech. "
+        "This is completely optional.",
+        "Recommendations",
+    )
+    unrelated = _chunk(
+        "deadlines",
+        "First-Year Application Plans and Deadlines",
+        "The application review process is the same in Early Action and Regular Decision.",
+    )
+    selected = _ground_citation_quotes(
+        [{"url": unrelated.url, "title": unrelated.title, "quote": unrelated.chunk_text}],
+        [unrelated, decisive],
+        claim,
+    )
+    verifier = AsyncMock(return_value="SUPPORTED")
+    monkeypatch.setattr("app.rag.grounding._call_llm", verifier)
+
+    supported, notes = await check_claim_support(
+        claim,
+        [unrelated, decisive],
+        min_overlap_ratio=1.1,
+        citations=selected,
+    )
+
+    semantic_input = verifier.await_args.args[1]
+    assert supported
+    assert not notes
+    assert "completely optional" in semantic_input
+    assert "same in Early Action and Regular Decision" not in semantic_input
 
 
 @pytest.mark.asyncio

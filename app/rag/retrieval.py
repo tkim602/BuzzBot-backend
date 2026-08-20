@@ -7,6 +7,7 @@ import math
 import os
 import re
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 import structlog
 from sqlalchemy import func, select
@@ -566,23 +567,49 @@ def _signal_match_count(chunk: RetrievedChunk, hints: QueryHints) -> int:
 
 def _ranking_text(chunk: RetrievedChunk) -> str:
     return "\n".join(
-        value.strip() for value in (chunk.title, chunk.headings, chunk.chunk_text) if value
+        value.strip()
+        for value in (chunk.title, chunk.headings, urlsplit(chunk.url or "").path, chunk.chunk_text)
+        if value
     )
 
 
-def _lexical_match_score(query: str, chunk: RetrievedChunk) -> float:
-    query_tokens = {
-        token.lower()
-        for token in _TOKEN_RE.findall(query)
+def _normalize_lexical_token(token: str) -> str:
+    normalized = token.lower()
+    if len(normalized) > 3 and normalized.endswith("s") and not normalized.endswith("ss"):
+        normalized = normalized[:-1]
+    if len(normalized) > 6 and normalized.endswith("ment"):
+        normalized = normalized[:-4]
+    elif len(normalized) > 5 and normalized.endswith("ing"):
+        normalized = normalized[:-3]
+    elif len(normalized) > 4 and normalized.endswith("ed"):
+        normalized = normalized[:-2]
+    if len(normalized) > 3 and normalized[-1] == normalized[-2]:
+        normalized = normalized[:-1]
+    return normalized
+
+
+def _lexical_terms(text: str) -> set[str]:
+    return {
+        _normalize_lexical_token(token)
+        for token in _TOKEN_RE.findall(text)
         if len(token) > 1 and token.lower() not in FTS_STOPWORDS
     }
+
+
+def _lexical_match_score(query: str, chunk: RetrievedChunk) -> float:
+    query_tokens = _lexical_terms(query)
     if not query_tokens:
         return 0.0
-    body_tokens = {token.lower() for token in _TOKEN_RE.findall(chunk.chunk_text)}
-    context_tokens = {
-        token.lower() for token in _TOKEN_RE.findall(f"{chunk.title or ''} {chunk.headings or ''}")
-    }
-    weighted_matches = len(query_tokens & body_tokens) + 2 * len(query_tokens & context_tokens)
+    body_tokens = _lexical_terms(chunk.chunk_text)
+    title_path_tokens = _lexical_terms(f"{chunk.title or ''} {urlsplit(chunk.url or '').path}")
+    heading_tokens = _lexical_terms(chunk.headings or "")
+    numeric_matches = {token for token in query_tokens & body_tokens if token.isdigit()}
+    weighted_matches = (
+        len(query_tokens & body_tokens)
+        + 5 * len(query_tokens & title_path_tokens)
+        + len(query_tokens & heading_tokens)
+        + 2 * len(numeric_matches)
+    )
     return weighted_matches / len(query_tokens)
 
 
@@ -666,7 +693,8 @@ async def hybrid_retrieve(
             match_any=force_fts,
         )
 
-    merged = _rrf_fuse_results(vector_results, fts_results, top_k=top_k)
+    fusion_top_k = max(top_k, 15) if settings.rag_enable_reranking else top_k
+    merged = _rrf_fuse_results(vector_results, fts_results, top_k=fusion_top_k)
     if hints.course_code:
         exact_results = await exact_course_code_search(
             session,
@@ -681,7 +709,7 @@ async def hybrid_retrieve(
                 continue
             seen.add(c.chunk_id)
             prioritized.append(c)
-        merged = prioritized[:top_k]
+        merged = prioritized[:fusion_top_k]
 
     merged.sort(
         key=lambda c: (_signal_match_count(c, hints), _lexical_match_score(query, c), c.score),

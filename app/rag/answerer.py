@@ -10,7 +10,7 @@ import structlog
 
 from app.core.config import settings
 from app.core.usage import check_limit_or_raise, record_usage
-from app.rag.retrieval import RetrievedChunk, _lexical_match_score
+from app.rag.retrieval import RetrievedChunk, _lexical_match_score, _lexical_terms
 
 logger = structlog.get_logger(__name__)
 
@@ -28,7 +28,6 @@ _BINARY_QUESTION_RE = re.compile(
 )
 _LEADING_ANSWER_RE = re.compile(r"^\s*(?:yes|no)\b\s*[,.;:—–-]?\s*", re.I)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
-_QUOTE_WORD_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)?", re.I)
 
 
 def _load_prompt(name: str) -> str:
@@ -105,39 +104,27 @@ def _ground_citation_quotes(
         chunk = max(chunks, key=lambda item: _lexical_match_score(answer, item))
         if _lexical_match_score(answer, chunk) <= 0:
             continue
-        texts = [chunk.chunk_text]
         grounded_citation = {
             **citation,
             "url": chunk.url,
             "title": chunk.title,
             "fetched_at": chunk.fetched_at,
         }
-        quote = str(citation.get("quote") or "").strip()
-        for text in texts:
-            start = text.lower().find(quote.lower()) if quote else -1
-            if start >= 0:
-                grounded.append({**grounded_citation, "quote": text[start : start + len(quote)]})
-                break
-        else:
-            quote_words = set(_QUOTE_WORD_RE.findall(quote.lower()))
-            candidates = []
-            for text in texts:
-                sentences = [
-                    part.strip() for part in _SENTENCE_SPLIT_RE.split(text) if part.strip()
-                ]
-                candidates.extend(sentences)
-                candidates.extend(
-                    f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
-                )
-            best = max(
-                candidates,
-                key=lambda candidate: len(
-                    quote_words & set(_QUOTE_WORD_RE.findall(candidate.lower()))
-                ),
-                default="",
-            )
-            if best and quote_words & set(_QUOTE_WORD_RE.findall(best.lower())):
-                grounded.append({**grounded_citation, "quote": best})
+        claim_words = _lexical_terms(answer)
+        sentences = [
+            part.strip() for part in _SENTENCE_SPLIT_RE.split(chunk.chunk_text) if part.strip()
+        ]
+        candidates = [*sentences]
+        candidates.extend(
+            f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
+        )
+        best = max(
+            candidates,
+            key=lambda candidate: len(claim_words & _lexical_terms(candidate)),
+            default="",
+        )
+        if best and claim_words & _lexical_terms(best):
+            grounded.append({**grounded_citation, "quote": best})
     return grounded
 
 

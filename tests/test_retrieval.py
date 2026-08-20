@@ -1,6 +1,7 @@
 """Tests for retrieval query hints and fusion logic."""
 
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -12,6 +13,7 @@ from app.rag.retrieval import (
     _rrf_fuse_results,
     _signal_match_count,
     get_text_embeddings,
+    hybrid_retrieve,
 )
 
 
@@ -97,6 +99,40 @@ def test_signal_match_count_boosts_course_summary_for_availability():
         metadata_json={"type": "course_summary"},
     )
     assert _signal_match_count(chunk, hints) == 3
+
+
+@pytest.mark.asyncio
+async def test_reranker_receives_candidates_beyond_final_top_k(monkeypatch):
+    vector_results = [_chunk(f"generic-{index}", 1.0 - index / 10, "vector") for index in range(5)]
+    recommendation = RetrievedChunk(
+        chunk_id="recommendations",
+        url="https://example.com/first-year/recommendations",
+        title="Recommendations",
+        headings="Recommendations",
+        chunk_text="Recommendations are completely optional.",
+        score=0.1,
+        method="fts",
+    )
+    fts_results = [*vector_results[:4], recommendation]
+    monkeypatch.setattr("app.rag.retrieval.vector_search", AsyncMock(return_value=vector_results))
+    monkeypatch.setattr("app.rag.retrieval.fts_search", AsyncMock(return_value=fts_results))
+    monkeypatch.setattr(settings, "rag_enable_reranking", True)
+
+    def rerank(query, chunks, top_k):
+        assert recommendation in chunks
+        return [recommendation, *[chunk for chunk in chunks if chunk is not recommendation]][:top_k]
+
+    monkeypatch.setattr("app.rag.retrieval.rerank_with_cross_encoder", rerank)
+
+    results = await hybrid_retrieve(
+        object(),
+        "Do I have to submit recommendation letters?",
+        [0.1],
+        top_k=5,
+        force_fts=True,
+    )
+
+    assert results[0] is recommendation
 
 
 @pytest.mark.asyncio
