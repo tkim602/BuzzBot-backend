@@ -25,13 +25,49 @@ TERM_RE_1 = re.compile(r"\b(spring|summer|fall)\s*(20\d{2})\b", re.IGNORECASE)
 TERM_RE_2 = re.compile(r"\b(20\d{2})\s*(spring|summer|fall)", re.IGNORECASE)
 _TOKEN_RE = re.compile(r"[A-Za-z0-9\-]+")
 COURSE_CODE_STOPWORDS = {
-    "spring", "summer", "fall", "term", "year", "this", "next", "last", "the",
+    "spring",
+    "summer",
+    "fall",
+    "term",
+    "year",
+    "this",
+    "next",
+    "last",
+    "the",
 }
 AVAILABILITY_TERMS = ("offer", "offered", "offering", "available", "availability", "개설")
 FTS_STOPWORDS = {
-    "what", "when", "where", "which", "who", "how", "is", "are", "was", "were",
-    "a", "an", "the", "for", "to", "of", "in", "on", "at", "with", "and", "or",
-    "many", "does", "do", "did", "can", "could", "would", "should", "please",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "how",
+    "is",
+    "are",
+    "was",
+    "were",
+    "a",
+    "an",
+    "the",
+    "for",
+    "to",
+    "of",
+    "in",
+    "on",
+    "at",
+    "with",
+    "and",
+    "or",
+    "many",
+    "does",
+    "do",
+    "did",
+    "can",
+    "could",
+    "would",
+    "should",
+    "please",
 }
 
 _embedding_cache = TTLCache[list[float]](
@@ -147,7 +183,7 @@ def _apply_source_filter(stmt, source_filter: SourceFilter):
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
     if len(a) != len(b) or not a:
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(y * y for y in b))
     if norm_a == 0 or norm_b == 0:
@@ -190,7 +226,7 @@ async def get_text_embeddings(texts: list[str]) -> list[list[float]]:
             import openai
 
             check_limit_or_raise()
-            client = openai.AsyncOpenAI()
+            client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
             resp = await client.embeddings.create(input=inputs, model=model)
             total_tokens = resp.usage.total_tokens if resp.usage else 0
             if total_tokens:
@@ -216,7 +252,7 @@ async def get_text_embeddings(texts: list[str]) -> list[list[float]]:
             st_model = SentenceTransformer("all-MiniLM-L6-v2")
             fresh_embeddings = st_model.encode(inputs).tolist()
 
-        for pos, emb in zip(uncached_positions, fresh_embeddings):
+        for pos, emb in zip(uncached_positions, fresh_embeddings, strict=True):
             resolved[pos] = emb
             if settings.rag_enable_embedding_cache:
                 cache_key = _embedding_cache_key(provider, model, texts[pos])
@@ -245,7 +281,7 @@ def rerank_with_cross_encoder(
         model = _cross_encoder_model
         pairs = [[query, c.chunk_text] for c in chunks]
         scores = model.predict(pairs)
-        for chunk, score in zip(chunks, scores):
+        for chunk, score in zip(chunks, scores, strict=True):
             chunk.score = float(score)
         chunks.sort(key=lambda c: c.score, reverse=True)
         if top_k is not None:
@@ -266,7 +302,7 @@ async def rerank_chunks_by_embedding(
     try:
         query_emb = await get_query_embedding(query)
         chunk_embs = await get_text_embeddings([c.chunk_text for c in chunks])
-        for chunk, emb in zip(chunks, chunk_embs):
+        for chunk, emb in zip(chunks, chunk_embs, strict=True):
             sim = _cosine_similarity(query_emb, emb)
             chunk.score = (alpha * sim) + ((1.0 - alpha) * chunk.score)
         chunks.sort(key=lambda c: c.score, reverse=True)
@@ -554,9 +590,13 @@ async def hybrid_retrieve(
     exact_schedule_lookup = schedule_only and metadata_course_code and metadata_term_name
     if settings.rag_skip_fts_for_exact_schedule and exact_schedule_lookup:
         vector_results = await vector_search(
-            session, vector_embedding, top_k=top_k,
-            source_filter=source_filter, similarity_threshold=similarity_threshold,
-            metadata_course_code=metadata_course_code, metadata_term_name=metadata_term_name,
+            session,
+            vector_embedding,
+            top_k=top_k,
+            source_filter=source_filter,
+            similarity_threshold=similarity_threshold,
+            metadata_course_code=metadata_course_code,
+            metadata_term_name=metadata_term_name,
             metadata_semester=metadata_semester,
         )
         if len(vector_results) >= min(3, top_k):
@@ -572,9 +612,13 @@ async def hybrid_retrieve(
         )
     else:
         vector_results = await vector_search(
-            session, vector_embedding, top_k=top_k,
-            source_filter=source_filter, similarity_threshold=similarity_threshold,
-            metadata_course_code=metadata_course_code, metadata_term_name=metadata_term_name,
+            session,
+            vector_embedding,
+            top_k=top_k,
+            source_filter=source_filter,
+            similarity_threshold=similarity_threshold,
+            metadata_course_code=metadata_course_code,
+            metadata_term_name=metadata_term_name,
             metadata_semester=metadata_semester,
         )
         if (

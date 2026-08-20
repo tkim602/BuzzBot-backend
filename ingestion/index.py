@@ -5,18 +5,19 @@ from __future__ import annotations
 import os
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from db.models import Chunk, Document, Embedding, FetchState, Source
 
 # Add app to path for usage tracking
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from app.core.usage import check_limit_or_raise, record_usage, UsageLimitExceeded
+from app.core.config import settings
+from app.core.usage import check_limit_or_raise, record_usage
 
 logger = structlog.get_logger(__name__)
 
@@ -28,19 +29,19 @@ def get_embedding_function():
     if provider == "openai":
         import openai
 
-        client = openai.OpenAI()
-        model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
+        client = openai.OpenAI(api_key=settings.openai_api_key)
+        model = os.getenv("OPENAI_EMBED_MODEL", settings.openai_embed_model)
 
         def embed_texts(texts: list[str]) -> list[list[float]]:
             # Check usage limit before API call
             check_limit_or_raise()
-            
+
             resp = client.embeddings.create(input=texts, model=model)
-            
+
             # Record usage
             total_tokens = resp.usage.total_tokens
             record_usage(model, total_tokens, "embedding")
-            
+
             return [item.embedding for item in resp.data]
 
         return embed_texts
@@ -75,7 +76,9 @@ def get_embedding_function():
         return embed_texts
 
 
-def upsert_source(session: Session, name: str, base_url: str, allowed: bool, reason: str) -> uuid.UUID:
+def upsert_source(
+    session: Session, name: str, base_url: str, allowed: bool, reason: str
+) -> uuid.UUID:
     """Upsert a source and return its ID."""
     existing = session.execute(select(Source).where(Source.name == name)).scalar_one_or_none()
     if existing:
@@ -105,7 +108,7 @@ def upsert_document(
         select(Document).where(Document.canonical_url == url)
     ).scalar_one_or_none()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if existing:
         if existing.content_hash == content_hash:
             logger.debug("document unchanged", url=url)
@@ -181,7 +184,7 @@ def index_chunks(
         batch = chunk_objs[i : i + batch_size]
         texts = [c.chunk_text for c in batch]
         embeddings = embed_fn(texts)
-        for chunk_obj, emb in zip(batch, embeddings):
+        for chunk_obj, emb in zip(batch, embeddings, strict=True):
             emb_obj = Embedding(chunk_id=chunk_obj.chunk_id, embedding=emb)
             session.add(emb_obj)
             count += 1
@@ -202,7 +205,7 @@ def update_fetch_state(
 ) -> None:
     """Upsert fetch state for a URL."""
     existing = session.execute(select(FetchState).where(FetchState.url == url)).scalar_one_or_none()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if existing:
         existing.etag = etag
         existing.last_modified = last_modified

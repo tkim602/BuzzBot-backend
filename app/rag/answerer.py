@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import structlog
@@ -15,7 +14,12 @@ from app.rag.retrieval import RetrievedChunk
 logger = structlog.get_logger(__name__)
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
-FACTUAL_INTENTS = {"registrar_calendar", "admissions_deadline", "catalog_course", "course_schedule_sections"}
+FACTUAL_INTENTS = {
+    "registrar_calendar",
+    "admissions_deadline",
+    "catalog_course",
+    "course_schedule_sections",
+}
 
 
 def _load_prompt(name: str) -> str:
@@ -141,13 +145,13 @@ async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
     """Call the configured LLM provider."""
     # Check usage limit before API call
     check_limit_or_raise()
-    
+
     provider = settings.llm_provider
 
     if provider == "openai":
         import openai
 
-        client = openai.AsyncOpenAI()
+        client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
         resp = await client.chat.completions.create(
             model=settings.openai_model,
             messages=[
@@ -157,12 +161,12 @@ async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
             temperature=temperature,
             max_tokens=1500,
         )
-        
+
         # Record usage
         if resp.usage:
             record_usage(settings.openai_model, resp.usage.prompt_tokens, "input")
             record_usage(settings.openai_model, resp.usage.completion_tokens, "output")
-        
+
         return resp.choices[0].message.content or ""
 
     elif provider == "anthropic":
@@ -175,12 +179,12 @@ async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
             system=system,
             messages=[{"role": "user", "content": user}],
         )
-        
+
         # Record usage
-        if hasattr(resp, 'usage'):
+        if hasattr(resp, "usage"):
             record_usage(settings.anthropic_model, resp.usage.input_tokens, "input")
             record_usage(settings.anthropic_model, resp.usage.output_tokens, "output")
-        
+
         return resp.content[0].text
 
     elif provider == "ollama":

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -22,26 +22,65 @@ COURSE_CODE_RE = re.compile(r"\b([a-z]{2,4})\s*-?\s*(\d{4}[a-z]?)\b", re.IGNOREC
 TERM_RE_1 = re.compile(r"\b(spring|summer|fall)\s*(20\d{2})\b", re.IGNORECASE)
 TERM_RE_2 = re.compile(r"\b(20\d{2})\s*(spring|summer|fall)\b", re.IGNORECASE)
 COURSE_CODE_STOPWORDS = {
-    "spring", "summer", "fall", "term", "year", "this", "next", "last", "the",
+    "spring",
+    "summer",
+    "fall",
+    "term",
+    "year",
+    "this",
+    "next",
+    "last",
+    "the",
 }
-PRONOUN_RE = re.compile(r"\b(it|that class|this class|that course|this course|그거|그 과목|이 과목)\b", re.IGNORECASE)
+PRONOUN_RE = re.compile(
+    r"\b(it|that class|this class|that course|this course|그거|그 과목|이 과목)\b", re.IGNORECASE
+)
 FOLLOWUP_SIGNALS = re.compile(
     r"\b(another|other|also|more|then|which semester|offered|available|alternatives?|instead|else|too)\b",
     re.IGNORECASE,
 )
 DATE_SENSITIVE_TERMS = (
-    "when", "date", "deadline", "registration", "add/drop", "withdrawal", "commencement",
-    "today", "tomorrow", "this semester", "next semester", "upcoming", "언제", "마감", "학사일정",
+    "when",
+    "date",
+    "deadline",
+    "registration",
+    "add/drop",
+    "withdrawal",
+    "commencement",
+    "today",
+    "tomorrow",
+    "this semester",
+    "next semester",
+    "upcoming",
+    "언제",
+    "마감",
+    "학사일정",
 )
 ADMISSIONS_QUERY_TERMS = (
-    "application deadline", "admission deadline", "deadline to apply",
-    "apply", "admission", "omscs", "mscs",
+    "application deadline",
+    "admission deadline",
+    "deadline to apply",
+    "apply",
+    "admission",
+    "omscs",
+    "mscs",
 )
 NEXT_TERM_TERMS = ("next semester", "upcoming", "next term", "다음 학기")
 EXPLICIT_FACTUAL_TERMS = (
-    "application deadline", "admission deadline", "deadline", "when is",
-    "last day to", "registration", "register", "add/drop", "withdraw",
-    "omscs", "mscs", "fall 20", "spring 20", "summer 20",
+    "application deadline",
+    "admission deadline",
+    "deadline",
+    "when is",
+    "last day to",
+    "registration",
+    "register",
+    "add/drop",
+    "withdraw",
+    "omscs",
+    "mscs",
+    "fall 20",
+    "spring 20",
+    "summer 20",
 )
 
 
@@ -124,7 +163,7 @@ def _next_term(term: str) -> str:
 
 
 def _get_temporal_context(now: datetime | None = None) -> _TemporalContext:
-    now_utc = now or datetime.now(timezone.utc)
+    now_utc = now or datetime.now(UTC)
     tz_name = settings.rag_user_timezone or "America/New_York"
     local = now_utc.astimezone(ZoneInfo(tz_name))
     current_date = local.date().isoformat()
@@ -135,15 +174,88 @@ def _get_temporal_context(now: datetime | None = None) -> _TemporalContext:
 def _extract_topic_keywords(text: str) -> list[str]:
     """Extract salient topic words from a message for context carry-forward."""
     stopwords = {
-        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did", "will", "would", "could",
-        "should", "may", "might", "can", "shall", "about", "for", "with",
-        "from", "that", "this", "what", "which", "how", "when", "where",
-        "who", "why", "there", "here", "any", "some", "all", "each", "every",
-        "it", "its", "i", "me", "my", "you", "your", "we", "our", "they",
-        "them", "their", "of", "in", "on", "at", "to", "and", "or", "but",
-        "not", "no", "so", "if", "then", "than", "too", "very", "just",
-        "tell", "know", "show", "give", "get", "find", "gt", "georgia", "tech",
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "can",
+        "shall",
+        "about",
+        "for",
+        "with",
+        "from",
+        "that",
+        "this",
+        "what",
+        "which",
+        "how",
+        "when",
+        "where",
+        "who",
+        "why",
+        "there",
+        "here",
+        "any",
+        "some",
+        "all",
+        "each",
+        "every",
+        "it",
+        "its",
+        "i",
+        "me",
+        "my",
+        "you",
+        "your",
+        "we",
+        "our",
+        "they",
+        "them",
+        "their",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "and",
+        "or",
+        "but",
+        "not",
+        "no",
+        "so",
+        "if",
+        "then",
+        "than",
+        "too",
+        "very",
+        "just",
+        "tell",
+        "know",
+        "show",
+        "give",
+        "get",
+        "find",
+        "gt",
+        "georgia",
+        "tech",
     }
     words = re.findall(r"[a-zA-Z]{3,}", text.lower())
     return [w for w in words if w not in stopwords]
@@ -154,9 +266,7 @@ def _should_force_rule_rewrite(query: str, fallback: RewriteResult) -> bool:
     if any(term in q for term in EXPLICIT_FACTUAL_TERMS):
         return True
     # Date-sensitive questions are usually better served with low-latency deterministic rewrite.
-    if fallback.date_sensitive and len(query.split()) >= 5:
-        return True
-    return False
+    return fallback.date_sensitive and len(query.split()) >= 5
 
 
 def _resolve_from_history(query: str, history: list[dict] | None) -> str:
@@ -257,7 +367,7 @@ async def _rewrite_with_llm(
         if provider == "openai":
             import openai
 
-            client = openai.AsyncOpenAI()
+            client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
             resp = await client.chat.completions.create(
                 model=settings.openai_model,
                 messages=[
@@ -294,7 +404,9 @@ async def _rewrite_with_llm(
         if not canonical:
             return fallback
 
-        date_sensitive = parsed.get("date_sensitivity", {}).get("is_sensitive", fallback.date_sensitive)
+        date_sensitive = parsed.get("date_sensitivity", {}).get(
+            "is_sensitive", fallback.date_sensitive
+        )
         canonical = _resolve_from_history(canonical, history)
         detected_code = _extract_course_code(canonical) or fallback.detected_course_code
         detected_term = _extract_term_name(canonical) or fallback.detected_term_name
@@ -345,7 +457,7 @@ async def generate_hyde_passage(query: str) -> str | None:
         if provider == "openai":
             import openai
 
-            client = openai.AsyncOpenAI()
+            client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
             resp = await client.chat.completions.create(
                 model=settings.openai_model,
                 messages=[

@@ -1,11 +1,17 @@
 """Tests for retrieval query hints and fusion logic."""
 
+from types import SimpleNamespace
+
+import pytest
+
+from app.core.config import settings
 from app.rag.retrieval import (
     RetrievedChunk,
     _compact_query_for_fts,
     _extract_query_hints,
     _rrf_fuse_results,
     _signal_match_count,
+    get_text_embeddings,
 )
 
 
@@ -91,3 +97,27 @@ def test_signal_match_count_boosts_course_summary_for_availability():
         metadata_json={"type": "course_summary"},
     )
     assert _signal_match_count(chunk, hints) == 3
+
+
+@pytest.mark.asyncio
+async def test_async_embedding_client_receives_key_loaded_by_settings(monkeypatch):
+    captured: dict[str, str] = {}
+
+    class Embeddings:
+        async def create(self, **kwargs):
+            return SimpleNamespace(
+                usage=SimpleNamespace(total_tokens=1),
+                data=[SimpleNamespace(embedding=[0.1])],
+            )
+
+    class Client:
+        def __init__(self, *, api_key: str):
+            captured["api_key"] = api_key
+            self.embeddings = Embeddings()
+
+    monkeypatch.setattr(settings, "openai_api_key", "test-key")
+    monkeypatch.setattr(settings, "rag_enable_embedding_cache", False)
+    monkeypatch.setattr("openai.AsyncOpenAI", Client)
+
+    assert await get_text_embeddings(["test query"]) == [[0.1]]
+    assert captured == {"api_key": "test-key"}

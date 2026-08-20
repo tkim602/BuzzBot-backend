@@ -4,8 +4,10 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 
+from app.core.config import settings
 from ingestion.documents.registry import DocumentSource
 from ingestion.documents.sync import DocumentSyncOutcome, _edition, sync_document_source
+from ingestion.index import get_embedding_function
 
 
 def _source() -> DocumentSource:
@@ -22,6 +24,22 @@ def _source() -> DocumentSource:
 def test_catalog_edition_is_preserved_when_present():
     assert _edition("Georgia Tech 2026-2027 Catalog") == "2026-2027"
     assert _edition("Registration policy") is None
+
+
+def test_embedding_client_receives_key_loaded_by_settings(monkeypatch: pytest.MonkeyPatch):
+    captured: dict[str, str] = {}
+
+    class FakeClient:
+        def __init__(self, *, api_key: str):
+            captured["api_key"] = api_key
+
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
+    monkeypatch.setattr(settings, "openai_api_key", "test-key")
+    monkeypatch.setattr("openai.OpenAI", FakeClient)
+
+    get_embedding_function()
+
+    assert captured == {"api_key": "test-key"}
 
 
 @pytest.mark.asyncio
