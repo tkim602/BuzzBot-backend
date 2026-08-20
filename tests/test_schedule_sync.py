@@ -22,7 +22,7 @@ def _never_open_database():
 def test_build_subject_listing_url_is_the_exact_public_oscar_query():
     assert build_subject_listing_url("202608", "cs") == (
         "https://oscar.gatech.edu/bprod/bwckctlg.p_disp_listcrse"
-        "?term_in=202608&subj_in=CS&crse_in=&schd_in=%25"
+        "?term_in=202608&subj_in=CS&crse_in=%25&schd_in=%25"
     )
 
 

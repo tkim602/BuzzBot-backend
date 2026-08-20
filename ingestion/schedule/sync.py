@@ -64,7 +64,7 @@ def build_subject_listing_url(term: str, subject: str) -> str:
         {
             "term_in": term,
             "subj_in": subject,
-            "crse_in": "",
+            "crse_in": "%",
             "schd_in": "%",
         }
     )
