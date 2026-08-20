@@ -271,6 +271,47 @@ async def test_one_url_sync_follows_one_safe_canonical_redirect(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_304_repairs_invalid_chunks_from_trusted_stored_content(monkeypatch):
+    source = _source()
+    state = MagicMock(etag='"v1"', last_modified=None)
+    document = MagicMock(
+        content_text="Official registration policy details. " * 80,
+        title="Registration",
+        etag='"v1"',
+        last_modified=None,
+        doc_id="doc-id",
+    )
+    bad_chunk = MagicMock(token_count=1)
+    session = MagicMock()
+    session.scalar.side_effect = [state, document]
+    session.scalars.return_value.all.return_value = [bad_chunk]
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(304, request=request)
+
+    def fake_store(session, source, fetched, embed_fn):
+        captured["fetched"] = fetched
+        return True, 2
+
+    monkeypatch.setattr("ingestion.documents.sync._store_document", fake_store)
+    result = await sync_document_url(
+        source,
+        source.seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is DocumentSyncOutcome.INDEXED
+    assert result.requests_used == 1
+    assert result.chunks_indexed == 2
+    fetched = captured["fetched"]
+    assert isinstance(fetched, FetchedDocument)
+    assert fetched.text == document.content_text
+
+
+@pytest.mark.asyncio
 async def test_one_url_sync_never_follows_auth_redirect():
     calls: list[str] = []
 

@@ -177,7 +177,7 @@ async def sync_document_url(
         response = await client.get(canonical_url)
     requests_used = 1
 
-    if 300 <= response.status_code < 400:
+    if 300 <= response.status_code < 400 and response.status_code != 304:
         target = urljoin(canonical_url, response.headers.get("Location", ""))
         if "login" in target.lower() or "sso" in target.lower():
             return DocumentSyncResult(
@@ -196,6 +196,40 @@ async def sync_document_url(
                 response = await client.get(target)
             requests_used += 1
     if response.status_code == 304:
+        with session_factory() as session:
+            document = session.scalar(
+                select(Document).where(Document.canonical_url == canonical_url)
+            )
+            if document is not None and document.content_text:
+                stored_chunks = session.scalars(
+                    select(Chunk).where(Chunk.doc_id == document.doc_id)
+                ).all()
+                min_chunk_size = 10 if source.source_type == "academic_calendar" else 50
+                if not stored_chunks or any(
+                    chunk.token_count < min_chunk_size for chunk in stored_chunks
+                ):
+                    fetched = FetchedDocument(
+                        source_url=canonical_url,
+                        canonical_url=canonical_url,
+                        title=document.title,
+                        text=document.content_text,
+                        fetched_at=datetime.now(UTC),
+                        etag=response.headers.get("ETag") or document.etag,
+                        last_modified=(
+                            response.headers.get("Last-Modified") or document.last_modified
+                        ),
+                        edition=_edition(f"{document.title or ''}\n{document.content_text}"),
+                    )
+                    changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
+                    session.commit()
+                    return DocumentSyncResult(
+                        source.name,
+                        DocumentSyncOutcome.INDEXED,
+                        requests_used,
+                        fetched=1,
+                        changed=int(changed),
+                        chunks_indexed=chunks_indexed,
+                    )
         return DocumentSyncResult(
             source.name,
             DocumentSyncOutcome.UNCHANGED,
