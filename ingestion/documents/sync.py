@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from db.models import Chunk, Document, FetchState
@@ -157,10 +157,32 @@ def _store_document(
         f"Official Georgia Tech authority: {source.authority}",
     )
     digest = content_hash(fetched.text)
+    metadata = {
+        "canonical_url": fetched.canonical_url,
+        "title": fetched.title,
+        "source": source.name,
+        "source_type": source.source_type,
+        "authority": source.authority,
+        "fetched_at": fetched.fetched_at.isoformat(),
+    }
+    if fetched.edition:
+        metadata["edition"] = fetched.edition
     existing = session.scalar(
         select(Document).where(Document.canonical_url == fetched.canonical_url)
     )
     if existing is not None and existing.content_hash == digest:
+        existing.source_id = source_id
+        existing.fetched_at = fetched.fetched_at
+        existing.etag = fetched.etag
+        existing.last_modified = fetched.last_modified
+        existing.metadata_json = metadata
+        stored_chunks = session.scalars(select(Chunk).where(Chunk.doc_id == existing.doc_id)).all()
+        for chunk in stored_chunks:
+            chunk.source_id = source_id
+            chunk.url = fetched.canonical_url
+            chunk.title = fetched.title
+            chunk.fetched_at = fetched.fetched_at
+            chunk.metadata_json = {**(chunk.metadata_json or {}), **metadata}
         update_fetch_state(
             session,
             fetched.source_url,
@@ -169,10 +191,7 @@ def _store_document(
             fetched.last_modified,
             digest,
         )
-        chunk_count = session.scalar(
-            select(func.count()).select_from(Chunk).where(Chunk.doc_id == existing.doc_id)
-        )
-        return False, int(chunk_count or 0)
+        return False, len(stored_chunks)
 
     document_id = upsert_document(
         session,
@@ -184,16 +203,6 @@ def _store_document(
         fetched.etag,
         fetched.last_modified,
     )
-    metadata = {
-        "canonical_url": fetched.canonical_url,
-        "title": fetched.title,
-        "source": source.name,
-        "source_type": source.source_type,
-        "authority": source.authority,
-        "fetched_at": fetched.fetched_at.isoformat(),
-    }
-    if fetched.edition:
-        metadata["edition"] = fetched.edition
     chunks = chunk_text(fetched.text, chunk_size=500, chunk_overlap=80, metadata=metadata)
     indexed = index_chunks(
         session,
