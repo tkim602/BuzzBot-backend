@@ -744,7 +744,7 @@ async def chat(
         claims_supported = True
         if is_factual:
             claims_supported, claim_notes = await check_claim_support(
-                raw_answer.get("answer", ""), chunks
+                raw_answer.get("answer", ""), chunks, citations=valid_citations
             )
             grounding_notes.extend(claim_notes)
         program_evidence_ok = _program_specific_evidence_supported(query, valid_citations)
@@ -761,7 +761,7 @@ async def chat(
                 )
                 program_evidence_ok = _program_specific_evidence_supported(query, valid_citations)
                 claims_supported, claim_notes = await check_claim_support(
-                    raw_answer.get("answer", ""), chunks
+                    raw_answer.get("answer", ""), chunks, citations=valid_citations
                 )
                 grounding_notes.extend(claim_notes)
 

@@ -257,7 +257,9 @@ def build_workflow(
         citations = cast(list[dict[str, object]], state.get("citations", []))
         chunks = _as_chunks(state.get("evidence", []))
         valid, grounding_notes = check_grounding(citations, chunks)
-        claims_supported, claim_notes = await check_claim_support(state.get("answer", ""), chunks)
+        claims_supported, claim_notes = await check_claim_support(
+            state.get("answer", ""), chunks, citations=valid
+        )
         polarity_consistent, polarity_notes = check_binary_polarity(
             state.get("answer", ""), state.get("binary_verdict")
         )

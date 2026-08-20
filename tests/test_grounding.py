@@ -271,3 +271,24 @@ async def test_claim_support_fails_closed_on_verifier_error(monkeypatch):
 
     assert not supported
     assert notes
+
+
+@pytest.mark.asyncio
+async def test_exact_but_unrelated_citation_does_not_support_claim(monkeypatch):
+    citation = {
+        "url": "https://example.com/documents",
+        "quote": "These documents could include recommendations, required or optional portfolios.",
+    }
+    call = AsyncMock(return_value="INSUFFICIENT")
+    monkeypatch.setattr("app.rag.grounding._call_llm", call)
+
+    supported, notes = await check_claim_support(
+        "Recommendations are optional.",
+        [_make_chunk("Recommendations are completely optional.")],
+        citations=[citation],
+    )
+
+    assert not supported
+    assert notes
+    assert citation["quote"] in call.await_args.args[1]
+    assert "Recommendations are completely optional." not in call.await_args.args[1]

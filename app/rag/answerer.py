@@ -10,7 +10,7 @@ import structlog
 
 from app.core.config import settings
 from app.core.usage import check_limit_or_raise, record_usage
-from app.rag.retrieval import RetrievedChunk
+from app.rag.retrieval import RetrievedChunk, _lexical_match_score
 
 logger = structlog.get_logger(__name__)
 
@@ -95,17 +95,28 @@ def _format_history(history: list[dict] | None) -> str:
     return "\n".join(lines) if lines else "none"
 
 
-def _ground_citation_quotes(citations: object, chunks: list[RetrievedChunk]) -> list[dict]:
+def _ground_citation_quotes(
+    citations: object, chunks: list[RetrievedChunk], answer: str
+) -> list[dict]:
     grounded: list[dict] = []
     for citation in citations if isinstance(citations, list) else []:
-        if not isinstance(citation, dict):
+        if not isinstance(citation, dict) or not chunks:
             continue
-        texts = [chunk.chunk_text for chunk in chunks if chunk.url == citation.get("url")]
+        chunk = max(chunks, key=lambda item: _lexical_match_score(answer, item))
+        if _lexical_match_score(answer, chunk) <= 0:
+            continue
+        texts = [chunk.chunk_text]
+        grounded_citation = {
+            **citation,
+            "url": chunk.url,
+            "title": chunk.title,
+            "fetched_at": chunk.fetched_at,
+        }
         quote = str(citation.get("quote") or "").strip()
         for text in texts:
             start = text.lower().find(quote.lower()) if quote else -1
             if start >= 0:
-                grounded.append({**citation, "quote": text[start : start + len(quote)]})
+                grounded.append({**grounded_citation, "quote": text[start : start + len(quote)]})
                 break
         else:
             quote_words = set(_QUOTE_WORD_RE.findall(quote.lower()))
@@ -126,7 +137,7 @@ def _ground_citation_quotes(citations: object, chunks: list[RetrievedChunk]) -> 
                 default="",
             )
             if best and quote_words & set(_QUOTE_WORD_RE.findall(best.lower())):
-                grounded.append({**citation, "quote": best})
+                grounded.append({**grounded_citation, "quote": best})
     return grounded
 
 
@@ -152,6 +163,7 @@ async def _binary_proposition_verdict(query: str, evidence: str) -> str:
 
     from app.rag.grounding import semantic_claim_verdict
 
+    logger.debug("binary proposition verification", proposition=proposition, evidence=evidence)
     verdict = await semantic_claim_verdict(proposition, evidence)
     return {
         "SUPPORTED": "TRUE",
@@ -232,7 +244,9 @@ async def generate_answer(
             "notes": ["Response was not in expected JSON format."],
         }
 
-    parsed["citations"] = _ground_citation_quotes(parsed.get("citations"), chunks)
+    parsed["citations"] = _ground_citation_quotes(
+        parsed.get("citations"), chunks, str(parsed.get("answer", ""))
+    )
     if binary_verdict and polarity:
         body = _LEADING_ANSWER_RE.sub("", str(parsed.get("answer", "")), count=1)
         parsed["answer"] = f"{polarity}, {body}" if body else f"{polarity}."

@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -251,6 +251,68 @@ async def test_binary_answer_uses_exact_retrieved_citation_quote(monkeypatch):
     assert answer["answer"] == "No, recommendation letters are optional."
     assert answer["citations"][0]["quote"] == evidence
     assert answer["citations"][0]["quote"] in evidence
+
+
+@pytest.mark.asyncio
+async def test_binary_precheck_logs_exact_proposition_and_evidence(monkeypatch):
+    evidence = "The OMSCS degree requires students to complete 30 total credit hours (10 courses)."
+    proposition = "Completing nine courses is enough to graduate."
+    debug = Mock()
+    monkeypatch.setattr("app.rag.answerer.logger.debug", debug)
+    monkeypatch.setattr(
+        "app.rag.answerer._call_llm",
+        AsyncMock(
+            side_effect=[
+                proposition,
+                "CONTRADICTED",
+                '{"answer":"10 courses are required.","citations":[],"confidence":1.0,"notes":[]}',
+            ]
+        ),
+    )
+
+    await generate_answer(
+        "Is completing nine OMSCS courses enough to graduate?",
+        [_chunk("degree-requirements", "Degree Requirements", evidence)],
+        intent="policy",
+    )
+
+    logged = debug.call_args.kwargs
+    assert logged["proposition"] == proposition
+    assert evidence in logged["evidence"]
+
+
+@pytest.mark.asyncio
+async def test_binary_citation_prefers_claim_supporting_chunk_over_exact_unrelated_quote(
+    monkeypatch,
+):
+    unrelated = _chunk(
+        "application-documents",
+        "Application Documents",
+        "These documents could include recommendations, required or optional portfolios.",
+    )
+    decisive = _chunk(
+        "recommendations",
+        "Recommendations",
+        "Students have the option to send recommendations to Georgia Tech. "
+        "This is completely optional.",
+    )
+    response = (
+        '{"answer":"recommendations are optional.","citations":['
+        f'{{"url":"{unrelated.url}","title":"Application Documents","fetched_at":null,'
+        f'"quote":"{unrelated.chunk_text}"}}],"confidence":1.0,"notes":[]}}'
+    )
+    monkeypatch.setattr(
+        "app.rag.answerer._call_llm",
+        AsyncMock(side_effect=["Recommendations are required.", "CONTRADICTED", response]),
+    )
+
+    answer = await generate_answer(
+        "Do I have to submit recommendations?", [unrelated, decisive], intent="policy"
+    )
+
+    assert answer["citations"][0]["url"] == decisive.url
+    assert "completely optional" in answer["citations"][0]["quote"]
+    assert answer["citations"][0]["quote"] in decisive.chunk_text
 
 
 @pytest.mark.asyncio
