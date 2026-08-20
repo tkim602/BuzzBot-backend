@@ -31,6 +31,7 @@ class DocumentSource:
     adapter: str = ""
     allowed_path_prefixes: tuple[str, ...] = ()
     excluded_paths: tuple[str, ...] = ()
+    allowed_redirect_roots: tuple[str, ...] = ()
     content_types: tuple[str, ...] = ("text/html",)
     freshness_class: str = "medium"
     profiles: tuple[str, ...] = ()
@@ -44,6 +45,8 @@ class DocumentSource:
             raise ValueError("max_urls must be between 1 and 500")
         if any(not root.startswith("https://") for root in self.allowed_roots):
             raise ValueError("allowed roots must use HTTPS")
+        if any(not root.startswith("https://") for root in self.allowed_redirect_roots):
+            raise ValueError("allowed redirect roots must use HTTPS")
         if any(
             not any(_url_within_root(seed, root) for root in self.allowed_roots)
             for seed in self.seed_urls
@@ -66,6 +69,9 @@ class DocumentSource:
     def allows(self, url: str) -> bool:
         return any(_url_within_root(url, root) for root in self.allowed_roots)
 
+    def allows_redirect(self, url: str) -> bool:
+        return any(_url_within_root(url, root) for root in self.allowed_redirect_roots)
+
 
 def load_document_sources(path: Path | None = None) -> tuple[DocumentSource, ...]:
     registry_path = path or Path(__file__).resolve().parents[1] / "sources.yaml"
@@ -83,6 +89,7 @@ def load_document_sources(path: Path | None = None) -> tuple[DocumentSource, ...
             adapter=item.get("adapter", item["authority"]),
             allowed_path_prefixes=tuple(item.get("allowed_path_prefixes", ())),
             excluded_paths=tuple(item.get("excluded_paths", ())),
+            allowed_redirect_roots=tuple(item.get("allowed_redirect_roots", ())),
             content_types=tuple(item.get("content_types", ("text/html",))),
             freshness_class=item.get("freshness_class", "medium"),
             profiles=tuple(item.get("profiles", ())),
