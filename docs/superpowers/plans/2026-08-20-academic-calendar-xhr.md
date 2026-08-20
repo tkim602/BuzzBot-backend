@@ -175,8 +175,9 @@ The handoff must identify `make sync-doc source=gt-academic-calendar` as the com
 - Modify: `ingestion/documents/sync.py`
 - Modify: `tests/test_academic_calendar.py`
 - Modify: `tests/test_chunk.py`
+- Modify: `tests/test_document_sync.py`
 
-- [ ] **Step 1: Write failing event-preservation tests**
+- [x] **Step 1: Write failing event-preservation tests**
 
 ```python
 def test_structured_field_labels_are_not_headings():
@@ -192,13 +193,13 @@ def test_every_calendar_event_survives_chunking():
     assert sum(chunk.text.count(" — Event ") for chunk in chunks) == document.event_count
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `PYTHONPATH=$PWD python3 -m pytest -q tests/test_chunk.py tests/test_academic_calendar.py`
 
 Expected: the structured label test splits one event into multiple sections, and calendar chunks do not contain every event ID.
 
-- [ ] **Step 3: Implement explicit event sections and the structured-label guard**
+- [x] **Step 3: Implement explicit event sections and the structured-label guard**
 
 ```python
 STRUCTURED_FIELD_RE = re.compile(r"^[A-Za-z][A-Za-z ]{0,30}:\s+\S")
@@ -228,13 +229,13 @@ chunks = chunk_text(
 )
 ```
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run: `PYTHONPATH=$PWD python3 -m pytest -q tests/test_chunk.py tests/test_academic_calendar.py tests/test_document_sync.py`
 
 Expected: every focused test passes and every input calendar event heading appears exactly once across chunks.
 
-- [ ] **Step 5: Run full verification and commit**
+- [x] **Step 5: Run full verification and commit**
 
 ```bash
 PYTHONPATH=$PWD python3 -m pytest -q

@@ -1,5 +1,6 @@
 import pytest
 
+from ingestion.chunk import chunk_text
 from ingestion.documents.calendar import (
     CalendarPayloadError,
     calendar_request_url,
@@ -65,7 +66,16 @@ def test_calendar_payload_becomes_deterministic_plain_text():
     assert "Date: August 17 (Mon), 2026" in document.text
     assert "Event: Registration opens." in document.text
     assert "<strong>" not in document.text
-    assert document.text.index("Calendar Event ID: 1") < document.text.index("Calendar Event ID: 0")
+    assert document.text.index(" — Event 1") < document.text.index(" — Event 0")
+
+
+def test_every_calendar_event_survives_chunking():
+    document = parse_calendar_payload("2026-2027", {"data": _rows()})
+
+    chunks = chunk_text(document.text, min_chunk_size=10)
+
+    assert len(chunks) == document.event_count
+    assert sum(chunk.text.count(" — Event ") for chunk in chunks) == document.event_count
 
 
 @pytest.mark.parametrize(

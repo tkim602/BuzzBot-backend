@@ -5,11 +5,14 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, field
+from typing import cast
 
 import structlog
 
 logger = structlog.get_logger(__name__)
 MARKDOWN_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$")
+STRUCTURED_FIELD_RE = re.compile(r"^[A-Za-z][A-Za-z ]{0,30}:\s+\S")
+Token = int | str
 
 # Try tiktoken, fallback to word-based estimation
 try:
@@ -20,11 +23,11 @@ try:
     def _count_tokens(text: str) -> int:
         return len(_enc.encode(text))
 
-    def _encode(text: str) -> list[int]:
-        return _enc.encode(text)
+    def _encode(text: str) -> list[Token]:
+        return cast(list[Token], _enc.encode(text))
 
-    def _decode(tokens: list[int]) -> str:
-        return _enc.decode(tokens)
+    def _decode(tokens: list[Token]) -> str:
+        return cast(str, _enc.decode(cast(list[int], tokens)))
 
     HAS_TIKTOKEN = True
 except ImportError:
@@ -33,11 +36,11 @@ except ImportError:
     def _count_tokens(text: str) -> int:
         return len(text.split())
 
-    def _encode(text: str) -> list[str]:
-        return text.split()
+    def _encode(text: str) -> list[Token]:
+        return [cast(Token, token) for token in text.split()]
 
-    def _decode(tokens: list[str]) -> str:
-        return " ".join(tokens)
+    def _decode(tokens: list[Token]) -> str:
+        return " ".join(cast(str, token) for token in tokens)
 
 
 @dataclass
@@ -50,7 +53,7 @@ class ChunkResult:
 
 
 def _looks_like_heading(line: str) -> bool:
-    if not line:
+    if not line or STRUCTURED_FIELD_RE.match(line):
         return False
     m = MARKDOWN_HEADING_RE.match(line)
     if m:

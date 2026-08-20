@@ -90,7 +90,7 @@ def parse_calendar_payload(edition: str, payload: object) -> CalendarDocument:
         semester = SEMESTER_NAMES.get(semester_code, semester_code)
         year = str(row["year"]).strip()
         block = (
-            f"Calendar Event ID: {event_id}\n"
+            f"## Georgia Tech Academic Calendar {edition} — Event {event_id}\n"
             f"Semester: {semester} {year}\n"
             f"Category: {str(row['category']).strip()}\n"
             f"Date: {str(row['date']).strip()}, {year}\n"
@@ -99,7 +99,7 @@ def parse_calendar_payload(edition: str, payload: object) -> CalendarDocument:
         blocks.append((weight, event_id, block))
 
     title = f"Georgia Tech Academic Calendar {edition}"
-    text = f"{title}\n\n" + "\n\n".join(block for _, _, block in sorted(blocks))
+    text = "\n\n".join(block for _, _, block in sorted(blocks))
     return CalendarDocument(edition, title, text, len(rows))
 
 

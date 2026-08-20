@@ -1,4 +1,5 @@
 from contextlib import nullcontext
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import httpx
@@ -10,6 +11,7 @@ from ingestion.documents.sync import (
     DocumentSyncOutcome,
     FetchedDocument,
     _edition,
+    _store_document,
     sync_document_source,
 )
 from ingestion.index import get_embedding_function
@@ -235,3 +237,35 @@ async def test_invalid_calendar_payload_never_opens_database_or_embeds():
     assert result.outcome is DocumentSyncOutcome.EXTRACT_FAILED
     assert result.requests_used == 2
     assert result.reason == "TOO_FEW_EVENTS"
+
+
+def test_calendar_store_uses_short_fact_chunk_threshold(monkeypatch: pytest.MonkeyPatch):
+    captured: dict[str, object] = {}
+    source = _calendar_source()
+    fetched = FetchedDocument(
+        source_url=("https://registrar.gatech.edu/calevents/proxy?year=2026-2027&status=current"),
+        canonical_url=source.seed_urls[0],
+        title="Georgia Tech Academic Calendar 2026-2027",
+        text=("## Georgia Tech Academic Calendar 2026-2027 — Event 1\nEvent: Classes begin."),
+        fetched_at=datetime.now(UTC),
+        etag=None,
+        last_modified=None,
+        edition="2026-2027",
+    )
+    session = MagicMock()
+    session.scalar.return_value = None
+
+    monkeypatch.setattr("ingestion.documents.sync.upsert_source", lambda *args: "source-id")
+    monkeypatch.setattr("ingestion.documents.sync.upsert_document", lambda *args: "doc-id")
+
+    def fake_chunk_text(text, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr("ingestion.documents.sync.chunk_text", fake_chunk_text)
+    monkeypatch.setattr("ingestion.documents.sync.index_chunks", lambda *args: 0)
+    monkeypatch.setattr("ingestion.documents.sync.update_fetch_state", lambda *args: None)
+
+    _store_document(session, source, fetched, lambda texts: [])
+
+    assert captured["min_chunk_size"] == 10

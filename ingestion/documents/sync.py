@@ -254,7 +254,13 @@ def _store_document(
         fetched.etag,
         fetched.last_modified,
     )
-    chunks = chunk_text(fetched.text, chunk_size=500, chunk_overlap=80, metadata=metadata)
+    chunks = chunk_text(
+        fetched.text,
+        chunk_size=500,
+        chunk_overlap=80,
+        min_chunk_size=10 if source.source_type == "academic_calendar" else 50,
+        metadata=metadata,
+    )
     indexed = index_chunks(
         session,
         document_id,
