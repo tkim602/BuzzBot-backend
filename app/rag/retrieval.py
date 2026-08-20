@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 import structlog
 from sqlalchemy import func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.cache import TTLCache
 from app.core.config import settings
@@ -405,7 +406,7 @@ async def fts_search(
     optimized_query = _compact_query_for_fts(query)
     if match_any:
         optimized_query = " OR ".join(_TOKEN_RE.findall(optimized_query))
-    search_text = literal_column(FTS_DOCUMENT_EXPRESSION)
+    search_text: ColumnElement[str] = literal_column(FTS_DOCUMENT_EXPRESSION)
     ts_vector = func.to_tsvector("simple", search_text)
     ts_query = func.websearch_to_tsquery("simple", optimized_query)
     rank_expr = func.ts_rank_cd(ts_vector, ts_query)

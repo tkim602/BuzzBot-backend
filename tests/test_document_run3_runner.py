@@ -136,7 +136,7 @@ async def test_profile_resume_uses_stored_manifest_without_discovery(monkeypatch
 
 @pytest.mark.asyncio
 async def test_profile_planning_failure_executes_no_units(monkeypatch, sessions):
-    from ingestion.documents.sync_all import sync_document_profile
+    from ingestion.documents.sync_all import profile_coverage, sync_document_profile
 
     sources = (_source("gt-one", "finance"), _source("gt-two", "career"))
     calls = 0
@@ -160,6 +160,7 @@ async def test_profile_planning_failure_executes_no_units(monkeypatch, sessions)
     assert summary.stop_reason == "gt-two:MAX_URLS_EXCEEDED"
     assert summary.planned == 0
     assert calls == 0
+    assert profile_coverage(sessions, summary.run_id) == {}
 
 
 @pytest.mark.asyncio

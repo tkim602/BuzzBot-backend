@@ -41,6 +41,7 @@ async def sync_document_profile(
     selected = {source.name: source for source in sources if profile in source.profiles}
     if not selected:
         raise ValueError(f"profile has no sources: {profile}")
+    manifest: list[dict[str, str]]
 
     if resume:
         if run_id is None or verification_limit is not None:
@@ -65,7 +66,7 @@ async def sync_document_profile(
             concurrency=concurrency,
             retry_limit=retry_limit,
         )
-        manifest: list[dict[str, str]] = []
+        manifest = []
         for source in selected.values():
             urls, error = await _discover(source, transport, None)
             if error is not None:
@@ -112,6 +113,8 @@ def profile_coverage(
         run = session.get(IngestionRun, run_id)
         if run is None:
             raise ValueError("run not found")
+        if not run.scope_json.get("manifest"):
+            return {}
         vertical_by_unit = {
             item["unit_key"]: item["vertical"] for item in _manifest(run.scope_json)
         }

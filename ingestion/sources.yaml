@@ -88,7 +88,7 @@ documents:
     content_types: [text/html, application/pdf]
     freshness_class: low
     profiles: [run3]
-    max_urls: 300
+    max_urls: 500
 
   - name: gt-catalog-rules
     source_type: academic_policy
@@ -232,8 +232,8 @@ documents:
     vertical: career
     adapter: paths
     allowed_roots: [https://career.gatech.edu/]
-    seed_urls: [https://career.gatech.edu/apply-for-co-ops-and-internships/, https://career.gatech.edu/steps-for-registering-your-co-op-or-internship/]
-    allowed_path_prefixes: [/apply-for-co-ops-and-internships, /steps-for-registering-your-co-op-or-internship, /careerbuzz, /job-search]
+    seed_urls: [https://career.gatech.edu/, https://career.gatech.edu/coops-internships/, https://career.gatech.edu/register-internships/, https://career.gatech.edu/careerbuzz/]
+    allowed_path_prefixes: [/undergrad-career-readiness, /undergrad-job-search, /coops-internships, /graduate-career, /graduate-job, /register-internships, /careerbuzz, /career-tools, /career-fair, /upcoming-career-fairs]
     content_types: [text/html, application/pdf]
     freshness_class: medium
     profiles: [run3]
@@ -297,7 +297,7 @@ documents:
     vertical: admissions
     adapter: paths
     allowed_roots: [https://grad.gatech.edu/admissions/]
-    seed_urls: [https://grad.gatech.edu/admissions/]
+    seed_urls: [https://grad.gatech.edu/admissions]
     allowed_path_prefixes: [/admissions, /sites/default/files]
     content_types: [text/html, application/pdf]
     freshness_class: high

@@ -104,7 +104,7 @@ def _ground_citation_quotes(
         chunk = max(chunks, key=lambda item: _lexical_match_score(answer, item))
         if _lexical_match_score(answer, chunk) <= 0:
             continue
-        grounded_citation = {
+        grounded_citation: dict[str, object] = {
             "url": chunk.url,
             "title": chunk.title,
             "fetched_at": chunk.fetched_at,
