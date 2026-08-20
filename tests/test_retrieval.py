@@ -113,9 +113,16 @@ async def test_reranker_receives_candidates_beyond_final_top_k(monkeypatch):
         score=0.1,
         method="fts",
     )
-    fts_results = [*vector_results[:4], recommendation]
+    fts_results = [
+        *[_chunk(f"fts-generic-{index}", 1.0 - index / 10, "fts") for index in range(6)],
+        recommendation,
+    ]
+
+    async def search_fts(*args, top_k, **kwargs):
+        return fts_results[:top_k]
+
     monkeypatch.setattr("app.rag.retrieval.vector_search", AsyncMock(return_value=vector_results))
-    monkeypatch.setattr("app.rag.retrieval.fts_search", AsyncMock(return_value=fts_results))
+    monkeypatch.setattr("app.rag.retrieval.fts_search", search_fts)
     monkeypatch.setattr(settings, "rag_enable_reranking", True)
 
     def rerank(query, chunks, top_k):

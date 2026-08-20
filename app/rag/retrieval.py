@@ -638,7 +638,10 @@ async def hybrid_retrieve(
     metadata_semester = hints.term_name if includes_calendar_events else None
     keyword_query = hints.expanded_query or query
 
+    fusion_top_k = max(top_k, 15) if settings.rag_enable_reranking else top_k
     fts_top_k = max(3, min(top_k, settings.rag_fts_top_k))
+    if settings.rag_enable_reranking:
+        fts_top_k = max(fts_top_k, fusion_top_k)
 
     exact_schedule_lookup = schedule_only and metadata_course_code and metadata_term_name
     if settings.rag_skip_fts_for_exact_schedule and exact_schedule_lookup:
@@ -693,7 +696,6 @@ async def hybrid_retrieve(
             match_any=force_fts,
         )
 
-    fusion_top_k = max(top_k, 15) if settings.rag_enable_reranking else top_k
     merged = _rrf_fuse_results(vector_results, fts_results, top_k=fusion_top_k)
     if hints.course_code:
         exact_results = await exact_course_code_search(
