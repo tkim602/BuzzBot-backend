@@ -290,3 +290,68 @@ async def test_zero_chunks_fails_quality_gate_and_preserves_trusted_document(mon
             if stored_source is not None:
                 session.delete(stored_source)
             session.commit()
+
+
+@pytest.mark.asyncio
+async def test_safe_alias_redirect_reuses_existing_canonical_document():
+    suffix = uuid.uuid4().hex
+    alias = f"https://registrar.gatech.edu/registration/alias-{suffix}"
+    target = f"https://registrar.gatech.edu/registration/target-{suffix}"
+    source = DocumentSource(
+        f"test-alias-{suffix}",
+        "official_policy",
+        "registrar",
+        ("https://registrar.gatech.edu/registration",),
+        (target,),
+        2,
+    )
+    html = (
+        "<html><title>Registration Assistance</title><body>"
+        + "official registration assistance " * 100
+        + "</body></html>"
+    )
+
+    @contextmanager
+    def sessions():
+        with Session(sync_engine) as session:
+            yield session
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == alias:
+            return httpx.Response(301, headers={"Location": target}, request=request)
+        return httpx.Response(200, text=html, request=request)
+
+    embedding_calls = 0
+
+    def embed(texts: list[str]) -> list[list[float]]:
+        nonlocal embedding_calls
+        embedding_calls += 1
+        return [[0.0] * 1536 for _ in texts]
+
+    try:
+        first = await sync_document_url(
+            source, target, sessions, embed, httpx.MockTransport(handler)
+        )
+        first_embedding_calls = embedding_calls
+        alias_result = await sync_document_url(
+            source, alias, sessions, embed, httpx.MockTransport(handler)
+        )
+
+        assert first.outcome is DocumentSyncOutcome.INDEXED
+        assert alias_result.outcome is DocumentSyncOutcome.UNCHANGED
+        assert embedding_calls == first_embedding_calls
+        with Session(sync_engine) as session:
+            documents = session.scalars(
+                select(Document).join(Source).where(Source.name == source.name)
+            ).all()
+            assert [document.canonical_url for document in documents] == [target]
+    finally:
+        with Session(sync_engine) as session:
+            stored_source = session.scalar(select(Source).where(Source.name == source.name))
+            if stored_source is not None:
+                session.execute(delete(FetchState).where(FetchState.source_id == stored_source.id))
+                for document in list(stored_source.documents):
+                    session.delete(document)
+                session.flush()
+                session.delete(stored_source)
+                session.commit()

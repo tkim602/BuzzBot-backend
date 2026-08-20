@@ -44,4 +44,5 @@ class AgentState(TypedDict):
     citations: NotRequired[list[CitationItem]]
     confidence: NotRequired[float]
     notes: NotRequired[list[str]]
+    binary_verdict: NotRequired[Literal["TRUE", "FALSE"]]
     answer_valid: NotRequired[bool]

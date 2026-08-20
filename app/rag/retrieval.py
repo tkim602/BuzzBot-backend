@@ -7,6 +7,7 @@ import math
 import os
 import re
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 import structlog
 from sqlalchemy import func, select
@@ -279,7 +280,7 @@ def rerank_with_cross_encoder(
             logger.info("cross-encoder loaded", model=settings.rag_rerank_model)
 
         model = _cross_encoder_model
-        pairs = [[query, c.chunk_text] for c in chunks]
+        pairs = [[query, _ranking_text(c)] for c in chunks]
         scores = model.predict(pairs)
         for chunk, score in zip(chunks, scores, strict=True):
             chunk.score = float(score)
@@ -392,13 +393,17 @@ async def fts_search(
     metadata_course_code: str | None = None,
     metadata_term_name: str | None = None,
     metadata_semester: str | None = None,
+    match_any: bool = False,
 ) -> list[RetrievedChunk]:
     """Full-text search fallback using PostgreSQL tsvector."""
     if not query.strip():
         return []
 
     optimized_query = _compact_query_for_fts(query)
-    ts_vector = func.to_tsvector("simple", Chunk.chunk_text)
+    if match_any:
+        optimized_query = " OR ".join(_TOKEN_RE.findall(optimized_query))
+    search_text = func.concat_ws(" ", Chunk.title, Chunk.headings, Chunk.chunk_text)
+    ts_vector = func.to_tsvector("simple", search_text)
     ts_query = func.websearch_to_tsquery("simple", optimized_query)
     rank_expr = func.ts_rank_cd(ts_vector, ts_query)
 
@@ -560,6 +565,54 @@ def _signal_match_count(chunk: RetrievedChunk, hints: QueryHints) -> int:
     return score
 
 
+def _ranking_text(chunk: RetrievedChunk) -> str:
+    return "\n".join(
+        value.strip()
+        for value in (chunk.title, chunk.headings, urlsplit(chunk.url or "").path, chunk.chunk_text)
+        if value
+    )
+
+
+def _normalize_lexical_token(token: str) -> str:
+    normalized = token.lower()
+    if len(normalized) > 3 and normalized.endswith("s") and not normalized.endswith("ss"):
+        normalized = normalized[:-1]
+    if len(normalized) > 6 and normalized.endswith("ment"):
+        normalized = normalized[:-4]
+    elif len(normalized) > 5 and normalized.endswith("ing"):
+        normalized = normalized[:-3]
+    elif len(normalized) > 4 and normalized.endswith("ed"):
+        normalized = normalized[:-2]
+    if len(normalized) > 3 and normalized[-1] == normalized[-2]:
+        normalized = normalized[:-1]
+    return normalized
+
+
+def _lexical_terms(text: str) -> set[str]:
+    return {
+        _normalize_lexical_token(token)
+        for token in _TOKEN_RE.findall(text)
+        if len(token) > 1 and token.lower() not in FTS_STOPWORDS
+    }
+
+
+def _lexical_match_score(query: str, chunk: RetrievedChunk) -> float:
+    query_tokens = _lexical_terms(query)
+    if not query_tokens:
+        return 0.0
+    body_tokens = _lexical_terms(chunk.chunk_text)
+    title_path_tokens = _lexical_terms(f"{chunk.title or ''} {urlsplit(chunk.url or '').path}")
+    heading_tokens = _lexical_terms(chunk.headings or "")
+    numeric_matches = {token for token in query_tokens & body_tokens if token.isdigit()}
+    weighted_matches = (
+        len(query_tokens & body_tokens)
+        + 5 * len(query_tokens & title_path_tokens)
+        + len(query_tokens & heading_tokens)
+        + 2 * len(numeric_matches)
+    )
+    return weighted_matches / len(query_tokens)
+
+
 async def hybrid_retrieve(
     session: AsyncSession,
     query: str,
@@ -585,7 +638,10 @@ async def hybrid_retrieve(
     metadata_semester = hints.term_name if includes_calendar_events else None
     keyword_query = hints.expanded_query or query
 
+    fusion_top_k = max(top_k, 15) if settings.rag_enable_reranking else top_k
     fts_top_k = max(3, min(top_k, settings.rag_fts_top_k))
+    if settings.rag_enable_reranking:
+        fts_top_k = max(fts_top_k, fusion_top_k)
 
     exact_schedule_lookup = schedule_only and metadata_course_code and metadata_term_name
     if settings.rag_skip_fts_for_exact_schedule and exact_schedule_lookup:
@@ -609,6 +665,7 @@ async def hybrid_retrieve(
             metadata_course_code=metadata_course_code,
             metadata_term_name=metadata_term_name,
             metadata_semester=metadata_semester,
+            match_any=force_fts,
         )
     else:
         vector_results = await vector_search(
@@ -636,9 +693,10 @@ async def hybrid_retrieve(
             metadata_course_code=metadata_course_code,
             metadata_term_name=metadata_term_name,
             metadata_semester=metadata_semester,
+            match_any=force_fts,
         )
 
-    merged = _rrf_fuse_results(vector_results, fts_results, top_k=top_k)
+    merged = _rrf_fuse_results(vector_results, fts_results, top_k=fusion_top_k)
     if hints.course_code:
         exact_results = await exact_course_code_search(
             session,
@@ -653,10 +711,10 @@ async def hybrid_retrieve(
                 continue
             seen.add(c.chunk_id)
             prioritized.append(c)
-        merged = prioritized[:top_k]
+        merged = prioritized[:fusion_top_k]
 
     merged.sort(
-        key=lambda c: (_signal_match_count(c, hints), c.score),
+        key=lambda c: (_signal_match_count(c, hints), _lexical_match_score(query, c), c.score),
         reverse=True,
     )
 

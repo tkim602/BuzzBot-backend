@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import structlog
 
 from app.core.config import settings
 from app.core.usage import check_limit_or_raise, record_usage
-from app.rag.retrieval import RetrievedChunk
+from app.rag.retrieval import RetrievedChunk, _lexical_match_score, _lexical_terms
 
 logger = structlog.get_logger(__name__)
 
@@ -19,7 +20,14 @@ FACTUAL_INTENTS = {
     "admissions_deadline",
     "catalog_course",
     "course_schedule_sections",
+    "policy",
 }
+_BINARY_QUESTION_RE = re.compile(
+    r"^\s*(?:am|are|can|could|did|do|does|has|have|is|must|should|was|were|will|would)\b",
+    re.I,
+)
+_LEADING_ANSWER_RE = re.compile(r"^\s*(?:yes|no)\b\s*[,.;:—–-]?\s*", re.I)
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
 def _load_prompt(name: str) -> str:
@@ -86,6 +94,71 @@ def _format_history(history: list[dict] | None) -> str:
     return "\n".join(lines) if lines else "none"
 
 
+def _ground_citation_quotes(
+    citations: object, chunks: list[RetrievedChunk], answer: str
+) -> list[dict]:
+    grounded: list[dict] = []
+    for citation in citations if isinstance(citations, list) else []:
+        if not isinstance(citation, dict) or not chunks:
+            continue
+        chunk = max(chunks, key=lambda item: _lexical_match_score(answer, item))
+        if _lexical_match_score(answer, chunk) <= 0:
+            continue
+        grounded_citation = {
+            **citation,
+            "url": chunk.url,
+            "title": chunk.title,
+            "fetched_at": chunk.fetched_at,
+        }
+        claim_words = _lexical_terms(answer)
+        sentences = [
+            part.strip() for part in _SENTENCE_SPLIT_RE.split(chunk.chunk_text) if part.strip()
+        ]
+        candidates = [*sentences]
+        candidates.extend(
+            f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
+        )
+        best = max(
+            candidates,
+            key=lambda candidate: len(claim_words & _lexical_terms(candidate)),
+            default="",
+        )
+        if best and claim_words & _lexical_terms(best):
+            grounded.append({**grounded_citation, "quote": best})
+    return grounded
+
+
+async def _binary_proposition_verdict(query: str, evidence: str) -> str:
+    try:
+        proposition = await _call_llm(
+            (
+                "Extract the single atomic factual proposition that a Yes answer would assert. "
+                "Return only that proposition as a declarative sentence, with no verdict or "
+                "explanation. Preserve negation, numbers, dates, modality, conditions, and "
+                "exceptions from the question."
+            ),
+            f"QUESTION:\n{query.strip()}",
+            temperature=0.0,
+            max_tokens=64,
+        )
+    except Exception:
+        logger.warning("binary proposition extraction failed")
+        return "UNKNOWN"
+    proposition = proposition.strip()
+    if not proposition:
+        return "UNKNOWN"
+
+    from app.rag.grounding import semantic_claim_verdict
+
+    logger.debug("binary proposition verification", proposition=proposition, evidence=evidence)
+    verdict = await semantic_claim_verdict(proposition, evidence)
+    return {
+        "SUPPORTED": "TRUE",
+        "CONTRADICTED": "FALSE",
+        "INSUFFICIENT": "UNKNOWN",
+    }[verdict]
+
+
 async def generate_answer(
     query: str,
     chunks: list[RetrievedChunk],
@@ -110,6 +183,26 @@ async def generate_answer(
         context_str += (
             "\n\n---\n\n[Source: user-provided:rmp] [Type: User-provided RateMyProfessors excerpt — unofficial]\n"
             + rmp_excerpt
+        )
+
+    binary_verdict: str | None = None
+    polarity: str | None = None
+    if intent in FACTUAL_INTENTS and _BINARY_QUESTION_RE.search(query):
+        binary_verdict = await _binary_proposition_verdict(query, context_str)
+        if binary_verdict == "UNKNOWN":
+            return {
+                "answer": "I don't have enough evidence to answer that yes/no question reliably.",
+                "citations": [],
+                "confidence": 0.2,
+                "notes": ["The proposition could not be established from retrieved evidence."],
+            }
+        polarity = "Yes" if binary_verdict == "TRUE" else "No"
+        proposition_truth = "true" if binary_verdict == "TRUE" else "false"
+        system_prompt += (
+            f"\n\nThe authoritative polarity is {polarity}; the question's proposition is "
+            f"{proposition_truth}. Generate the evidence-grounded explanation body only and "
+            f"explain why the proposition is {proposition_truth}. You must not restate the "
+            "proposition with the opposite truth value. Do not choose or write a leading Yes or No."
         )
 
     user_msg = user_template.replace("{{QUERY}}", query).replace("{{CONTEXT}}", context_str)
@@ -138,10 +231,20 @@ async def generate_answer(
             "notes": ["Response was not in expected JSON format."],
         }
 
+    parsed["citations"] = _ground_citation_quotes(
+        parsed.get("citations"), chunks, str(parsed.get("answer", ""))
+    )
+    if binary_verdict and polarity:
+        body = _LEADING_ANSWER_RE.sub("", str(parsed.get("answer", "")), count=1)
+        parsed["answer"] = f"{polarity}, {body}" if body else f"{polarity}."
+        parsed["_binary_verdict"] = binary_verdict
+
     return parsed
 
 
-async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
+async def _call_llm(
+    system: str, user: str, temperature: float = 0.2, max_tokens: int = 1500
+) -> str:
     """Call the configured LLM provider."""
     # Check usage limit before API call
     check_limit_or_raise()
@@ -159,7 +262,7 @@ async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
                 {"role": "user", "content": user},
             ],
             temperature=temperature,
-            max_tokens=1500,
+            max_tokens=max_tokens,
         )
 
         # Record usage
@@ -175,7 +278,7 @@ async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
         client = anthropic.AsyncAnthropic()
         resp = await client.messages.create(
             model=settings.anthropic_model,
-            max_tokens=1500,
+            max_tokens=max_tokens,
             system=system,
             messages=[{"role": "user", "content": user}],
         )
@@ -200,6 +303,7 @@ async def _call_llm(system: str, user: str, temperature: float = 0.2) -> str:
                         {"role": "user", "content": user},
                     ],
                     "stream": False,
+                    "options": {"num_predict": max_tokens},
                 },
             )
             resp.raise_for_status()
@@ -217,8 +321,6 @@ def _extract_json(text: str) -> dict:
         pass
 
     # Try to find JSON block
-    import re
-
     match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if match:
         return json.loads(match.group(1))

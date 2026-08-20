@@ -6,7 +6,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 from lxml import html as lxml_html
@@ -16,13 +16,17 @@ from sqlalchemy.orm import Session
 
 from db.models import Chunk, Document, FetchState
 from ingestion.chunk import chunk_text
+from ingestion.documents.admission import accepts_path as accepts_admission_path
 from ingestion.documents.calendar import (
     CalendarPayloadError,
     calendar_request_headers,
     calendar_request_url,
     parse_calendar_payload,
 )
+from ingestion.documents.catalog import accepts_path as accepts_catalog_path
+from ingestion.documents.omscs import accepts_path as accepts_omscs_path
 from ingestion.documents.probe import DocumentProbeStatus, probe_document_source
+from ingestion.documents.registrar import accepts_path as accepts_registrar_path
 from ingestion.documents.registry import DocumentSource
 from ingestion.extract import extract_content
 from ingestion.index import index_chunks, update_fetch_state, upsert_document, upsert_source
@@ -42,6 +46,17 @@ class DocumentSyncOutcome(StrEnum):
 
 class DocumentQualityError(ValueError):
     pass
+
+
+CHUNKING_VERSION = 2
+
+
+_REDIRECT_SCOPES = {
+    "registrar": accepts_registrar_path,
+    "catalog": accepts_catalog_path,
+    "omscs": accepts_omscs_path,
+    "admissions": accepts_admission_path,
+}
 
 
 @dataclass(frozen=True)
@@ -187,28 +202,35 @@ async def sync_document_url(
         transport=transport,
         timeout=15,
         follow_redirects=False,
-        headers={"User-Agent": USER_AGENT, **headers},
+        headers={"User-Agent": USER_AGENT},
     ) as client:
-        response = await client.get(canonical_url)
-    requests_used = 1
+        response = await client.get(canonical_url, headers=headers)
+        requests_used = 1
 
-    if 300 <= response.status_code < 400 and response.status_code != 304:
-        target = urljoin(canonical_url, response.headers.get("Location", ""))
-        if "login" in target.lower() or "sso" in target.lower():
-            return DocumentSyncResult(
-                source.name,
-                DocumentSyncOutcome.AUTH_REQUIRED,
-                requests_used,
-                reason="AUTH_REDIRECT",
-            )
-        if source.allows(target) and normalize_url(target) == canonical_url:
-            async with httpx.AsyncClient(
-                transport=transport,
-                timeout=15,
-                follow_redirects=False,
-                headers={"User-Agent": USER_AGENT, **headers},
-            ) as client:
-                response = await client.get(target)
+        if 300 <= response.status_code < 400 and response.status_code != 304:
+            target_url = urljoin(canonical_url, response.headers.get("Location", ""))
+            if "login" in target_url.lower() or "sso" in target_url.lower():
+                return DocumentSyncResult(
+                    source.name,
+                    DocumentSyncOutcome.AUTH_REQUIRED,
+                    requests_used,
+                    reason="AUTH_REDIRECT",
+                )
+            if (
+                not response.headers.get("Location")
+                or not source.allows(target_url)
+                or not _redirect_in_scope(source, target_url)
+            ):
+                return DocumentSyncResult(
+                    source.name,
+                    DocumentSyncOutcome.FETCH_FAILED,
+                    requests_used,
+                    reason="REDIRECT_NOT_ALLOWED",
+                )
+            canonical_url = normalize_url(target_url)
+            with session_factory() as session:
+                headers = _conditional_headers(session, canonical_url)
+            response = await client.get(target_url, headers=headers)
             requests_used += 1
     if response.status_code == 304:
         with session_factory() as session:
@@ -228,8 +250,10 @@ async def sync_document_url(
                     select(Chunk).where(Chunk.doc_id == document.doc_id)
                 ).all()
                 min_chunk_size = 10 if source.source_type == "academic_calendar" else 50
-                if not stored_chunks or any(
-                    chunk.token_count < min_chunk_size for chunk in stored_chunks
+                if (
+                    not stored_chunks
+                    or any(chunk.token_count < min_chunk_size for chunk in stored_chunks)
+                    or not _uses_current_chunking(document)
                 ):
                     fetched = FetchedDocument(
                         source_url=canonical_url,
@@ -349,6 +373,16 @@ def _conditional_headers(session: Session, url: str) -> dict[str, str]:
     return headers
 
 
+def _redirect_in_scope(source: DocumentSource, url: str) -> bool:
+    accepts_path = _REDIRECT_SCOPES.get(source.authority)
+    return accepts_path is not None and accepts_path(urlsplit(normalize_url(url)).path)
+
+
+def _uses_current_chunking(document: Document) -> bool:
+    metadata = document.metadata_json if isinstance(document.metadata_json, dict) else {}
+    return metadata.get("chunking_version") == CHUNKING_VERSION
+
+
 def _store_document(
     session: Session,
     source: DocumentSource,
@@ -372,6 +406,7 @@ def _store_document(
         "source_type": source.source_type,
         "authority": source.authority,
         "fetched_at": fetched.fetched_at.isoformat(),
+        "chunking_version": CHUNKING_VERSION,
     }
     if fetched.edition:
         metadata["edition"] = fetched.edition
@@ -380,13 +415,18 @@ def _store_document(
         select(Document).where(Document.canonical_url == fetched.canonical_url)
     )
     if existing is not None and existing.content_hash == digest:
+        uses_current_chunking = _uses_current_chunking(existing)
         existing.source_id = source_id
         existing.fetched_at = fetched.fetched_at
         existing.etag = fetched.etag
         existing.last_modified = fetched.last_modified
         existing.metadata_json = metadata
         stored_chunks = session.scalars(select(Chunk).where(Chunk.doc_id == existing.doc_id)).all()
-        if stored_chunks and all(chunk.token_count >= min_chunk_size for chunk in stored_chunks):
+        if (
+            uses_current_chunking
+            and stored_chunks
+            and all(chunk.token_count >= min_chunk_size for chunk in stored_chunks)
+        ):
             for chunk in stored_chunks:
                 chunk.source_id = source_id
                 chunk.url = fetched.canonical_url
@@ -422,6 +462,9 @@ def _store_document(
         fetched.etag,
         fetched.last_modified,
     )
+    stored_document = existing or session.get(Document, document_id)
+    if stored_document is not None:
+        stored_document.metadata_json = metadata
     indexed = index_chunks(
         session,
         document_id,

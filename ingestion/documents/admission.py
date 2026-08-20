@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import re
+
 from ingestion.documents.discovery import bounded_urls
 from ingestion.documents.registry import DocumentSource
 
+_FIRST_YEAR_PAGE = re.compile(r"/first-year(?:/[a-z0-9-]+)?$")
+
 
 def accepts_path(path: str) -> bool:
-    return path == "/registration" or path.startswith("/registration/")
+    return _FIRST_YEAR_PAGE.fullmatch(path) is not None
 
 
 def discover_urls(source: DocumentSource, body: str) -> tuple[str, ...]:

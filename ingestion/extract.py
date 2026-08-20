@@ -57,23 +57,39 @@ def _extract_table_rows(html: str, max_tables: int = 8, max_rows_per_table: int 
         if caption:
             title = " ".join(" ".join(caption).split())
 
-        header_cells = table.xpath(".//tr[1]/*[self::th or self::td]//text()")
-        headers = [h.strip() for h in header_cells if h.strip()]
-        row_nodes = table.xpath(".//tr")[1:] if headers else table.xpath(".//tr")
+        table_rows = table.xpath(".//tr")
+        header_nodes = table_rows[0].xpath("./th|./td") if table_rows else []
+        headers = (
+            [" ".join(" ".join(cell.xpath(".//text()")).split()) for cell in header_nodes]
+            if any(cell.tag.lower() == "th" for cell in header_nodes)
+            else []
+        )
+        row_nodes = table_rows[1:] if headers else table_rows
 
         for r_idx, row in enumerate(row_nodes[:max_rows_per_table]):
-            cells = [
-                " ".join(" ".join(c.xpath(".//text()")).split()) for c in row.xpath("./th|./td")
-            ]
-            cells = [c for c in cells if c]
-            if not cells:
+            cell_nodes = row.xpath("./th|./td")
+            cells = [" ".join(" ".join(cell.xpath(".//text()")).split()) for cell in cell_nodes]
+            if not any(cells):
                 continue
 
-            if headers and len(headers) >= len(cells):
-                pairs = [f"{headers[i]}: {cells[i]}" for i in range(len(cells))]
-                row_text = " | ".join(pairs)
+            if headers and len(headers) == len(cells):
+                if len(cells) > 1:
+                    row_text = "\n".join(
+                        f"{headers[i]} — {cells[0]}: {cells[i]}"
+                        for i in range(1, len(cells))
+                        if headers[i] and cells[i]
+                    )
+                else:
+                    row_text = " | ".join(
+                        f"{header}: {cell}"
+                        for header, cell in zip(headers, cells, strict=True)
+                        if header and cell
+                    )
             else:
-                row_text = " | ".join(cells)
+                row_text = " | ".join(cell for cell in cells if cell)
+
+            if not row_text:
+                continue
 
             if title:
                 row_text = f"{title} | {row_text}"
@@ -88,6 +104,11 @@ def _extract_table_rows(html: str, max_tables: int = 8, max_rows_per_table: int 
     return rows
 
 
+def _with_table_rows(text: str, table_rows: list[dict]) -> str:
+    structured = "\n".join(str(row.get("text", "")).strip() for row in table_rows).strip()
+    return f"{text.strip()}\n\n{structured}".strip() if structured else text.strip()
+
+
 def extract_content(url: str, html: str) -> ExtractedContent:
     """Extract clean text and title from HTML."""
     table_rows = _extract_table_rows(html)
@@ -96,7 +117,7 @@ def extract_content(url: str, html: str) -> ExtractedContent:
     text = trafilatura.extract(
         html,
         include_comments=False,
-        include_tables=True,
+        include_tables=False,
         favor_recall=True,
         url=url,
     )
@@ -122,7 +143,7 @@ def extract_content(url: str, html: str) -> ExtractedContent:
         return ExtractedContent(
             url=url,
             title=title,
-            text=text.strip(),
+            text=_with_table_rows(text, table_rows),
             table_rows=table_rows,
         )
 
@@ -141,7 +162,7 @@ def extract_content(url: str, html: str) -> ExtractedContent:
             return ExtractedContent(
                 url=url,
                 title=title,
-                text=fallback_text,
+                text=_with_table_rows(fallback_text, table_rows),
                 table_rows=table_rows,
                 method="readability",
             )

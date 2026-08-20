@@ -21,7 +21,7 @@ Every factual claim in your answer MUST have a supporting citation quote from th
 If no retrieved source supports a claim, do NOT make that claim.
 
 RULES:
-1. If query is yes/no and contexts explicitly support it, start with direct yes/no.
+1. For factual yes/no questions, identify the exact proposition being asked and determine from evidence whether it is true, false, or unknown. Only then write Yes, No, or insufficient evidence. The explanation must agree with that polarity. Do not assume or mirror the premise in the user's question.
 2. Prefer exact match on course code + term when present (e.g., "CS 4400" and "Spring 2025").
 3. Every factual claim MUST be supported by at least one citation quote. No exceptions.
 4. Keep citations grounded in the retrieved URLs only.

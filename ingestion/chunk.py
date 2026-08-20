@@ -113,6 +113,32 @@ def _split_sections(text: str) -> list[tuple[str | None, str, str]]:
     return sections if has_real_heading else []
 
 
+def _merge_short_sections(
+    sections: list[tuple[str | None, str, str]], min_chunk_size: int
+) -> list[tuple[str | None, str, str]]:
+    merged: list[tuple[str | None, str, str]] = []
+    pending: list[tuple[str | None, str, str]] = []
+    for heading, path, section_text in sections:
+        if _count_tokens(section_text) >= min_chunk_size:
+            if pending:
+                section_text = "\n".join([*(item[2] for item in pending), section_text])
+                pending.clear()
+            merged.append((heading, path, section_text))
+        elif merged:
+            previous_heading, previous_path, previous_text = merged[-1]
+            merged[-1] = (
+                previous_heading,
+                previous_path,
+                f"{previous_text}\n{section_text}",
+            )
+        else:
+            pending.append((heading, path, section_text))
+    if pending:
+        heading, path, _ = pending[0]
+        merged.append((heading, path, "\n".join(item[2] for item in pending)))
+    return merged
+
+
 def chunk_text(
     text: str,
     chunk_size: int = 500,
@@ -126,13 +152,14 @@ def chunk_text(
         text: Input text to chunk.
         chunk_size: Target tokens per chunk (300-800 range).
         chunk_overlap: Overlap tokens between consecutive chunks.
-        min_chunk_size: Minimum tokens for a chunk to be kept.
+        min_chunk_size: Sections below this size are merged with an adjacent section.
         metadata: Metadata to attach to each chunk.
     """
     metadata = metadata or {}
     sections = _split_sections(text)
     if not sections:
         sections = [(None, "document", text)]
+    sections = _merge_short_sections(sections, min_chunk_size)
 
     chunks: list[ChunkResult] = []
     idx = 0
@@ -143,8 +170,6 @@ def chunk_text(
         total = len(tokens)
         if total <= chunk_size:
             stripped = section_text.strip()
-            if _count_tokens(stripped) < min_chunk_size and chunks:
-                continue
             chunk_meta = dict(metadata)
             if section_heading:
                 chunk_meta["section_heading"] = section_heading
@@ -162,27 +187,28 @@ def chunk_text(
             idx += 1
             continue
 
-        start = 0
-        while start < total:
+        starts = list(range(0, total, step))
+        if len(starts) > 1 and total - starts[-1] < min_chunk_size:
+            starts[-1] = max(0, total - chunk_size)
+            starts = list(dict.fromkeys(starts))
+        for start in starts:
             end = min(start + chunk_size, total)
             chunk_tokens = tokens[start:end]
             chunk_text_str = _decode(chunk_tokens).strip()
-            if _count_tokens(chunk_text_str) >= min_chunk_size:
-                chunk_meta = dict(metadata)
-                if section_heading:
-                    chunk_meta["section_heading"] = section_heading
-                    chunk_meta["page_section_path"] = section_path
-                chunk_hash = hashlib.sha256(chunk_text_str.encode("utf-8")).hexdigest()
-                chunks.append(
-                    ChunkResult(
-                        text=chunk_text_str,
-                        token_count=_count_tokens(chunk_text_str),
-                        chunk_hash=chunk_hash,
-                        index=idx,
-                        metadata=chunk_meta,
-                    )
+            chunk_meta = dict(metadata)
+            if section_heading:
+                chunk_meta["section_heading"] = section_heading
+                chunk_meta["page_section_path"] = section_path
+            chunk_hash = hashlib.sha256(chunk_text_str.encode("utf-8")).hexdigest()
+            chunks.append(
+                ChunkResult(
+                    text=chunk_text_str,
+                    token_count=_count_tokens(chunk_text_str),
+                    chunk_hash=chunk_hash,
+                    index=idx,
+                    metadata=chunk_meta,
                 )
-                idx += 1
-            start += step
+            )
+            idx += 1
 
     return chunks

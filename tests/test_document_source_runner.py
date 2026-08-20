@@ -12,6 +12,7 @@ from ingestion.documents.sync import (
 )
 from ingestion.documents.sync_source import (
     PROVIDER,
+    _discover,
     _unit_result,
     sync_document_source_urls,
 )
@@ -235,3 +236,67 @@ def test_document_outcomes_map_to_shared_execution_semantics():
     assert rate_limited.retry_after_seconds == 30
     assert auth.outcome is UnitOutcome.AUTH_REQUIRED
     assert parse_failure.outcome is UnitOutcome.FAILED
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("source", "link", "expected"),
+    (
+        (
+            DocumentSource(
+                "gt-registrar",
+                "official_policy",
+                "registrar",
+                ("https://registrar.gatech.edu/registration",),
+                ("https://registrar.gatech.edu/registration",),
+                50,
+            ),
+            "/registration/holds",
+            "https://registrar.gatech.edu/registration/holds",
+        ),
+        (
+            DocumentSource(
+                "gt-catalog",
+                "course_catalog",
+                "catalog",
+                ("https://catalog.gatech.edu/coursesaz/",),
+                ("https://catalog.gatech.edu/coursesaz/",),
+                150,
+            ),
+            "/coursesaz/cs/",
+            "https://catalog.gatech.edu/coursesaz/cs",
+        ),
+        (
+            DocumentSource(
+                "gt-omscs",
+                "omscs_policy",
+                "omscs",
+                ("https://omscs.gatech.edu/",),
+                ("https://omscs.gatech.edu/admission-criteria",),
+                10,
+            ),
+            "/degree-requirements",
+            "https://omscs.gatech.edu/degree-requirements",
+        ),
+        (
+            DocumentSource(
+                "gt-admission",
+                "admissions",
+                "admissions",
+                ("https://admission.gatech.edu/first-year/",),
+                ("https://admission.gatech.edu/first-year/",),
+                30,
+            ),
+            "/first-year/deadlines",
+            "https://admission.gatech.edu/first-year/deadlines",
+        ),
+    ),
+)
+async def test_sources_dispatch_to_their_own_adapter(source, link, expected):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=f'<a href="{link}">Policy</a>', request=request)
+
+    urls, error = await _discover(source, httpx.MockTransport(handler), None)
+
+    assert error is None
+    assert expected in urls
