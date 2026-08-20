@@ -9,7 +9,10 @@ from app.rag.retrieval import hybrid_retrieve
 from ingestion.documents.registry import load_document_sources
 
 _SOURCES = load_document_sources()
-SOURCE_NAMES_BY_TYPE = {source.source_type: source.name for source in _SOURCES}
+SOURCE_NAMES_BY_TYPE = {
+    source_type: tuple(source.name for source in _SOURCES if source.source_type == source_type)
+    for source_type in {source.source_type for source in _SOURCES}
+}
 OFFICIAL_SOURCE_NAMES = [source.name for source in _SOURCES]
 DEADLINE_RE = re.compile(r"\b(exact|deadline|last day|academic calendar|what date|when)\b", re.I)
 
@@ -42,6 +45,9 @@ class DocumentEvidence:
     edition: str | None
     score: float
     retrieval_method: str
+    vertical: str | None = None
+    content_type: str | None = None
+    page: int | None = None
 
 
 async def search_policy_docs(
@@ -50,9 +56,11 @@ async def search_policy_docs(
     query_embedding: list[float],
 ) -> list[DocumentEvidence]:
     if query.source_types:
-        source_filter = [SOURCE_NAMES_BY_TYPE[source_type] for source_type in query.source_types]
+        source_filter = [
+            name for source_type in query.source_types for name in _source_names(source_type)
+        ]
     elif DEADLINE_RE.search(query.text):
-        source_filter = [SOURCE_NAMES_BY_TYPE["academic_calendar"]]
+        source_filter = list(_source_names("academic_calendar"))
     else:
         source_filter = OFFICIAL_SOURCE_NAMES
 
@@ -84,6 +92,20 @@ async def search_policy_docs(
                 edition=metadata.get("edition"),
                 score=chunk.score,
                 retrieval_method=chunk.method,
+                vertical=str(metadata["vertical"]) if metadata.get("vertical") else None,
+                content_type=(
+                    str(metadata["content_type"]) if metadata.get("content_type") else None
+                ),
+                page=(
+                    int(metadata["page_start"])
+                    if isinstance(metadata.get("page_start"), int)
+                    else None
+                ),
             )
         )
     return evidence
+
+
+def _source_names(source_type: str) -> tuple[str, ...]:
+    names = SOURCE_NAMES_BY_TYPE[source_type]
+    return (names,) if isinstance(names, str) else names

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ingestion.documents.admission import discover_urls as discover_admission_urls
 from ingestion.documents.catalog import discover_urls as discover_catalog_urls
-from ingestion.documents.discovery import MaxUrlsExceededError
+from ingestion.documents.discovery import MaxUrlsExceededError, discover_declared_urls
 from ingestion.documents.omscs import discover_urls as discover_omscs_urls
 from ingestion.documents.registrar import discover_urls as discover_registrar_urls
 from ingestion.documents.registry import DocumentSource
@@ -102,14 +102,17 @@ async def _discover(
         return (), f"HTTP_{response.status_code}"
 
     try:
-        if source.name == "gt-registrar":
+        adapter = source.adapter or source.authority
+        if adapter == "registrar":
             urls = discover_registrar_urls(source, response.text)
-        elif source.name == "gt-catalog":
+        elif adapter == "catalog":
             urls = discover_catalog_urls(source, response.text)
-        elif source.name == "gt-omscs":
+        elif adapter == "omscs":
             urls = discover_omscs_urls(source, response.text)
-        elif source.name == "gt-admission":
+        elif adapter == "admissions":
             urls = discover_admission_urls(source, response.text)
+        elif adapter == "paths":
+            urls = discover_declared_urls(source, response.text)
         else:
             raise ValueError("unsupported document discovery source")
     except MaxUrlsExceededError:

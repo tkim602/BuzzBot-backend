@@ -54,6 +54,9 @@ def _document_item(evidence: Any) -> EvidenceItem:
             "edition": evidence.edition,
             "score": evidence.score,
             "retrieval_method": evidence.retrieval_method,
+            "vertical": evidence.vertical,
+            "content_type": evidence.content_type,
+            "page_start": evidence.page,
         },
     )
 

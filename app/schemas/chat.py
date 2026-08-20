@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -41,6 +41,7 @@ class Citation(BaseModel):
     title: str | None = None
     fetched_at: str | None = None
     quote: str
+    page: Annotated[int, Field(ge=1)] | None = None
 
 
 class FreshnessInfo(BaseModel):

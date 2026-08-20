@@ -3,27 +3,46 @@ documents:
   - name: gt-registrar
     source_type: official_policy
     authority: registrar
+    vertical: academics
+    adapter: registrar
     allowed_roots: [https://registrar.gatech.edu/]
     seed_urls: [https://registrar.gatech.edu/registration]
+    allowed_path_prefixes: [/registration]
+    content_types: [text/html]
+    freshness_class: medium
+    profiles: [run3]
     max_urls: 50
 
   - name: gt-academic-calendar
     source_type: academic_calendar
     authority: academic_calendar
+    vertical: academics
+    adapter: academic_calendar
     allowed_roots: [https://registrar.gatech.edu/]
     seed_urls: [https://registrar.gatech.edu/current-academic-calendar]
+    allowed_path_prefixes: [/current-academic-calendar]
+    content_types: [text/html]
+    freshness_class: high
     max_urls: 5
 
   - name: gt-catalog
     source_type: course_catalog
     authority: catalog
+    vertical: academics
+    adapter: catalog
     allowed_roots: [https://catalog.gatech.edu/]
     seed_urls: [https://catalog.gatech.edu/coursesaz/]
+    allowed_path_prefixes: [/coursesaz]
+    content_types: [text/html]
+    freshness_class: medium
+    profiles: [run3]
     max_urls: 150
 
   - name: gt-omscs
     source_type: omscs_policy
     authority: omscs
+    vertical: academics
+    adapter: omscs
     allowed_roots: [https://omscs.gatech.edu/]
     seed_urls:
       - https://omscs.gatech.edu/admission-criteria
@@ -32,11 +51,17 @@ documents:
       - https://omscs.gatech.edu/prospective-student-faqs
       - https://omscs.gatech.edu/specializations
       - https://omscs.gatech.edu/cost-and-payment-schedule
+    allowed_path_prefixes: [/]
+    content_types: [text/html]
+    freshness_class: medium
+    profiles: [run3]
     max_urls: 10
 
   - name: gt-admission
     source_type: admissions
     authority: admissions
+    vertical: admissions
+    adapter: admissions
     allowed_roots: [https://admission.gatech.edu/first-year/]
     seed_urls:
       - https://admission.gatech.edu/first-year/
@@ -46,7 +71,246 @@ documents:
       - https://admission.gatech.edu/first-year/personal-essays
       - https://admission.gatech.edu/first-year/recommendations
       - https://admission.gatech.edu/first-year/major-selection
+    allowed_path_prefixes: [/first-year]
+    content_types: [text/html]
+    freshness_class: high
+    profiles: [run3]
     max_urls: 30
+
+  - name: gt-catalog-programs
+    source_type: degree_programs
+    authority: catalog
+    vertical: academics
+    adapter: paths
+    allowed_roots: [https://catalog.gatech.edu/]
+    seed_urls: [https://catalog.gatech.edu/programs/]
+    allowed_path_prefixes: [/programs, /academics]
+    excluded_paths:
+      - /academics/research-support-facilities/oak-ridge-associated-universities
+      - /programs/management-ms-executive
+    content_types: [text/html, application/pdf]
+    freshness_class: low
+    profiles: [run3]
+    max_urls: 500
+
+  - name: gt-catalog-rules
+    source_type: academic_policy
+    authority: catalog
+    vertical: academics
+    adapter: paths
+    allowed_roots: [https://catalog.gatech.edu/]
+    seed_urls: [https://catalog.gatech.edu/rules/, https://catalog.gatech.edu/policies/]
+    allowed_path_prefixes: [/rules, /policies]
+    content_types: [text/html, application/pdf]
+    freshness_class: medium
+    profiles: [run3]
+    max_urls: 100
+
+  - name: gt-registrar-lifecycle
+    source_type: academic_lifecycle
+    authority: registrar
+    vertical: academics
+    adapter: paths
+    allowed_roots: [https://registrar.gatech.edu/]
+    seed_urls:
+      - https://registrar.gatech.edu/transfer-credit
+      - https://registrar.gatech.edu/current-students/transcripts
+      - https://registrar.gatech.edu/current-students/degree-information
+    allowed_path_prefixes: [/transfer-credit, /current-students/transcripts, /current-students/degree-information, /records, /readmission, /withdrawal]
+    content_types: [text/html, application/pdf]
+    freshness_class: medium
+    profiles: [run3]
+    max_urls: 80
+
+  - name: gt-bursar
+    source_type: finance
+    authority: bursar
+    vertical: finance
+    adapter: paths
+    allowed_roots: [https://bursar.gatech.edu/]
+    seed_urls:
+      - https://bursar.gatech.edu/payment-options
+      - https://bursar.gatech.edu/georgia-tech-payment-plan
+      - https://bursar.gatech.edu/student-payment-instructions
+    allowed_path_prefixes: [/payment-options, /georgia-tech-payment-plan, /student-payment-instructions, /tuition-fees, /refunds]
+    content_types: [text/html, application/pdf]
+    freshness_class: high
+    profiles: [run3]
+    max_urls: 60
+
+  - name: gt-financial-aid
+    source_type: finance
+    authority: financial_aid
+    vertical: finance
+    adapter: paths
+    allowed_roots: [https://finaid.gatech.edu/]
+    seed_urls: [https://finaid.gatech.edu/manage-aid/consumer-information, https://finaid.gatech.edu/updates]
+    allowed_path_prefixes: [/manage-aid, /apply, /types-of-aid, /costs, /updates]
+    excluded_paths: [/manage-aid/grade-substitution]
+    content_types: [text/html, application/pdf]
+    freshness_class: high
+    profiles: [run3]
+    max_urls: 100
+
+  - name: gt-housing
+    source_type: housing
+    authority: housing
+    vertical: housing_dining
+    adapter: paths
+    allowed_roots: [https://housing.gatech.edu/]
+    seed_urls: [https://housing.gatech.edu/contracts-and-rates, https://housing.gatech.edu/first-time-residents/applying]
+    allowed_path_prefixes: [/contracts-and-rates, /first-time-residents, /returning-residents, /housing-options, /move-in, /sites/default/files]
+    content_types: [text/html, application/pdf]
+    freshness_class: high
+    profiles: [run3]
+    max_urls: 100
+
+  - name: gt-dining
+    source_type: dining
+    authority: dining
+    vertical: housing_dining
+    adapter: paths
+    allowed_roots: [https://dining.gatech.edu/]
+    seed_urls: [https://dining.gatech.edu/meal-plans/meal-plan-options, https://dining.gatech.edu/meal-plans/key-dates]
+    allowed_path_prefixes: [/meal-plans]
+    content_types: [text/html, application/pdf]
+    freshness_class: high
+    profiles: [run3]
+    max_urls: 50
+
+  - name: gt-health
+    source_type: health_support
+    authority: health
+    vertical: health_support
+    adapter: paths
+    allowed_roots: [https://health.gatech.edu/]
+    allowed_redirect_roots: [https://c14750.wpmucdn.com/2790/files/]
+    seed_urls: [https://health.gatech.edu/immunization-requirements/]
+    allowed_path_prefixes: [/immunization-requirements, /insurance, /services, /files]
+    content_types: [text/html, application/pdf]
+    freshness_class: high
+    profiles: [run3]
+    max_urls: 60
+
+  - name: gt-disability
+    source_type: health_support
+    authority: disability_services
+    vertical: health_support
+    adapter: paths
+    allowed_roots: [https://disabilityservices.gatech.edu/]
+    seed_urls: [https://disabilityservices.gatech.edu/students/getting-started, https://disabilityservices.gatech.edu/resources/faqs]
+    allowed_path_prefixes: [/students, /resources, /sites/default/files]
+    content_types: [text/html, application/pdf]
+    freshness_class: medium
+    profiles: [run3]
+    max_urls: 80
+
+  - name: gt-student-support
+    source_type: health_support
+    authority: student_life
+    vertical: health_support
+    adapter: paths
+    allowed_roots: [https://studentlife.gatech.edu/]
+    seed_urls: [https://studentlife.gatech.edu/request-assistance]
+    allowed_path_prefixes: [/request-assistance, /services]
+    content_types: [text/html, application/pdf]
+    freshness_class: medium
+    profiles: [run3]
+    max_urls: 30
+
+  - name: gt-international
+    source_type: international
+    authority: oie
+    vertical: international
+    adapter: paths
+    allowed_roots: [https://isss.oie.gatech.edu/]
+    seed_urls: [https://isss.oie.gatech.edu/isss/travel, https://isss.oie.gatech.edu/content/international-student-employment-overview]
+    allowed_path_prefixes: [/isss, /content, /i-20-and-ds-2019-form-guides, /sites/default/files]
+    excluded_paths:
+      - /content/isss-welcome
+      - /sites/default/files/i-94_instructions_updated.pdf
+    content_types: [text/html, application/pdf]
+    freshness_class: high
+    profiles: [run3]
+    max_urls: 120
+
+  - name: gt-career
+    source_type: career
+    authority: career_center
+    vertical: career
+    adapter: paths
+    allowed_roots: [https://career.gatech.edu/]
+    seed_urls: [https://career.gatech.edu/, https://career.gatech.edu/coops-internships/, https://career.gatech.edu/register-internships/, https://career.gatech.edu/careerbuzz/]
+    allowed_path_prefixes: [/undergrad-career-readiness, /undergrad-job-search, /coops-internships, /graduate-career, /graduate-job, /register-internships, /careerbuzz, /career-tools, /career-fair, /upcoming-career-fairs]
+    content_types: [text/html, application/pdf]
+    freshness_class: medium
+    profiles: [run3]
+    max_urls: 80
+
+  - name: gt-transportation
+    source_type: campus_operations
+    authority: parking_transportation
+    vertical: campus_operations
+    adapter: paths
+    allowed_roots: [https://www.pts.gatech.edu/]
+    seed_urls: [https://www.pts.gatech.edu/shuttles/]
+    allowed_path_prefixes: [/shuttles]
+    content_types: [text/html, application/pdf]
+    freshness_class: high
+    profiles: [run3]
+    max_urls: 60
+
+  - name: gt-academic-support
+    source_type: student_support
+    authority: academic_success
+    vertical: student_life
+    adapter: paths
+    allowed_roots: [https://www.success.gatech.edu/]
+    seed_urls: [https://www.success.gatech.edu/academic-success/, https://www.success.gatech.edu/tutoring/plus/]
+    allowed_path_prefixes: [/academic-success, /tutoring, /success, /pre-graduate-advising, /pre-health, /pre-teaching]
+    content_types: [text/html, application/pdf]
+    freshness_class: medium
+    profiles: [run3]
+    max_urls: 60
+
+  - name: gt-student-engagement
+    source_type: student_support
+    authority: student_engagement
+    vertical: student_life
+    adapter: paths
+    allowed_roots: [https://studentengagement.gatech.edu/]
+    seed_urls: [https://studentengagement.gatech.edu/managing-your-organization/organization-categories]
+    allowed_path_prefixes: [/managing-your-organization, /managing-your-org, /student-organizations-resource-guide, /sites/default/files]
+    content_types: [text/html, application/pdf]
+    freshness_class: medium
+    profiles: [run3]
+    max_urls: 100
+
+  - name: gt-transfer-admission
+    source_type: admissions
+    authority: admissions
+    vertical: admissions
+    adapter: paths
+    allowed_roots: [https://admission.gatech.edu/transfer/]
+    seed_urls: [https://admission.gatech.edu/transfer/]
+    allowed_path_prefixes: [/transfer]
+    content_types: [text/html, application/pdf]
+    freshness_class: high
+    profiles: [run3]
+    max_urls: 60
+
+  - name: gt-graduate-admission
+    source_type: admissions
+    authority: graduate_education
+    vertical: admissions
+    adapter: paths
+    allowed_roots: [https://grad.gatech.edu/admissions/]
+    seed_urls: [https://grad.gatech.edu/admissions]
+    allowed_path_prefixes: [/admissions, /sites/default/files]
+    content_types: [text/html, application/pdf]
+    freshness_class: high
+    profiles: [run3]
+    max_urls: 100
 
 blocked_sources:
   - name: ratemyprofessors

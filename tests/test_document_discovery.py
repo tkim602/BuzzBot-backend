@@ -2,7 +2,7 @@ import pytest
 
 from ingestion.documents.admission import discover_urls as discover_admission_urls
 from ingestion.documents.catalog import discover_urls as discover_catalog_urls
-from ingestion.documents.discovery import MaxUrlsExceededError
+from ingestion.documents.discovery import MaxUrlsExceededError, discover_declared_urls
 from ingestion.documents.omscs import discover_urls as discover_omscs_urls
 from ingestion.documents.registrar import discover_urls as discover_registrar_urls
 from ingestion.documents.registry import DocumentSource
@@ -134,3 +134,77 @@ def test_new_adapters_fail_instead_of_truncating_over_the_ceiling():
 
     with pytest.raises(MaxUrlsExceededError):
         discover_omscs_urls(source, '<a href="/degree-requirements">Degree</a>')
+
+
+def test_declared_path_adapter_accepts_html_and_pdf_but_rejects_other_files():
+    source = DocumentSource(
+        "gt-test",
+        "policy",
+        "official",
+        ("https://test.gatech.edu/",),
+        ("https://test.gatech.edu/students",),
+        5,
+        vertical="student_life",
+        adapter="paths",
+        allowed_path_prefixes=("/students",),
+        content_types=("text/html", "application/pdf"),
+        profiles=("run3",),
+    )
+    html = """
+    <a href="/students/help">Help</a>
+    <a href="/students/guide.pdf">Guide</a>
+    <a href="/students/archive.zip">Archive</a>
+    <a href="/news/help">Outside path</a>
+    <a href="https://evil.example/students/help">External</a>
+    """
+
+    assert discover_declared_urls(source, html) == (
+        "https://test.gatech.edu/students",
+        "https://test.gatech.edu/students/help",
+        "https://test.gatech.edu/students/guide.pdf",
+    )
+
+
+def test_declared_path_adapter_rejects_exact_excluded_path_and_trims_whitespace():
+    source = DocumentSource(
+        "gt-test",
+        "policy",
+        "official",
+        ("https://test.gatech.edu/",),
+        ("https://test.gatech.edu/students",),
+        5,
+        vertical="student_life",
+        adapter="paths",
+        allowed_path_prefixes=("/students",),
+        excluded_paths=("/students/private",),
+    )
+    html = """
+    <a href=" /students/help/ ">Help</a>
+    <a href="/students/private">Private</a>
+    <a href="/students/private/child">Child remains allowed</a>
+    """
+
+    assert discover_declared_urls(source, html) == (
+        "https://test.gatech.edu/students",
+        "https://test.gatech.edu/students/help",
+        "https://test.gatech.edu/students/private/child",
+    )
+
+
+def test_declared_path_adapter_rejects_pdf_when_not_declared():
+    source = DocumentSource(
+        "gt-test",
+        "policy",
+        "official",
+        ("https://test.gatech.edu/",),
+        ("https://test.gatech.edu/students",),
+        2,
+        vertical="student_life",
+        adapter="paths",
+        allowed_path_prefixes=("/students",),
+        content_types=("text/html",),
+    )
+
+    assert discover_declared_urls(source, '<a href="/students/guide.pdf">Guide</a>') == (
+        "https://test.gatech.edu/students",
+    )

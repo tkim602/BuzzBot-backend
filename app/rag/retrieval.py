@@ -10,8 +10,9 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.cache import TTLCache
 from app.core.config import settings
@@ -20,6 +21,9 @@ from db.models import Chunk, Embedding, Source
 
 logger = structlog.get_logger(__name__)
 SourceFilter = str | list[str] | None
+FTS_DOCUMENT_EXPRESSION = (
+    "coalesce(title, '') || ' ' || coalesce(headings, '') || ' ' || chunk_text"
+)
 
 COURSE_CODE_RE = re.compile(r"\b([a-z]{2,4})\s*-?\s*(\d{4}[a-z]?)\b", re.IGNORECASE)
 TERM_RE_1 = re.compile(r"\b(spring|summer|fall)\s*(20\d{2})\b", re.IGNORECASE)
@@ -402,7 +406,7 @@ async def fts_search(
     optimized_query = _compact_query_for_fts(query)
     if match_any:
         optimized_query = " OR ".join(_TOKEN_RE.findall(optimized_query))
-    search_text = func.concat_ws(" ", Chunk.title, Chunk.headings, Chunk.chunk_text)
+    search_text: ColumnElement[str] = literal_column(FTS_DOCUMENT_EXPRESSION)
     ts_vector = func.to_tsvector("simple", search_text)
     ts_query = func.websearch_to_tsquery("simple", optimized_query)
     rank_expr = func.ts_rank_cd(ts_vector, ts_query)

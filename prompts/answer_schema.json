@@ -17,6 +17,7 @@
           "url": {"type": "string"},
           "title": {"type": ["string", "null"]},
           "fetched_at": {"type": ["string", "null"]},
+          "page": {"type": ["integer", "null"], "minimum": 1},
           "quote": {"type": "string"}
         }
       }

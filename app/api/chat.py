@@ -802,6 +802,7 @@ async def chat(
                 title=c.get("title"),
                 fetched_at=c.get("fetched_at"),
                 quote=c.get("quote", ""),
+                page=c.get("page"),
             )
             for c in valid_citations
         ]

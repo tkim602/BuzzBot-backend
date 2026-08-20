@@ -188,3 +188,41 @@ An official OSCAR listing that contains the recognized no-results message is pub
 verified-empty `term:subject` version with zero rows. This supersedes an older non-empty version so
 stale offerings cannot remain authoritative. Any other HTTP 200 response that produces zero
 sections remains a parse failure and cannot publish.
+
+## Run 3 official document profile
+
+Run 3 composes the existing URL runner across every source tagged `run3`. Discovery completes for
+all sources before execution. The parent run stores an immutable `source + URL + adapter + vertical`
+manifest in `ingestion_runs.scope_json`; short `source:position` keys are stored in
+`ingestion_run_units`. Resume uses that snapshot and does not rediscover.
+
+Production run (operator initiated; performs paid embeddings only for changed documents):
+
+```bash
+make migrate
+make sync-gt-all
+```
+
+Bounded verification is global and is applied only after every source passes discovery and its
+`max_urls` safety ceiling:
+
+```bash
+make sync-gt-all verification_limit=2
+```
+
+Resume a paused or partial run. Failed units are reset within the same immutable manifest; completed
+units are not fetched again:
+
+```bash
+make resume-gt-all run_id=<RUN_ID>
+```
+
+Expected JSON includes `status`, aggregate counts, the immutable `planned_units`, and per-vertical
+`planned/succeeded/failed/remaining` counts. `COMPLETED` means every planned URL succeeded;
+`PARTIAL` preserves successful and previously trusted documents; repeated 429 returns `PAUSED`;
+authentication is a hard `FAILED` stop.
+
+HTML and PDF share the same transactional document/chunk/embedding publish path. PDF ingestion uses
+embedded text only, limits resources to 10 MiB and 200 pages, chunks each page independently, and
+adds `page_start/page_end` metadata used by API citations. Scanned, encrypted, malformed, oversized,
+or textless PDFs fail closed. OCR is intentionally deferred.

@@ -24,7 +24,9 @@ from ingestion.documents.calendar import (
     parse_calendar_payload,
 )
 from ingestion.documents.catalog import accepts_path as accepts_catalog_path
+from ingestion.documents.discovery import _declared_path_allowed
 from ingestion.documents.omscs import accepts_path as accepts_omscs_path
+from ingestion.documents.pdf import ExtractedPage, PdfExtractionError, extract_pdf
 from ingestion.documents.probe import DocumentProbeStatus, probe_document_source
 from ingestion.documents.registrar import accepts_path as accepts_registrar_path
 from ingestion.documents.registry import DocumentSource
@@ -81,6 +83,8 @@ class FetchedDocument:
     etag: str | None
     last_modified: str | None
     edition: str | None
+    content_type: str = "text/html"
+    pages: tuple[ExtractedPage, ...] = ()
 
 
 async def sync_document_source(
@@ -188,6 +192,7 @@ async def sync_document_url(
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> DocumentSyncResult:
     canonical_url = normalize_url(url)
+    source_url = canonical_url
     if not source.allows(canonical_url):
         return DocumentSyncResult(
             source.name,
@@ -197,7 +202,7 @@ async def sync_document_url(
         )
 
     with session_factory() as session:
-        headers = _conditional_headers(session, canonical_url)
+        headers = _conditional_headers(session, source_url)
     async with httpx.AsyncClient(
         transport=transport,
         timeout=15,
@@ -208,7 +213,8 @@ async def sync_document_url(
         requests_used = 1
 
         if 300 <= response.status_code < 400 and response.status_code != 304:
-            target_url = urljoin(canonical_url, response.headers.get("Location", ""))
+            location = response.headers.get("Location")
+            target_url = urljoin(canonical_url, location or "")
             if "login" in target_url.lower() or "sso" in target_url.lower():
                 return DocumentSyncResult(
                     source.name,
@@ -216,21 +222,26 @@ async def sync_document_url(
                     requests_used,
                     reason="AUTH_REDIRECT",
                 )
-            if (
-                not response.headers.get("Location")
-                or not source.allows(target_url)
-                or not _redirect_in_scope(source, target_url)
-            ):
+            same_source_redirect = (
+                bool(location)
+                and source.allows(target_url)
+                and _redirect_in_scope(source, target_url)
+            )
+            external_allowed_redirect = bool(location) and source.allows_redirect(target_url)
+            if not same_source_redirect and not external_allowed_redirect:
                 return DocumentSyncResult(
                     source.name,
                     DocumentSyncOutcome.FETCH_FAILED,
                     requests_used,
                     reason="REDIRECT_NOT_ALLOWED",
                 )
-            canonical_url = normalize_url(target_url)
+            fetch_url = target_url
+            if same_source_redirect:
+                canonical_url = normalize_url(target_url)
+                source_url = canonical_url
             with session_factory() as session:
-                headers = _conditional_headers(session, canonical_url)
-            response = await client.get(target_url, headers=headers)
+                headers = _conditional_headers(session, source_url)
+            response = await client.get(fetch_url, headers=headers)
             requests_used += 1
     if response.status_code == 304:
         with session_factory() as session:
@@ -256,7 +267,7 @@ async def sync_document_url(
                     or not _uses_current_chunking(document)
                 ):
                     fetched = FetchedDocument(
-                        source_url=canonical_url,
+                        source_url=source_url,
                         canonical_url=canonical_url,
                         title=document.title,
                         text=document.content_text,
@@ -302,7 +313,9 @@ async def sync_document_url(
             reason="HTTP_429",
             retry_after_seconds=_retry_after_seconds(response.headers.get("Retry-After")),
         )
-    if response.status_code != 200 or not source.allows(str(response.url)):
+    if response.status_code != 200 or not (
+        source.allows(str(response.url)) or source.allows_redirect(str(response.url))
+    ):
         return DocumentSyncResult(
             source.name,
             DocumentSyncOutcome.FETCH_FAILED,
@@ -310,36 +323,65 @@ async def sync_document_url(
             reason=f"HTTP_{response.status_code}",
         )
 
-    extracted = extract_content(canonical_url, response.text)
-    if not extracted.success or not extracted.text:
+    content_type = _response_content_type(response, str(response.url))
+    if content_type not in source.content_types:
         return DocumentSyncResult(
             source.name,
             DocumentSyncOutcome.EXTRACT_FAILED,
             requests_used,
             fetched=1,
-            reason="EXTRACTION_FAILED",
+            reason="UNEXPECTED_CONTENT_TYPE",
         )
-    if (
-        not extracted.title
-        or not extracted.title.strip()
-        or _is_recognized_error_page(response.text, extracted.title)
-    ):
-        return DocumentSyncResult(
-            source.name,
-            DocumentSyncOutcome.EXTRACT_FAILED,
-            requests_used,
-            fetched=1,
-            reason="QUALITY_GATE_FAILED",
-        )
+    pages: tuple[ExtractedPage, ...] = ()
+    if content_type == "application/pdf":
+        try:
+            pdf = extract_pdf(response.content)
+        except PdfExtractionError:
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.EXTRACT_FAILED,
+                requests_used,
+                fetched=1,
+                reason="QUALITY_GATE_FAILED",
+            )
+        title = pdf.title
+        text = "\n\n".join(page.text for page in pdf.pages)
+        pages = pdf.pages
+    else:
+        extracted = extract_content(canonical_url, response.text)
+        if not extracted.success or not extracted.text:
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.EXTRACT_FAILED,
+                requests_used,
+                fetched=1,
+                reason="EXTRACTION_FAILED",
+            )
+        if (
+            not extracted.title
+            or not extracted.title.strip()
+            or _is_recognized_error_page(response.text, extracted.title)
+        ):
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.EXTRACT_FAILED,
+                requests_used,
+                fetched=1,
+                reason="QUALITY_GATE_FAILED",
+            )
+        title = extracted.title
+        text = extracted.text
     fetched = FetchedDocument(
-        source_url=canonical_url,
+        source_url=source_url,
         canonical_url=canonical_url,
-        title=extracted.title,
-        text=extracted.text,
+        title=title,
+        text=text,
         fetched_at=datetime.now(UTC),
         etag=response.headers.get("ETag"),
         last_modified=response.headers.get("Last-Modified"),
-        edition=_edition(f"{extracted.title or ''}\n{extracted.text}"),
+        edition=_edition(f"{title}\n{text}"),
+        content_type=content_type,
+        pages=pages,
     )
     try:
         with session_factory() as session:
@@ -374,13 +416,17 @@ def _conditional_headers(session: Session, url: str) -> dict[str, str]:
 
 
 def _redirect_in_scope(source: DocumentSource, url: str) -> bool:
-    accepts_path = _REDIRECT_SCOPES.get(source.authority)
-    return accepts_path is not None and accepts_path(urlsplit(normalize_url(url)).path)
+    path = urlsplit(normalize_url(url)).path
+    if source.adapter == "paths":
+        return _declared_path_allowed(source, path)
+    accepts_path = _REDIRECT_SCOPES.get(source.adapter or source.authority)
+    return accepts_path is not None and accepts_path(path)
 
 
 def _uses_current_chunking(document: Document) -> bool:
     metadata = document.metadata_json if isinstance(document.metadata_json, dict) else {}
-    return metadata.get("chunking_version") == CHUNKING_VERSION
+    version = metadata.get("chunking_version")
+    return isinstance(version, int) and bool(version == CHUNKING_VERSION)
 
 
 def _store_document(
@@ -405,12 +451,22 @@ def _store_document(
         "source": source.name,
         "source_type": source.source_type,
         "authority": source.authority,
+        "adapter": source.adapter or source.authority,
+        "vertical": source.vertical,
+        "content_type": fetched.content_type,
+        "freshness_class": source.freshness_class,
         "fetched_at": fetched.fetched_at.isoformat(),
         "chunking_version": CHUNKING_VERSION,
     }
     if fetched.edition:
         metadata["edition"] = fetched.edition
-    min_chunk_size = 10 if source.source_type == "academic_calendar" else 50
+    if fetched.pages:
+        metadata["page_count"] = len(fetched.pages)
+    min_chunk_size = (
+        10
+        if source.source_type == "academic_calendar" or fetched.content_type == "application/pdf"
+        else 50
+    )
     existing = session.scalar(
         select(Document).where(Document.canonical_url == fetched.canonical_url)
     )
@@ -443,13 +499,7 @@ def _store_document(
             )
             return False, len(stored_chunks)
 
-    chunks = chunk_text(
-        fetched.text,
-        chunk_size=500,
-        chunk_overlap=80,
-        min_chunk_size=min_chunk_size,
-        metadata=metadata,
-    )
+    chunks = _chunks_for_fetched(fetched, metadata, min_chunk_size)
     if not chunks:
         raise DocumentQualityError("document produced no chunks")
     document_id = upsert_document(
@@ -472,7 +522,9 @@ def _store_document(
         chunks,
         fetched.canonical_url,
         fetched.title,
-        "\n".join(extract_headings(fetched.text)) or None,
+        None
+        if fetched.content_type == "application/pdf"
+        else "\n".join(extract_headings(fetched.text)) or None,
         fetched.fetched_at,
         embed_fn,
     )
@@ -487,6 +539,47 @@ def _store_document(
         digest,
     )
     return True, indexed
+
+
+def _chunks_for_fetched(
+    fetched: FetchedDocument,
+    metadata: dict[str, object],
+    min_chunk_size: int,
+):
+    if not fetched.pages:
+        return chunk_text(
+            fetched.text,
+            chunk_size=500,
+            chunk_overlap=80,
+            min_chunk_size=min_chunk_size,
+            metadata=metadata,
+        )
+    chunks = []
+    for page in fetched.pages:
+        chunks.extend(
+            chunk_text(
+                page.text,
+                chunk_size=500,
+                chunk_overlap=80,
+                min_chunk_size=min_chunk_size,
+                metadata={
+                    **metadata,
+                    "content_type": "application/pdf",
+                    "page_start": page.page_number,
+                    "page_end": page.page_number,
+                },
+            )
+        )
+    return chunks
+
+
+def _response_content_type(response: httpx.Response, url: str) -> str:
+    declared = str(response.headers.get("Content-Type", "")).split(";", 1)[0].strip().lower()
+    if declared == "text/plain" and response.content.lstrip().startswith(b"<"):
+        return "text/html"
+    if declared:
+        return declared
+    return "application/pdf" if urlsplit(url).path.lower().endswith(".pdf") else "text/html"
 
 
 def _edition(text: str) -> str | None:

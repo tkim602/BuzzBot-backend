@@ -8,8 +8,8 @@ from urllib.parse import urldefrag, urlparse, urlunparse
 
 
 def normalize_url(url: str) -> str:
-    """Normalize a URL: lowercase scheme/host, remove fragment, trailing slash."""
-    url = urldefrag(url).url
+    """Normalize a URL: trim whitespace, lowercase scheme/host, remove fragment/trailing slash."""
+    url = urldefrag(url.strip()).url
     parsed = urlparse(url)
     scheme = parsed.scheme.lower()
     netloc = parsed.netloc.lower()
