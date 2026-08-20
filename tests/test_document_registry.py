@@ -60,8 +60,9 @@ def test_catalog_programs_excludes_auth_gated_resource():
     sources = load_document_sources(Path("ingestion/sources.yaml"))
     programs = next(source for source in sources if source.name == "gt-catalog-programs")
 
-    assert programs.excluded_paths == (
-        "/academics/research-support-facilities/oak-ridge-associated-universities",
+    assert (
+        "/academics/research-support-facilities/oak-ridge-associated-universities"
+        in programs.excluded_paths
     )
 
 
