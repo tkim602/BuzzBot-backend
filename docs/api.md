@@ -2,98 +2,61 @@
 
 Base URL: `http://localhost:8000`
 
-## POST /chat
+## `POST /v2/chat`
 
-Main chat endpoint. Accepts a user query and returns a citation-backed answer.
-
-### Request
+Runs the controlled LangGraph workflow.
 
 ```json
 {
-  "query": "When is the registration deadline for Fall 2025?",
-  "user_context": {
-    "term": "Fall 2025",
-    "major": "CS"
-  },
-  "rmp_excerpt": null
+  "query": "Is CS 7650 offered in Fall 2026?",
+  "thread_id": "portfolio-demo",
+  "user_context": {"term": "Fall 2026"},
+  "history": []
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `query` | string | Yes | User question (1-2000 chars) |
-| `user_context` | object | No | Optional context (term, major) |
-| `rmp_excerpt` | string | No | User-provided RMP text (max 5000 chars) |
-
-### Response
+`query` is required and limited to 2,000 characters. `thread_id` is optional, limited to 100
+characters, and accepts only letters, numbers, `.`, `_`, `:`, and `-`. It is a conversation key, not
+a GT user identity.
 
 ```json
 {
-  "answer": "The registration deadline for Fall 2025 is...",
+  "thread_id": "portfolio-demo",
+  "answer": "CS 7650 ... section A; CRN 12345 ...",
   "citations": [
     {
-      "url": "https://registrar.gatech.edu/calendar",
-      "title": "Academic Calendar",
-      "fetched_at": "2025-08-01T12:00:00Z",
-      "quote": "Registration for Fall 2025 closes on..."
+      "url": "https://oscar.gatech.edu/...",
+      "title": "CS 7650 schedule",
+      "fetched_at": "2026-08-20T00:00:00+00:00",
+      "quote": "CS 7650 ... CRN 12345 ..."
     }
   ],
-  "confidence": 0.85,
-  "freshness": {
-    "strategy": "live_fetch",
-    "as_of": "2025-08-15T10:30:00Z"
-  },
+  "confidence": 0.95,
+  "freshness": {"strategy": "langgraph_controlled", "as_of": "..."},
   "notes": [],
   "debug": {
-    "intent": "registrar_calendar",
-    "live_fetch_used": true,
-    "retrieval_top_k": 6
+    "intent": "course_schedule",
+    "live_fetch_used": false,
+    "retrieval_top_k": 1,
+    "top_sources": ["oscar"]
   }
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `answer` | string | The generated answer |
-| `citations` | array | Source citations with URL, title, date, quote |
-| `confidence` | float | 0.0-1.0 confidence score |
-| `freshness.strategy` | string | `indexed`, `live_fetch`, or `hybrid` |
-| `freshness.as_of` | string | ISO8601 timestamp of response |
-| `notes` | array | Warnings, caveats |
-| `debug.intent` | string | Classified query intent |
-| `debug.live_fetch_used` | boolean | Whether live fetch was triggered |
-| `debug.retrieval_top_k` | int | Number of chunks retrieved |
+Factual output without a grounded official citation is replaced by an abstention. The endpoint may
+return `429` for request guardrails or the tracked API cost limit, and `422` for invalid input.
 
-## GET /health
+## Legacy `POST /chat`
 
-Health check endpoint.
+The original endpoint remains temporarily available for comparison and rollback. New development
+should target `/v2/chat`.
 
-```json
-{"status": "ok", "service": "buzzbot"}
-```
+## Health and operations
 
-## GET /stats
+- `GET /live`: dependency-free process liveness.
+- `GET /ready`: DB, official chunks, published schedule freshness, and configured checkpoint status.
+- `GET /stats`: source/document/chunk counts.
+- `GET /usage`: tracked API cost, fixed maximum limit, and remaining budget.
 
-Basic ingestion and index statistics.
-
-```json
-{
-  "sources": 2,
-  "documents": 45,
-  "chunks": 312
-}
-```
-
-## Error Responses
-
-All errors return JSON with a `detail` field:
-
-```json
-{"detail": "Error description"}
-```
-
-| Status | Meaning |
-|--------|---------|
-| 400 | Bad request (invalid query) |
-| 422 | Validation error |
-| 500 | Internal server error |
+`/ready` returns `200` when ready and `503` with individual check results otherwise. Usage mutation
+is intentionally not exposed through the public API.

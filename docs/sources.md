@@ -1,51 +1,42 @@
-# Sources Policy
+# v2 Source Policy
 
-## Overview
+BuzzBot v2 uses exact public sources and stops before authentication. It does not perform a generic
+`*.gatech.edu` crawl.
 
-BuzzBot uses a source registry (`ingestion/sources.yaml`) with explicit policy gates. Each source must be explicitly allowed before ingestion.
+## Controlled document registry
 
-## Registered Sources
+| Source | Type | Authority | Initial seed cap |
+|---|---|---|---:|
+| `gt-registrar` | registration policy | Registrar | 10 |
+| `gt-academic-calendar` | exact dates | Academic Calendar | 5 |
+| `gt-catalog` | course Catalog | Catalog | 15 |
+| `gt-omscs` | OMSCS policy | OMSCS | 10 |
+| `gt-admission` | undergraduate admissions | Admissions | 5 |
 
-| Source | URL | Allowed | Reason |
-|--------|-----|---------|--------|
-| gt-registrar | registrar.gatech.edu | Yes | Official academic calendar and registration |
-| gt-catalog | catalog.gatech.edu | Yes | Official course descriptions and degree policies |
-| ratemyprofessors | ratemyprofessors.com | **No** | ToS prohibit scraping; user-provided mode only |
+The cap is a registry ceiling; the initial bounded run fetches at most one seed. Every source must
+pass a one-request probe first. HTTPS root membership, redirect destination, response status, content
+type, and extracted body shape are checked before synchronization.
 
-## Policy Gates
+## Structured schedule source
 
-Every source in `sources.yaml` has:
-- `allowed: true/false` — hard gate for ingestion pipeline
-- `reason` — human-readable justification
+Public OSCAR schedule pages are treated as structured data, not RAG documents. One representative
+course request gates a subject sync. The collection must reconcile subjects, fetched/parsed counts,
+required fields, course references, duplicate CRNs, meeting/TBA invariants, and freshness before it
+can be published.
 
-Sources with `allowed: false` are completely skipped during ingestion. The pipeline logs a message and moves on.
+OSCAR authentication redirects stop the run. BuzzBot never signs in or submits registration actions.
 
-## RateMyProfessors Policy
+## Blocked and unsupported sources
 
-**No automated access.** BuzzBot's RMP integration is strictly user-provided:
-1. User pastes an excerpt into the chat input
-2. BuzzBot summarizes the excerpt with explicit "unofficial / user-provided" labels
-3. Citations reference `user-provided:rmp` (not an actual URL)
+- RateMyProfessors: never crawled; legacy user-provided excerpt mode only.
+- Common Crawl: not a v2 fallback.
+- BuzzPort/SSO/student records: out of scope.
+- Arbitrary URLs supplied by a user or model: never fetched by the v2 graph.
 
-This design respects:
-- RMP's Terms of Service (no crawling, scraping, or spidering)
-- User data sovereignty (user controls what content enters the system)
-- Transparency (every RMP-sourced claim is labeled)
+## Adding a source
 
-## Common Crawl Policy
-
-When `ENABLE_COMMONCRAWL=true`, only these domains are queried:
-- `gatech.edu`
-- `registrar.gatech.edu`
-- `catalog.gatech.edu`
-
-An explicit blocklist prevents `ratemyprofessors.com` from ever being included, regardless of configuration.
-
-## Adding New Sources
-
-1. Add an entry to `ingestion/sources.yaml`
-2. Set `allowed: true` and provide a `reason`
-3. Configure `sitemap_url`, `include_patterns`, `exclude_patterns`
-4. Run `make ingest`
-
-Always verify the source's `robots.txt` and Terms of Service before adding.
+1. Establish that the information is official, public, and needed by a typed retrieval intent.
+2. Add exact HTTPS roots and seeds to `ingestion/sources.yaml` with a small hard cap.
+3. Add registry/probe tests for host and redirect behavior.
+4. Run `probe` once. Do not sync a source that does not report READY.
+5. Sync one seed and inspect only counts/metadata before expanding its explicit registry entry.

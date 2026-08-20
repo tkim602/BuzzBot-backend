@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: setup db-up db-down migrate ingest ingest-courses ingest-courses-all ingest-calendar ingest-all run-backend run-frontend test lint fmt usage usage-reset eval-debug
+.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-oscar run-backend run-frontend test test-db lint fmt usage eval-v2
 
 setup:
 	pip install -e ".[dev]"
@@ -17,6 +17,15 @@ migrate:
 
 migrate-new:
 	alembic revision --autogenerate -m "$(msg)"
+
+probe-doc:
+	$(PYTHON) -m ingestion.documents.cli probe --source "$(source)"
+
+sync-doc:
+	$(PYTHON) -m ingestion.documents.cli sync --source "$(source)"
+
+sync-oscar:
+	$(PYTHON) -m ingestion.schedule.cli --term "$(term)" --subject "$(subject)" --probe-course "$(course)"
 
 ingest:
 	$(PYTHON) -m ingestion.run_ingestion
@@ -46,9 +55,6 @@ ingest-all:
 usage:
 	@$(PYTHON) -c "from app.core.usage import get_usage; u=get_usage(); print(f'Usage: \$${u[\"total_cost\"]:.4f} / \$${u[\"limit\"]:.2f} ({(u[\"total_cost\"]/u[\"limit\"]*100):.1f}%)')"
 
-usage-reset:
-	@$(PYTHON) -c "from app.core.usage import reset_usage; reset_usage(); print('Usage reset to \$$0.00')"
-
 eval-debug:
 	$(PYTHON) eval/db_coverage_audit.py
 	$(PYTHON) eval/debug_deadlines_matrix.py
@@ -60,7 +66,13 @@ run-frontend:
 	cd frontend && npm run dev
 
 test:
-	$(PYTHON) -m pytest tests/ -v --tb=short
+	PYTHONPATH=$$PWD $(PYTHON) -m pytest -q
+
+test-db:
+	RUN_DB_TESTS=1 PYTHONPATH=$$PWD $(PYTHON) -m pytest -q tests/integration
+
+eval-v2:
+	PYTHONPATH=$$PWD $(PYTHON) eval/agentic_rag_eval.py
 
 lint:
 	ruff check .
