@@ -165,6 +165,32 @@ def test_declared_path_adapter_accepts_html_and_pdf_but_rejects_other_files():
     )
 
 
+def test_declared_path_adapter_rejects_exact_excluded_path_and_trims_whitespace():
+    source = DocumentSource(
+        "gt-test",
+        "policy",
+        "official",
+        ("https://test.gatech.edu/",),
+        ("https://test.gatech.edu/students",),
+        5,
+        vertical="student_life",
+        adapter="paths",
+        allowed_path_prefixes=("/students",),
+        excluded_paths=("/students/private",),
+    )
+    html = """
+    <a href=" /students/help/ ">Help</a>
+    <a href="/students/private">Private</a>
+    <a href="/students/private/child">Child remains allowed</a>
+    """
+
+    assert discover_declared_urls(source, html) == (
+        "https://test.gatech.edu/students",
+        "https://test.gatech.edu/students/help",
+        "https://test.gatech.edu/students/private/child",
+    )
+
+
 def test_declared_path_adapter_rejects_pdf_when_not_declared():
     source = DocumentSource(
         "gt-test",
