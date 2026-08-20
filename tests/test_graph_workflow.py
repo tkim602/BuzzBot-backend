@@ -194,7 +194,6 @@ async def test_yes_no_answer_with_wrong_leading_polarity_abstains(monkeypatch):
         retrieval_method="hybrid_rrf",
     )
     monkeypatch.setattr("app.graph.workflow.search_policy_docs", AsyncMock(return_value=[evidence]))
-    monkeypatch.setattr("app.rag.grounding._call_llm", AsyncMock(return_value="INCONSISTENT"))
     answer = AsyncMock(
         return_value={
             "answer": "Yes, November 2 is the Early Action 2 deadline.",
@@ -207,6 +206,7 @@ async def test_yes_no_answer_with_wrong_leading_polarity_abstains(monkeypatch):
             ],
             "confidence": 0.9,
             "notes": [],
+            "_binary_verdict": "FALSE",
         }
     )
     graph = build_workflow(WorkflowServices(object(), AsyncMock(return_value=[0.1]), answer))

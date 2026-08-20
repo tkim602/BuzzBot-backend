@@ -106,7 +106,7 @@ async def test_deadline_table_relationships_reach_answer_context(monkeypatch):
         result = await generate_answer(
             "Is November 2 the Early Action 1 deadline?", context, intent="policy"
         )
-        assert result["answer"].startswith("No.")
+        assert result["answer"].startswith("No,")
     finally:
         with Session(sync_engine) as session:
             stored_source = session.scalar(select(Source).where(Source.name == source_name))

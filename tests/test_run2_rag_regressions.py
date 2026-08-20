@@ -186,7 +186,7 @@ def test_cross_encoder_receives_title_headings_and_chunk_text(monkeypatch):
             "November 2 is the Early Action 1 deadline.",
             "CONTRADICTED",
             "FALSE",
-            "No. Early Action 1 is October 15; November 2 is Early Action 2.",
+            "No, Early Action 1 is October 15; November 2 is Early Action 2.",
         ),
         (
             "Is November 2 the Early Action 2 deadline?",
@@ -201,7 +201,8 @@ def test_cross_encoder_receives_title_headings_and_chunk_text(monkeypatch):
 async def test_factual_yes_no_verdict_constrains_generation(
     monkeypatch, query, evidence, proposition, semantic_verdict, binary_verdict, expected_answer
 ):
-    response = f'{{"answer":"{expected_answer}","citations":[],"confidence":1.0,"notes":[]}}'
+    explanation = expected_answer.split(maxsplit=1)[1]
+    response = f'{{"answer":"{explanation}","citations":[],"confidence":1.0,"notes":[]}}'
     call = AsyncMock(side_effect=[proposition, semantic_verdict, response])
     monkeypatch.setattr("app.rag.answerer._call_llm", call)
 
@@ -212,13 +213,41 @@ async def test_factual_yes_no_verdict_constrains_generation(
     answer_system, answer_user = call.await_args_list[2].args
     expected_polarity = "Yes" if binary_verdict == "TRUE" else "No"
     assert answer["answer"] == expected_answer
+    assert answer["_binary_verdict"] == binary_verdict
     assert "atomic factual proposition" in proposition_system
     assert query in proposition_user
     assert proposition in semantic_user
     assert evidence in semantic_user
     assert "SUPPORTED" in semantic_system
-    assert f"must begin with {expected_polarity}" in answer_system
+    assert f"authoritative polarity is {expected_polarity}" in answer_system
+    assert "explanation body only" in answer_system
     assert query in answer_user
+
+
+@pytest.mark.asyncio
+async def test_binary_answer_uses_exact_retrieved_citation_quote(monkeypatch):
+    evidence = (
+        "Students have the option to send recommendations to Georgia Tech. "
+        "This is completely optional."
+    )
+    response = (
+        '{"answer":"recommendation letters are optional.","citations":['
+        '{"url":"https://example.gatech.edu/recommendations","title":"Recommendations",'
+        '"fetched_at":null,"quote":"Recommendations are optional."}],'
+        '"confidence":1.0,"notes":[]}'
+    )
+    call = AsyncMock(side_effect=["Recommendation letters are required.", "CONTRADICTED", response])
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    answer = await generate_answer(
+        "Do I have to submit recommendation letters?",
+        [_chunk("recommendations", "Recommendations", evidence)],
+        intent="policy",
+    )
+
+    assert answer["answer"] == "No, recommendation letters are optional."
+    assert answer["citations"][0]["quote"] == evidence
+    assert answer["citations"][0]["quote"] in evidence
 
 
 @pytest.mark.asyncio

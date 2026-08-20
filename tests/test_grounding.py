@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.rag import grounding
 from app.rag.grounding import (
     _is_grounded,
     check_claim_support,
@@ -249,89 +248,4 @@ async def test_claim_support_fails_closed_on_verifier_error(monkeypatch):
     )
 
     assert not supported
-    assert notes
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("question", "evidence", "answer", "verdict", "expected"),
-    [
-        (
-            "Do I have to submit recommendation letters?",
-            "Recommendations are completely optional.",
-            "No, recommendation letters are optional.",
-            "CONSISTENT",
-            True,
-        ),
-        (
-            "Are nine courses enough to graduate?",
-            "The degree requires 10 courses.",
-            "No, 10 courses are required.",
-            "CONSISTENT",
-            True,
-        ),
-        (
-            "Is November 2 the Early Action 1 deadline?",
-            "Early Action 1 — Application Deadline: October 15\n"
-            "Early Action 2 — Application Deadline: November 2",
-            "No. Early Action 1 is October 15; November 2 is Early Action 2.",
-            "CONSISTENT",
-            True,
-        ),
-        (
-            "Is November 2 the Early Action 1 deadline?",
-            "Early Action 1 — Application Deadline: October 15\n"
-            "Early Action 2 — Application Deadline: November 2",
-            "Yes, November 2 is the Early Action 2 deadline.",
-            "INCONSISTENT",
-            False,
-        ),
-    ],
-)
-async def test_yes_no_consistency_uses_question_answer_and_evidence(
-    monkeypatch, question, evidence, answer, verdict, expected
-):
-    call = AsyncMock(return_value=verdict)
-    monkeypatch.setattr("app.rag.grounding._call_llm", call)
-
-    consistent, notes = await grounding.check_yes_no_consistency(
-        question, answer, [_make_chunk(evidence)]
-    )
-
-    assert consistent is expected
-    assert (not notes) if expected else bool(notes)
-    system, user = call.await_args.args
-    assert question in user
-    assert answer in user
-    assert evidence in user
-    assert "exact proposition" in system
-    assert call.await_args.kwargs == {"temperature": 0.0, "max_tokens": 8}
-
-
-@pytest.mark.asyncio
-async def test_yes_no_consistency_fails_closed_on_malformed_verdict(monkeypatch):
-    monkeypatch.setattr(
-        "app.rag.grounding._call_llm", AsyncMock(return_value="CONSISTENT because correct")
-    )
-
-    consistent, notes = await grounding.check_yes_no_consistency(
-        "Is this required?", "Yes, it is required.", [_make_chunk("It is required.")]
-    )
-
-    assert not consistent
-    assert notes
-
-
-@pytest.mark.asyncio
-async def test_yes_no_consistency_fails_closed_on_verifier_error(monkeypatch):
-    monkeypatch.setattr(
-        "app.rag.grounding._call_llm",
-        AsyncMock(side_effect=RuntimeError("provider unavailable")),
-    )
-
-    consistent, notes = await grounding.check_yes_no_consistency(
-        "Is this required?", "Yes, it is required.", [_make_chunk("It is required.")]
-    )
-
-    assert not consistent
     assert notes

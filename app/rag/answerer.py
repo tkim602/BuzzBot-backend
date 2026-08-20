@@ -26,6 +26,9 @@ _BINARY_QUESTION_RE = re.compile(
     r"^\s*(?:am|are|can|could|did|do|does|has|have|is|must|should|was|were|will|would)\b",
     re.I,
 )
+_LEADING_ANSWER_RE = re.compile(r"^\s*(?:yes|no)\b\s*[,.;:—–-]?\s*", re.I)
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+_QUOTE_WORD_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)?", re.I)
 
 
 def _load_prompt(name: str) -> str:
@@ -92,6 +95,41 @@ def _format_history(history: list[dict] | None) -> str:
     return "\n".join(lines) if lines else "none"
 
 
+def _ground_citation_quotes(citations: object, chunks: list[RetrievedChunk]) -> list[dict]:
+    grounded: list[dict] = []
+    for citation in citations if isinstance(citations, list) else []:
+        if not isinstance(citation, dict):
+            continue
+        texts = [chunk.chunk_text for chunk in chunks if chunk.url == citation.get("url")]
+        quote = str(citation.get("quote") or "").strip()
+        for text in texts:
+            start = text.lower().find(quote.lower()) if quote else -1
+            if start >= 0:
+                grounded.append({**citation, "quote": text[start : start + len(quote)]})
+                break
+        else:
+            quote_words = set(_QUOTE_WORD_RE.findall(quote.lower()))
+            candidates = []
+            for text in texts:
+                sentences = [
+                    part.strip() for part in _SENTENCE_SPLIT_RE.split(text) if part.strip()
+                ]
+                candidates.extend(sentences)
+                candidates.extend(
+                    f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
+                )
+            best = max(
+                candidates,
+                key=lambda candidate: len(
+                    quote_words & set(_QUOTE_WORD_RE.findall(candidate.lower()))
+                ),
+                default="",
+            )
+            if best and quote_words & set(_QUOTE_WORD_RE.findall(best.lower())):
+                grounded.append({**citation, "quote": best})
+    return grounded
+
+
 async def _binary_proposition_verdict(query: str, evidence: str) -> str:
     try:
         proposition = await _call_llm(
@@ -148,19 +186,21 @@ async def generate_answer(
             + rmp_excerpt
         )
 
+    binary_verdict: str | None = None
+    polarity: str | None = None
     if intent in FACTUAL_INTENTS and _BINARY_QUESTION_RE.search(query):
-        verdict = await _binary_proposition_verdict(query, context_str)
-        if verdict == "UNKNOWN":
+        binary_verdict = await _binary_proposition_verdict(query, context_str)
+        if binary_verdict == "UNKNOWN":
             return {
                 "answer": "I don't have enough evidence to answer that yes/no question reliably.",
                 "citations": [],
                 "confidence": 0.2,
                 "notes": ["The proposition could not be established from retrieved evidence."],
             }
-        polarity = "Yes" if verdict == "TRUE" else "No"
+        polarity = "Yes" if binary_verdict == "TRUE" else "No"
         system_prompt += (
-            f"\n\nThe verified proposition verdict is {verdict}. "
-            f"The answer must begin with {polarity}, and its explanation must agree."
+            f"\n\nThe authoritative polarity is {polarity}. Generate the evidence-grounded "
+            "explanation body only; do not choose or write a leading Yes or No."
         )
 
     user_msg = user_template.replace("{{QUERY}}", query).replace("{{CONTEXT}}", context_str)
@@ -188,6 +228,12 @@ async def generate_answer(
             "confidence": 0.5,
             "notes": ["Response was not in expected JSON format."],
         }
+
+    parsed["citations"] = _ground_citation_quotes(parsed.get("citations"), chunks)
+    if binary_verdict and polarity:
+        body = _LEADING_ANSWER_RE.sub("", str(parsed.get("answer", "")), count=1)
+        parsed["answer"] = f"{polarity}, {body}" if body else f"{polarity}."
+        parsed["_binary_verdict"] = binary_verdict
 
     return parsed
 

@@ -24,7 +24,7 @@ from app.core.guardrails import (
 )
 from app.core.usage import UsageLimitExceeded, get_usage
 from app.rag.answerer import generate_answer
-from app.rag.grounding import check_claim_support, check_grounding, check_yes_no_consistency
+from app.rag.grounding import check_binary_polarity, check_claim_support, check_grounding
 from app.rag.live_fetch import live_fetch_for_query
 from app.rag.query_rewrite import generate_hyde_passage, rewrite_query
 from app.rag.retrieval import (
@@ -767,8 +767,8 @@ async def chat(
 
         polarity_consistent = True
         if is_factual and claims_supported:
-            polarity_consistent, polarity_notes = await check_yes_no_consistency(
-                query, raw_answer.get("answer", ""), chunks
+            polarity_consistent, polarity_notes = check_binary_polarity(
+                raw_answer.get("answer", ""), raw_answer.get("_binary_verdict")
             )
             grounding_notes.extend(polarity_notes)
 
