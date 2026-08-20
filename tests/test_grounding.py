@@ -78,6 +78,26 @@ def test_url_not_in_retrieved_chunks_removed():
     ("evidence", "claim", "verdict"),
     [
         (
+            "10 courses are required.",
+            "Nine courses are not enough.",
+            "SUPPORTED",
+        ),
+        (
+            "10 courses are required.",
+            "Nine courses are enough.",
+            "CONTRADICTED",
+        ),
+        (
+            "Recommendations are completely optional.",
+            "Recommendations are not required.",
+            "SUPPORTED",
+        ),
+        (
+            "Recommendations are completely optional.",
+            "Recommendations are required.",
+            "CONTRADICTED",
+        ),
+        (
             "Students have the option to send recommendations. This is completely optional.",
             "Recommendation letters are required.",
             "CONTRADICTED",
@@ -111,6 +131,8 @@ async def test_semantic_claim_verdict_is_reusable(monkeypatch, evidence, claim, 
     assert await semantic_claim_verdict(claim, evidence) == verdict
     assert claim in call.await_args.args[1]
     assert evidence in call.await_args.args[1]
+    assert "logical negation of the supplied claim" in call.await_args.args[0]
+    assert "minimum or maximum" in call.await_args.args[0]
 
 
 @pytest.mark.asyncio

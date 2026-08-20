@@ -220,6 +220,9 @@ async def test_factual_yes_no_verdict_constrains_generation(
     assert evidence in semantic_user
     assert "SUPPORTED" in semantic_system
     assert f"authoritative polarity is {expected_polarity}" in answer_system
+    expected_truth = "true" if binary_verdict == "TRUE" else "false"
+    assert f"proposition is {expected_truth}" in answer_system
+    assert "must not restate the proposition with the opposite truth value" in answer_system
     assert "explanation body only" in answer_system
     assert query in answer_user
 

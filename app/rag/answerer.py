@@ -198,9 +198,12 @@ async def generate_answer(
                 "notes": ["The proposition could not be established from retrieved evidence."],
             }
         polarity = "Yes" if binary_verdict == "TRUE" else "No"
+        proposition_truth = "true" if binary_verdict == "TRUE" else "false"
         system_prompt += (
-            f"\n\nThe authoritative polarity is {polarity}. Generate the evidence-grounded "
-            "explanation body only; do not choose or write a leading Yes or No."
+            f"\n\nThe authoritative polarity is {polarity}; the question's proposition is "
+            f"{proposition_truth}. Generate the evidence-grounded explanation body only and "
+            f"explain why the proposition is {proposition_truth}. You must not restate the "
+            "proposition with the opposite truth value. Do not choose or write a leading Yes or No."
         )
 
     user_msg = user_template.replace("{{QUERY}}", query).replace("{{CONTEXT}}", context_str)
