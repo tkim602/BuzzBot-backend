@@ -175,36 +175,46 @@ async def sync_document_url(
         headers={"User-Agent": USER_AGENT, **headers},
     ) as client:
         response = await client.get(canonical_url)
+    requests_used = 1
 
-    if response.status_code == 304:
-        return DocumentSyncResult(
-            source.name,
-            DocumentSyncOutcome.UNCHANGED,
-            1,
-            fetched=1,
-        )
-    if response.status_code == 429:
-        return DocumentSyncResult(
-            source.name,
-            DocumentSyncOutcome.RATE_LIMITED,
-            1,
-            reason="HTTP_429",
-            retry_after_seconds=_retry_after_seconds(response.headers.get("Retry-After")),
-        )
     if 300 <= response.status_code < 400:
         target = urljoin(canonical_url, response.headers.get("Location", ""))
         if "login" in target.lower() or "sso" in target.lower():
             return DocumentSyncResult(
                 source.name,
                 DocumentSyncOutcome.AUTH_REQUIRED,
-                1,
+                requests_used,
                 reason="AUTH_REDIRECT",
             )
+        if source.allows(target) and normalize_url(target) == canonical_url:
+            async with httpx.AsyncClient(
+                transport=transport,
+                timeout=15,
+                follow_redirects=False,
+                headers={"User-Agent": USER_AGENT, **headers},
+            ) as client:
+                response = await client.get(target)
+            requests_used += 1
+    if response.status_code == 304:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.UNCHANGED,
+            requests_used,
+            fetched=1,
+        )
+    if response.status_code == 429:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.RATE_LIMITED,
+            requests_used,
+            reason="HTTP_429",
+            retry_after_seconds=_retry_after_seconds(response.headers.get("Retry-After")),
+        )
     if response.status_code != 200 or not source.allows(str(response.url)):
         return DocumentSyncResult(
             source.name,
             DocumentSyncOutcome.FETCH_FAILED,
-            1,
+            requests_used,
             reason=f"HTTP_{response.status_code}",
         )
 
@@ -213,7 +223,7 @@ async def sync_document_url(
         return DocumentSyncResult(
             source.name,
             DocumentSyncOutcome.EXTRACT_FAILED,
-            1,
+            requests_used,
             fetched=1,
             reason="EXTRACTION_FAILED",
         )
@@ -233,7 +243,7 @@ async def sync_document_url(
     return DocumentSyncResult(
         source.name,
         DocumentSyncOutcome.INDEXED if changed else DocumentSyncOutcome.UNCHANGED,
-        1,
+        requests_used,
         fetched=1,
         changed=int(changed),
         chunks_indexed=chunks_indexed,

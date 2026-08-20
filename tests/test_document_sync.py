@@ -229,6 +229,73 @@ async def test_one_url_sync_reports_retry_after_without_retrying_itself():
 
 
 @pytest.mark.asyncio
+async def test_one_url_sync_follows_one_safe_canonical_redirect(monkeypatch):
+    calls: list[str] = []
+    html = (
+        "<html><title>Accounting</title><body>" + "official course catalog " * 20 + "</body></html>"
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if request.url.path == "/coursesaz/acct":
+            return httpx.Response(301, headers={"Location": "/coursesaz/acct/"}, request=request)
+        return httpx.Response(200, text=html, request=request)
+
+    source = DocumentSource(
+        "gt-catalog",
+        "course_catalog",
+        "catalog",
+        ("https://catalog.gatech.edu/coursesaz/",),
+        ("https://catalog.gatech.edu/coursesaz/",),
+        150,
+    )
+    session = MagicMock()
+    session.scalar.return_value = None
+    monkeypatch.setattr("ingestion.documents.sync._store_document", lambda *args: (True, 1))
+
+    result = await sync_document_url(
+        source,
+        "https://catalog.gatech.edu/coursesaz/acct",
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert calls == [
+        "https://catalog.gatech.edu/coursesaz/acct",
+        "https://catalog.gatech.edu/coursesaz/acct/",
+    ]
+    assert result.outcome is DocumentSyncOutcome.INDEXED
+    assert result.requests_used == 2
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_never_follows_auth_redirect():
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(
+            302,
+            headers={"Location": "https://sso.gatech.edu/login"},
+            request=request,
+        )
+
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        _source().seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert len(calls) == result.requests_used == 1
+    assert result.outcome is DocumentSyncOutcome.AUTH_REQUIRED
+
+
+@pytest.mark.asyncio
 async def test_calendar_sync_fetches_official_proxy_with_public_xhr_headers(
     monkeypatch: pytest.MonkeyPatch,
 ):
