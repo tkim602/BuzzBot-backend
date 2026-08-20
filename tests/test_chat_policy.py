@@ -86,7 +86,10 @@ def test_rule_based_admissions_fallback_extracts_omscs_fall_deadline() -> None:
     assert fallback is not None
     raw_answer, citations = fallback
     assert "March 1" in raw_answer["answer"]
-    assert citations[0]["url"] == "https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines"
+    assert (
+        citations[0]["url"]
+        == "https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines"
+    )
 
 
 def test_rule_based_admissions_fallback_extracts_mscs_deadline() -> None:

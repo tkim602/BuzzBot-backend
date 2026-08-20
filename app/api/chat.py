@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import hashlib
 import json
 import re
 import time
+from datetime import UTC, datetime
+from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -272,7 +273,9 @@ def _augment_citations_with_date_evidence(
     return augmented
 
 
-def _merge_unique_chunks(primary: list[RetrievedChunk], secondary: list[RetrievedChunk]) -> list[RetrievedChunk]:
+def _merge_unique_chunks(
+    primary: list[RetrievedChunk], secondary: list[RetrievedChunk]
+) -> list[RetrievedChunk]:
     merged: list[RetrievedChunk] = []
     seen: set[str] = set()
     for chunk in primary + secondary:
@@ -315,9 +318,11 @@ def _program_specific_evidence_supported(query: str, citations: list[dict]) -> b
 
     if "omscs" in q and "omscs" not in evidence_blob:
         return False
-    if "mscs" in q and ("mscs" not in evidence_blob and "master of science in computer science" not in evidence_blob):
-        return False
-    return True
+    return not (
+        "mscs" in q
+        and "mscs" not in evidence_blob
+        and "master of science in computer science" not in evidence_blob
+    )
 
 
 def _is_ambiguous_registration_deadline_query(query: str, intent: str) -> bool:
@@ -326,9 +331,7 @@ def _is_ambiguous_registration_deadline_query(query: str, intent: str) -> bool:
     q = query.lower()
     if "registration deadline" not in q and "deadline to register" not in q:
         return False
-    if any(term in q for term in REGISTRATION_SPECIFIC_TERMS):
-        return False
-    return True
+    return not any(term in q for term in REGISTRATION_SPECIFIC_TERMS)
 
 
 def _is_ambiguous_admissions_deadline_query(query: str, intent: str) -> bool:
@@ -339,9 +342,7 @@ def _is_ambiguous_admissions_deadline_query(query: str, intent: str) -> bool:
         return False
     if "omscs" in q and not TERM_MARKER_RE.search(q):
         return True
-    if any(term in q for term in ADMISSIONS_PROGRAM_TERMS):
-        return False
-    return True
+    return not any(term in q for term in ADMISSIONS_PROGRAM_TERMS)
 
 
 def _attempt_admissions_deadline_rule_answer(
@@ -398,7 +399,10 @@ def _attempt_admissions_deadline_rule_answer(
     if "mscs" in q:
         for chunk in chunks:
             text = chunk.chunk_text or ""
-            if "master of science in computer science" not in text.lower() and "mscs" not in text.lower():
+            if (
+                "master of science in computer science" not in text.lower()
+                and "mscs" not in text.lower()
+            ):
                 continue
             match = MSCS_DEADLINE_RE.search(text)
             if not match:
@@ -431,7 +435,7 @@ def _attempt_admissions_deadline_rule_answer(
 async def chat(
     payload: ChatRequest,
     http_request: Request,
-    session: AsyncSession = Depends(get_async_session),
+    session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ChatResponse:
     """Main chat endpoint — RAG pipeline."""
     try:
@@ -467,7 +471,7 @@ async def chat(
             source_filter = ["gt-registrar", "gt-scheduler", "gt-catalog"]
 
         if _is_ambiguous_registration_deadline_query(query, route_result.intent):
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             stage_timings_ms["query_embed_ms"] = 0
             stage_timings_ms["retrieve_ms"] = 0
             stage_timings_ms["hyde_ms"] = 0
@@ -483,7 +487,9 @@ async def chat(
                 ),
                 citations=[],
                 confidence=0.2,
-                freshness=FreshnessInfo(strategy=route_result.freshness_strategy, as_of=now.isoformat()),
+                freshness=FreshnessInfo(
+                    strategy=route_result.freshness_strategy, as_of=now.isoformat()
+                ),
                 notes=["Ambiguous deadline query; clarification requested."],
                 debug=DebugInfo(
                     intent=route_result.intent,
@@ -499,7 +505,7 @@ async def chat(
             )
 
         if _is_ambiguous_admissions_deadline_query(query, route_result.intent):
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             stage_timings_ms["query_embed_ms"] = 0
             stage_timings_ms["retrieve_ms"] = 0
             stage_timings_ms["hyde_ms"] = 0
@@ -514,7 +520,9 @@ async def chat(
                 ),
                 citations=[],
                 confidence=0.2,
-                freshness=FreshnessInfo(strategy=route_result.freshness_strategy, as_of=now.isoformat()),
+                freshness=FreshnessInfo(
+                    strategy=route_result.freshness_strategy, as_of=now.isoformat()
+                ),
                 notes=["Ambiguous admissions deadline query; clarification requested."],
                 debug=DebugInfo(
                     intent=route_result.intent,
@@ -598,7 +606,8 @@ async def chat(
                         top_k=settings.rag_top_k,
                         source_filter=source_filter,
                         similarity_threshold=settings.rag_similarity_threshold,
-                        force_fts=settings.rag_force_fts_for_date_sensitive and rewrite.date_sensitive,
+                        force_fts=settings.rag_force_fts_for_date_sensitive
+                        and rewrite.date_sensitive,
                         hyde_embedding=fallback_hyde_embedding,
                     )
                     chunks = _merge_unique_chunks(hyde_chunks, chunks)[: settings.rag_top_k]
@@ -622,7 +631,7 @@ async def chat(
 
             # Retrieval-empty short circuit: avoid unnecessary LLM cost and hallucinations.
             if not chunks:
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 stage_timings_ms["answer_ms"] = 0
                 stage_timings_ms["grounding_ms"] = 0
                 stage_timings_ms["total_ms"] = int((time.perf_counter() - req_started) * 1000)
@@ -712,14 +721,18 @@ async def chat(
                     )
                     raw_citations = raw_answer.get("citations", [])
                     valid_citations, grounding_notes = check_grounding(raw_citations, chunks)
-                    date_verified = _date_claims_supported(raw_answer.get("answer", ""), valid_citations)
+                    date_verified = _date_claims_supported(
+                        raw_answer.get("answer", ""), valid_citations
+                    )
                     if not date_verified:
                         valid_citations = _augment_citations_with_date_evidence(
                             raw_answer.get("answer", ""),
                             valid_citations,
                             chunks,
                         )
-                        date_verified = _date_claims_supported(raw_answer.get("answer", ""), valid_citations)
+                        date_verified = _date_claims_supported(
+                            raw_answer.get("answer", ""), valid_citations
+                        )
                     if not date_verified:
                         grounding_notes.append(
                             "Answer date could not be verified from citation quotes."
@@ -736,7 +749,9 @@ async def chat(
             fallback = _attempt_admissions_deadline_rule_answer(query, chunks)
             if fallback:
                 raw_answer, valid_citations = fallback
-                date_verified = _date_claims_supported(raw_answer.get("answer", ""), valid_citations)
+                date_verified = _date_claims_supported(
+                    raw_answer.get("answer", ""), valid_citations
+                )
                 program_evidence_ok = _program_specific_evidence_supported(query, valid_citations)
 
         if is_factual and (not valid_citations or not date_verified or not program_evidence_ok):
@@ -748,7 +763,9 @@ async def chat(
             raw_answer["answer"] = abstain_answer
             raw_answer["confidence"] = 0.2
             notes = raw_answer.get("notes", [])
-            notes.append("Strict cite-or-abstain policy applied due to insufficient grounded evidence.")
+            notes.append(
+                "Strict cite-or-abstain policy applied due to insufficient grounded evidence."
+            )
             if not program_evidence_ok:
                 notes.append("Program-specific evidence was missing for the requested program.")
             raw_answer["notes"] = notes
@@ -770,7 +787,7 @@ async def chat(
         if _is_factual_intent(route_result.intent, rewrite.date_sensitive) and not citations:
             confidence = min(confidence, 0.2)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stage_timings_ms["total_ms"] = int((time.perf_counter() - req_started) * 1000)
         response = ChatResponse(
             answer=raw_answer.get("answer", "I wasn't able to generate a good answer."),
@@ -796,7 +813,7 @@ async def chat(
         if use_cache:
             _response_cache.set(cache_key, response.model_dump())
         return response
-    
+
     except GuardrailViolation as e:
         detail = {
             "error": "guardrail_violation",
@@ -804,9 +821,9 @@ async def chat(
         }
         if e.retry_after_seconds:
             detail["retry_after_seconds"] = e.retry_after_seconds
-        raise HTTPException(status_code=429, detail=detail)
+        raise HTTPException(status_code=429, detail=detail) from e
 
-    except UsageLimitExceeded:
+    except UsageLimitExceeded as e:
         usage = get_usage()
         raise HTTPException(
             status_code=429,
@@ -815,5 +832,5 @@ async def chat(
                 "message": f"API usage limit exceeded. Current: ${usage['total_cost']:.4f}, Limit: ${usage['limit']:.2f}",
                 "total_cost": usage["total_cost"],
                 "limit": usage["limit"],
-            }
-        )
+            },
+        ) from e

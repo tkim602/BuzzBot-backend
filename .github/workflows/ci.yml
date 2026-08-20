@@ -31,4 +31,3 @@ jobs:
         env:
           LLM_PROVIDER: openai
           DATABASE_URL: "postgresql+asyncpg://test:test@localhost:5432/test"
-          DATABASE_URL_SYNC: "postgresql://test:test@localhost:5432/test"

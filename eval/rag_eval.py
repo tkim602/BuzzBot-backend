@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import time
 from pathlib import Path
 
@@ -42,9 +41,7 @@ def evaluate_response(question: dict, response: dict) -> dict:
         result["intent_match"] = result["expected_intent"] == result["actual_intent"]
 
     # Check citation validity (quotes should be non-empty)
-    valid_citations = sum(
-        1 for c in response.get("citations", []) if c.get("quote", "").strip()
-    )
+    valid_citations = sum(1 for c in response.get("citations", []) if c.get("quote", "").strip())
     result["valid_citation_count"] = valid_citations
 
     return result
@@ -110,13 +107,19 @@ def run_eval() -> None:
         cit_total = sum(r.get("citation_count", 0) for r in successful)
         avg_confidence = sum(r.get("confidence", 0) for r in successful) / len(successful)
 
-        print(f"Intent match rate: {intent_matches}/{len(successful)} ({intent_matches/len(successful)*100:.0f}%)")
-        print(f"Retrieval hit rate (has citations): {with_citations}/{len(successful)} ({with_citations/len(successful)*100:.0f}%)")
+        print(
+            f"Intent match rate: {intent_matches}/{len(successful)} ({intent_matches / len(successful) * 100:.0f}%)"
+        )
+        print(
+            f"Retrieval hit rate (has citations): {with_citations}/{len(successful)} ({with_citations / len(successful) * 100:.0f}%)"
+        )
         print(f"Citation validity rate: {valid_cit_total}/{cit_total if cit_total else 1}")
         print(f"Avg confidence: {avg_confidence:.2f}")
 
     if latencies:
-        print(f"Latency — min: {min(latencies):.2f}s | avg: {sum(latencies)/len(latencies):.2f}s | max: {max(latencies):.2f}s")
+        print(
+            f"Latency — min: {min(latencies):.2f}s | avg: {sum(latencies) / len(latencies):.2f}s | max: {max(latencies):.2f}s"
+        )
 
     # Write results
     out_path = Path(__file__).parent / "eval_results.json"

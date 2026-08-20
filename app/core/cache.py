@@ -49,4 +49,3 @@ class TTLCache(Generic[T]):
             self._data.pop(k, None)
         while len(self._data) > self.max_size:
             self._data.popitem(last=False)
-

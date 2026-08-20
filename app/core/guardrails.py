@@ -143,4 +143,3 @@ async def acquire_chat_slot():
         yield
     finally:
         _chat_semaphore.release()
-

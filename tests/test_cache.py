@@ -30,4 +30,3 @@ def test_cache_lru_eviction():
     assert cache.get("b") is None
     assert cache.get("a") == "1"
     assert cache.get("c") == "3"
-

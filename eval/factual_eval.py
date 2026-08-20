@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import json
-import re
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import httpx
@@ -174,7 +173,9 @@ def run_case(client: httpx.Client, case: dict) -> CaseResult:
                     latency_s=round(elapsed, 2),
                 )
             else:
-                tr = TurnResult(query=query, error=f"HTTP {resp.status_code}", latency_s=round(elapsed, 2))
+                tr = TurnResult(
+                    query=query, error=f"HTTP {resp.status_code}", latency_s=round(elapsed, 2)
+                )
         except Exception as exc:
             elapsed = time.time() - start
             tr = TurnResult(query=query, error=str(exc), latency_s=round(elapsed, 2))
@@ -216,9 +217,11 @@ def run_eval() -> None:
             results.append(cr)
             status = "PASS" if cr.pass_ else "FAIL"
             last_turn = cr.turns[-1]
-            print(f"  [{cr.id}] {status} | kw={cr.keyword_hits}/{cr.keyword_total} "
-                  f"conf={last_turn.confidence:.2f} cit={last_turn.citation_count} "
-                  f"lat={last_turn.latency_s}s | {cr.description}")
+            print(
+                f"  [{cr.id}] {status} | kw={cr.keyword_hits}/{cr.keyword_total} "
+                f"conf={last_turn.confidence:.2f} cit={last_turn.citation_count} "
+                f"lat={last_turn.latency_s}s | {cr.description}"
+            )
             if not cr.pass_:
                 snippet = (last_turn.answer or last_turn.error or "")[:120]
                 print(f"         rewrite: {last_turn.rewritten_query}")
@@ -256,15 +259,15 @@ def run_eval() -> None:
             "rate": cat_pass / len(cat_results) if cat_results else 0,
         }
 
-    print(f"Overall pass rate:    {passed}/{total} ({passed/total*100:.0f}%)")
-    print(f"Answer rate:          {answered}/{total} ({answered/total*100:.0f}%)")
-    print(f"Citation rate:        {cited}/{total} ({cited/total*100:.0f}%)")
+    print(f"Overall pass rate:    {passed}/{total} ({passed / total * 100:.0f}%)")
+    print(f"Answer rate:          {answered}/{total} ({answered / total * 100:.0f}%)")
+    print(f"Citation rate:        {cited}/{total} ({cited / total * 100:.0f}%)")
     print(f"Avg keyword recall:   {avg_precision:.2f}")
     print(f"Avg confidence:       {avg_confidence:.2f}")
-    print(f"Avg latency:          {sum(latencies)/len(latencies):.2f}s")
+    print(f"Avg latency:          {sum(latencies) / len(latencies):.2f}s")
     print()
     for cat, stats in cat_stats.items():
-        print(f"  {cat:20s} {stats['passed']}/{stats['total']} ({stats['rate']*100:.0f}%)")
+        print(f"  {cat:20s} {stats['passed']}/{stats['total']} ({stats['rate'] * 100:.0f}%)")
 
     # Write detailed results
     out = {

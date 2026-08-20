@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
 
 from app.core.config import settings
 from app.rag.retrieval import RetrievedChunk, rerank_chunks_by_embedding
-from ingestion.extract import extract_content
 from ingestion.chunk import chunk_text
+from ingestion.extract import extract_content
 
 logger = structlog.get_logger(__name__)
 
@@ -74,7 +74,7 @@ async def live_fetch_for_query(
                 if not extracted.success or not extracted.text:
                     continue
 
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 text_chunks = chunk_text(
                     extracted.text,
                     chunk_size=500,

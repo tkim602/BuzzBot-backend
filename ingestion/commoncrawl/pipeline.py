@@ -8,30 +8,30 @@ import sys
 from pathlib import Path
 
 import structlog
-from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-load_dotenv()
 
+from datetime import UTC
+
+from db.session import SyncSessionLocal
+from ingestion.chunk import chunk_text
 from ingestion.commoncrawl.cdx_client import DOMAIN_ALLOWLIST, query_cdx
 from ingestion.commoncrawl.warc_fetch import fetch_warc_record
 from ingestion.extract import extract_content
-from ingestion.chunk import chunk_text
-from ingestion.normalize import normalize_url, content_hash
 from ingestion.index import (
     get_embedding_function,
     index_chunks,
     upsert_document,
     upsert_source,
 )
-from db.session import SyncSessionLocal
+from ingestion.normalize import content_hash, normalize_url
 
 logger = structlog.get_logger(__name__)
 
 
 async def run_commoncrawl_pipeline(max_per_domain: int = 50) -> dict:
     """Run Common Crawl pipeline for allowlisted domains."""
-    if not os.getenv("ENABLE_COMMONCRAWL", "false").lower() == "true":
+    if os.getenv("ENABLE_COMMONCRAWL", "false").lower() != "true":
         logger.info("Common Crawl disabled")
         return {"status": "disabled"}
 
@@ -65,8 +65,12 @@ async def run_commoncrawl_pipeline(max_per_domain: int = 50) -> dict:
                 c_hash = content_hash(extracted.text)
 
                 doc_id = upsert_document(
-                    session, source_id, canonical, extracted.title,
-                    extracted.text, c_hash,
+                    session,
+                    source_id,
+                    canonical,
+                    extracted.title,
+                    extracted.text,
+                    c_hash,
                 )
 
                 chunks = chunk_text(
@@ -74,10 +78,18 @@ async def run_commoncrawl_pipeline(max_per_domain: int = 50) -> dict:
                     metadata={"url": canonical, "source": f"commoncrawl-{domain}"},
                 )
 
-                from datetime import datetime, timezone
+                from datetime import datetime
+
                 index_chunks(
-                    session, doc_id, source_id, chunks, canonical,
-                    extracted.title, None, datetime.now(timezone.utc), embed_fn,
+                    session,
+                    doc_id,
+                    source_id,
+                    chunks,
+                    canonical,
+                    extracted.title,
+                    None,
+                    datetime.now(UTC),
+                    embed_fn,
                 )
                 stats["documents_indexed"] += 1
 

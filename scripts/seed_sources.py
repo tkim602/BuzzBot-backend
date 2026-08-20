@@ -6,10 +6,8 @@ import sys
 from pathlib import Path
 
 import yaml
-from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-load_dotenv()
 
 from db.models import Source
 from db.session import SyncSessionLocal

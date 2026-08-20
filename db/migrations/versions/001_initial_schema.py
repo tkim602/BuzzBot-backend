@@ -4,16 +4,17 @@ Revision ID: 001
 Revises: None
 Create Date: 2025-01-01 00:00:00.000000
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from pgvector.sqlalchemy import Vector
 
 revision: str = "001"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -60,9 +61,7 @@ def upgrade() -> None:
     op.create_table(
         "chunks",
         sa.Column("chunk_id", sa.UUID(), primary_key=True),
-        sa.Column(
-            "doc_id", sa.UUID(), sa.ForeignKey("documents.doc_id"), nullable=False
-        ),
+        sa.Column("doc_id", sa.UUID(), sa.ForeignKey("documents.doc_id"), nullable=False),
         sa.Column("source_id", sa.UUID(), nullable=False),
         sa.Column("url", sa.String(2048), nullable=True),
         sa.Column("title", sa.String(1024), nullable=True),

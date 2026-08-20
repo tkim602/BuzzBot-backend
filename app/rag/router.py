@@ -6,51 +6,150 @@ import re
 from dataclasses import dataclass
 
 CALENDAR_KEYWORDS = [
-    "deadline", "registration", "register", "calendar", "drop", "add",
-    "withdrawal", "final exam", "commencement", "holiday", "break",
-    "midterm", "academic year", "tentative", "exam matrix",
-    "학사일정", "등록", "수강신청", "마감", "기말고사", "졸업식",
+    "deadline",
+    "registration",
+    "register",
+    "calendar",
+    "drop",
+    "add",
+    "withdrawal",
+    "final exam",
+    "commencement",
+    "holiday",
+    "break",
+    "midterm",
+    "academic year",
+    "tentative",
+    "exam matrix",
+    "학사일정",
+    "등록",
+    "수강신청",
+    "마감",
+    "기말고사",
+    "졸업식",
 ]
 CATALOG_KEYWORDS = [
-    "course", "class", "credit", "prerequisite", "degree", "major",
-    "minor", "program", "curriculum", "syllabus", "description",
-    "catalog", "department", "school",
+    "course",
+    "class",
+    "credit",
+    "prerequisite",
+    "degree",
+    "major",
+    "minor",
+    "program",
+    "curriculum",
+    "syllabus",
+    "description",
+    "catalog",
+    "department",
+    "school",
 ]
 RMP_KEYWORDS = [
-    "rate my professor", "ratemyprofessor", "rmp", "professor rating",
-    "professor review", "teaching quality",
+    "rate my professor",
+    "ratemyprofessor",
+    "rmp",
+    "professor rating",
+    "professor review",
+    "teaching quality",
 ]
 FRESHNESS_KEYWORDS = [
-    "deadline", "when", "date", "current", "this semester", "upcoming",
-    "next", "today", "tomorrow", "registration date",
-    "언제", "오늘", "내일", "현재", "최신",
+    "deadline",
+    "when",
+    "date",
+    "current",
+    "this semester",
+    "upcoming",
+    "next",
+    "today",
+    "tomorrow",
+    "registration date",
+    "언제",
+    "오늘",
+    "내일",
+    "현재",
+    "최신",
 ]
 SCHEDULE_KEYWORDS = [
-    "offer", "offered", "offering", "available", "availability",
-    "section", "sections", "crn", "seat", "seats", "waitlist",
-    "instructor", "professor", "time", "times", "location", "schedule",
-    "개설", "열리", "강의", "수업", "시간표", "좌석", "담당교수",
+    "offer",
+    "offered",
+    "offering",
+    "available",
+    "availability",
+    "section",
+    "sections",
+    "crn",
+    "seat",
+    "seats",
+    "waitlist",
+    "instructor",
+    "professor",
+    "time",
+    "times",
+    "location",
+    "schedule",
+    "개설",
+    "열리",
+    "강의",
+    "수업",
+    "시간표",
+    "좌석",
+    "담당교수",
 ]
 TERM_KEYWORDS = [
-    "spring", "summer", "fall", "semester", "term",
-    "봄", "여름", "가을", "학기",
+    "spring",
+    "summer",
+    "fall",
+    "semester",
+    "term",
+    "봄",
+    "여름",
+    "가을",
+    "학기",
 ]
 COURSE_CODE_RE = re.compile(r"\b([a-z]{2,4})\s*-?\s*(\d{4}[a-z]?)\b", re.IGNORECASE)
 COURSE_CODE_STOPWORDS = {
-    "spring", "summer", "fall", "term", "year", "this", "next", "last", "the",
+    "spring",
+    "summer",
+    "fall",
+    "term",
+    "year",
+    "this",
+    "next",
+    "last",
+    "the",
 }
 LIBRARY_KEYWORDS = [
-    "library", "libraries", "interlibrary", "study room", "borrow", "loan",
-    "도서관", "대출", "스터디룸",
+    "library",
+    "libraries",
+    "interlibrary",
+    "study room",
+    "borrow",
+    "loan",
+    "도서관",
+    "대출",
+    "스터디룸",
 ]
 ADMISSION_DEADLINE_KEYWORDS = [
-    "application deadline", "admission deadline", "deadline to apply",
+    "application deadline",
+    "admission deadline",
+    "deadline to apply",
 ]
 ADMISSION_CONTEXT_KEYWORDS = [
-    "omscs", "mscs", "graduate admission", "grad admission", "admission", "apply", "application",
+    "omscs",
+    "mscs",
+    "graduate admission",
+    "grad admission",
+    "admission",
+    "apply",
+    "application",
 ]
 REGISTRAR_PRIORITY_KEYWORDS = [
-    "register", "registration", "add/drop", "withdraw", "withdrawal", "academic calendar",
+    "register",
+    "registration",
+    "add/drop",
+    "withdraw",
+    "withdrawal",
+    "academic calendar",
 ]
 
 
@@ -100,7 +199,9 @@ def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
         has_admission_context and ("deadline" in q or "apply" in q or "application" in q)
     ):
         has_omscs_token = bool(re.search(r"\bomscs\b", q))
-        has_mscs_token = bool(re.search(r"\bmscs\b", q)) or "master of science in computer science" in q
+        has_mscs_token = (
+            bool(re.search(r"\bmscs\b", q)) or "master of science in computer science" in q
+        )
         if has_mscs_token and not has_omscs_token:
             admission_sources = ["gt-catalog", "gt-grad", "gt-admission"]
         elif has_omscs_token:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from urllib.parse import urldefrag, urljoin, urlparse, urlunparse
+from urllib.parse import urldefrag, urlparse, urlunparse
 
 
 def normalize_url(url: str) -> str:
@@ -33,7 +33,11 @@ def extract_headings(text: str) -> list[str]:
     for line in text.split("\n"):
         stripped = line.strip()
         # Short, title-case-ish lines are likely headings
-        if stripped and len(stripped) < 200 and stripped[0].isupper():
-            if re.match(r"^[A-Z][^.!?]*$", stripped):
-                headings.append(stripped)
+        if (
+            stripped
+            and len(stripped) < 200
+            and stripped[0].isupper()
+            and re.match(r"^[A-Z][^.!?]*$", stripped)
+        ):
+            headings.append(stripped)
     return headings[:20]

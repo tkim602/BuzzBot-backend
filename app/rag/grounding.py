@@ -58,9 +58,8 @@ def check_grounding(
                     break
 
         # Fallback: check all chunks
-        if not grounded:
-            if (not url) and _is_grounded(quote, all_text, min_overlap_ratio):
-                grounded = True
+        if not grounded and (not url) and _is_grounded(quote, all_text, min_overlap_ratio):
+            grounded = True
 
         if grounded:
             valid.append(cit)

@@ -6,10 +6,6 @@ import asyncio
 import time
 from statistics import mean
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 from app.rag.retrieval import get_query_embedding, hybrid_retrieve
 from db.session import AsyncSessionLocal
 
@@ -43,4 +39,3 @@ async def run(iterations: int = 8) -> None:
 
 if __name__ == "__main__":
     asyncio.run(run())
-

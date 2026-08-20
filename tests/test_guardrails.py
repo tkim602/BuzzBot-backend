@@ -53,4 +53,3 @@ def test_per_minute_limit():
         limiter.enforce("c2", "q2")
         with pytest.raises(GuardrailViolation):
             limiter.enforce("c2", "q3")
-

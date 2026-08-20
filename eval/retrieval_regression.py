@@ -7,12 +7,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from app.rag.router import classify_query
 from app.rag.retrieval import get_query_embedding, hybrid_retrieve
+from app.rag.router import classify_query
 from db.session import AsyncSessionLocal
 
 
@@ -59,7 +55,11 @@ async def run() -> dict:
                 similarity_threshold=0.3,
             )
             top_source = chunks[0].source_name if chunks else None
-            blob = "\n".join((c.title or "") + "\n" + c.chunk_text for c in chunks[:3]) if chunks else ""
+            blob = (
+                "\n".join((c.title or "") + "\n" + c.chunk_text for c in chunks[:3])
+                if chunks
+                else ""
+            )
 
             if isinstance(route.source_filter, list):
                 route_match = case.expected_source in route.source_filter
@@ -102,4 +102,3 @@ if __name__ == "__main__":
     out.write_text(json.dumps(result, indent=2, ensure_ascii=False))
     print(json.dumps(result, indent=2, ensure_ascii=False))
     print(f"\nWrote: {out}")
-

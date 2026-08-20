@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 
 import structlog
 import trafilatura
-from readability import Document as ReadabilityDoc
 from lxml import html as lxml_html
+from readability import Document as ReadabilityDoc
 
 logger = structlog.get_logger(__name__)
 
@@ -62,7 +62,9 @@ def _extract_table_rows(html: str, max_tables: int = 8, max_rows_per_table: int 
         row_nodes = table.xpath(".//tr")[1:] if headers else table.xpath(".//tr")
 
         for r_idx, row in enumerate(row_nodes[:max_rows_per_table]):
-            cells = [" ".join(" ".join(c.xpath('.//text()')).split()) for c in row.xpath("./th|./td")]
+            cells = [
+                " ".join(" ".join(c.xpath(".//text()")).split()) for c in row.xpath("./th|./td")
+            ]
             cells = [c for c in cells if c]
             if not cells:
                 continue

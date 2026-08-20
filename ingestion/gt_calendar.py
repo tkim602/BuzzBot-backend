@@ -4,15 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
-from dotenv import load_dotenv
-
-load_dotenv()
 
 from db.models import Chunk, Document, Embedding, Source
 from db.session import SyncSessionLocal
@@ -51,19 +46,25 @@ def parse_pdf_calendar(pdf_path: Path) -> list[dict]:
                             continue
                         # Try to parse: typically Date | Event or Date | Category | Event
                         if len(cells) >= 3 and cells[1] and cells[2]:
-                            events.append({
-                                "date": cells[0],
-                                "category": cells[1],
-                                "event": cells[2],
-                                "description": cells[3] if len(cells) > 3 and cells[3] else cells[2],
-                            })
+                            events.append(
+                                {
+                                    "date": cells[0],
+                                    "category": cells[1],
+                                    "event": cells[2],
+                                    "description": cells[3]
+                                    if len(cells) > 3 and cells[3]
+                                    else cells[2],
+                                }
+                            )
                         elif len(cells) >= 2 and cells[0] and cells[1]:
-                            events.append({
-                                "date": cells[0],
-                                "category": "General",
-                                "event": cells[1],
-                                "description": cells[1],
-                            })
+                            events.append(
+                                {
+                                    "date": cells[0],
+                                    "category": "General",
+                                    "event": cells[1],
+                                    "description": cells[1],
+                                }
+                            )
     except Exception as e:
         logger.error("failed to parse PDF", path=str(pdf_path), error=str(e))
 
@@ -130,21 +131,19 @@ def ingest_calendar() -> dict:
                 source_id=source_id,
                 canonical_url=doc_url,
                 title="GT Academic Calendar — All Semesters",
-                fetched_at=datetime.now(timezone.utc),
+                fetched_at=datetime.now(UTC),
             )
             session.add(doc)
             session.flush()
         else:
-            doc.fetched_at = datetime.now(timezone.utc)
+            doc.fetched_at = datetime.now(UTC)
             session.flush()
 
         doc_id = doc.doc_id
 
         # Delete existing chunks for this document
         session.query(Embedding).filter(
-            Embedding.chunk_id.in_(
-                session.query(Chunk.chunk_id).filter(Chunk.doc_id == doc_id)
-            )
+            Embedding.chunk_id.in_(session.query(Chunk.chunk_id).filter(Chunk.doc_id == doc_id))
         ).delete(synchronize_session=False)
         session.query(Chunk).filter(Chunk.doc_id == doc_id).delete()
         session.flush()
@@ -194,7 +193,7 @@ def ingest_calendar() -> dict:
                     stats["errors"] += len(batch_chunks)
                     continue
 
-                for chunk_data, embedding in zip(batch_chunks, embeddings):
+                for chunk_data, embedding in zip(batch_chunks, embeddings, strict=True):
                     chunk_hash = hashlib.sha256(chunk_data["text"].encode()).hexdigest()[:16]
 
                     chunk = Chunk(
@@ -205,7 +204,7 @@ def ingest_calendar() -> dict:
                         chunk_text=chunk_data["text"],
                         chunk_hash=chunk_hash,
                         token_count=len(chunk_data["text"].split()),
-                        fetched_at=datetime.now(timezone.utc),
+                        fetched_at=datetime.now(UTC),
                         metadata_json=chunk_data["metadata"],
                     )
                     session.add(chunk)

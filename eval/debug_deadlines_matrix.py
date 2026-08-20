@@ -6,10 +6,6 @@ import asyncio
 import json
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-load_dotenv(".env")
-
 from app.core.config import settings
 from app.rag.query_rewrite import rewrite_query
 from app.rag.retrieval import get_query_embedding, hybrid_retrieve

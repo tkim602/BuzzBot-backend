@@ -4,20 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import re
-import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
 import yaml
-from dotenv import load_dotenv
-
-# Ensure project root is importable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-load_dotenv()
 
 from db.session import SyncSessionLocal
 from ingestion.chunk import chunk_text
@@ -163,8 +155,14 @@ def process_source(
             if result.error or not result.html:
                 stats["failed"].append({"url": result.url, "error": result.error or "no content"})
                 update_fetch_state(
-                    session, result.url, source_id, None, None, None,
-                    status="error", error=result.error,
+                    session,
+                    result.url,
+                    source_id,
+                    None,
+                    None,
+                    None,
+                    status="error",
+                    error=result.error,
                 )
                 continue
 
@@ -175,7 +173,12 @@ def process_source(
             if not extracted.success or not extracted.text:
                 stats["failed"].append({"url": result.url, "error": "extraction failed"})
                 update_fetch_state(
-                    session, result.url, source_id, result.etag, result.last_modified, None,
+                    session,
+                    result.url,
+                    source_id,
+                    result.etag,
+                    result.last_modified,
+                    None,
                     status="extract_failed",
                 )
                 continue
@@ -187,12 +190,18 @@ def process_source(
 
             # Upsert document
             doc_id = upsert_document(
-                session, source_id, canonical, extracted.title,
-                extracted.text, c_hash, result.etag, result.last_modified,
+                session,
+                source_id,
+                canonical,
+                extracted.title,
+                extracted.text,
+                c_hash,
+                result.etag,
+                result.last_modified,
             )
 
             # Chunk
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             base_content_type = _infer_content_type(
                 canonical,
                 extracted.title,
@@ -236,16 +245,27 @@ def process_source(
 
             # Index
             num_indexed = index_chunks(
-                session, doc_id, source_id, chunks, canonical,
-                extracted.title, "\n".join(headings) if headings else None,
-                now, embed_fn,
+                session,
+                doc_id,
+                source_id,
+                chunks,
+                canonical,
+                extracted.title,
+                "\n".join(headings) if headings else None,
+                now,
+                embed_fn,
             )
             stats["indexed"] += num_indexed
 
             # Update fetch state
             update_fetch_state(
-                session, result.url, source_id, result.etag,
-                result.last_modified, c_hash, status="success",
+                session,
+                result.url,
+                source_id,
+                result.etag,
+                result.last_modified,
+                c_hash,
+                status="success",
             )
 
         session.commit()
@@ -306,7 +326,7 @@ async def main() -> None:
     ARTIFACTS_DIR.mkdir(exist_ok=True)
     with open(ARTIFACTS_DIR / "manifest.json", "w") as f:
         json.dump(
-            {"run_at": datetime.now(timezone.utc).isoformat(), "sources": manifest},
+            {"run_at": datetime.now(UTC).isoformat(), "sources": manifest},
             f,
             indent=2,
         )

@@ -56,6 +56,11 @@ line-length = 100
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+"app/core/guardrails.py" = ["N818"]
+"ingestion/commoncrawl/pipeline.py" = ["E402"]
+"scripts/seed_sources.py" = ["E402"]
+
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true

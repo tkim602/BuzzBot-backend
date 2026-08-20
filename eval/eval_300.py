@@ -34,7 +34,9 @@ def load_questions() -> list[dict]:
     return questions
 
 
-def send_query(client: httpx.Client, query: str, history: list[dict] | None = None) -> tuple[dict | None, float, str | None]:
+def send_query(
+    client: httpx.Client, query: str, history: list[dict] | None = None
+) -> tuple[dict | None, float, str | None]:
     """Send a query and return (response_json, latency, error)."""
     if not query.strip():
         return None, 0.0, "empty_query"
@@ -71,9 +73,18 @@ def evaluate_case(q: dict, data: dict | None, latency: float, error: str | None)
     }
 
     if error or data is None:
-        result.update({"pass": False, "keyword_hits": 0, "keyword_total": 0,
-                       "keyword_recall": 0.0, "intent_match": False,
-                       "has_answer": False, "has_citations": False, "confidence": 0.0})
+        result.update(
+            {
+                "pass": False,
+                "keyword_hits": 0,
+                "keyword_total": 0,
+                "keyword_recall": 0.0,
+                "intent_match": False,
+                "has_answer": False,
+                "has_citations": False,
+                "confidence": 0.0,
+            }
+        )
         return result
 
     answer = data.get("answer", "")
@@ -96,20 +107,22 @@ def evaluate_case(q: dict, data: dict | None, latency: float, error: str | None)
     # Pass if we have an answer AND (keyword recall >= 0.5 OR no keywords expected)
     passed = has_answer and (recall >= 0.5 or total == 0)
 
-    result.update({
-        "pass": passed,
-        "keyword_hits": hits,
-        "keyword_total": total,
-        "keyword_recall": round(recall, 3),
-        "intent_match": intent_ok,
-        "actual_intent": actual_intent,
-        "has_answer": has_answer,
-        "has_citations": has_citations,
-        "confidence": confidence,
-        "answer_snippet": answer[:200],
-        "rewritten_query": rewritten,
-        "citation_count": len(citations),
-    })
+    result.update(
+        {
+            "pass": passed,
+            "keyword_hits": hits,
+            "keyword_total": total,
+            "keyword_recall": round(recall, 3),
+            "intent_match": intent_ok,
+            "actual_intent": actual_intent,
+            "has_answer": has_answer,
+            "has_citations": has_citations,
+            "confidence": confidence,
+            "answer_snippet": answer[:200],
+            "rewritten_query": rewritten,
+            "citation_count": len(citations),
+        }
+    )
     return result
 
 
@@ -168,10 +181,14 @@ def run_eval() -> None:
             if n_done % 10 == 0 or status_char != ".":
                 pct = n_done / total * 100
                 if status_char != ".":
-                    print(f"  [{n_done:3d}/{total}] {status_char} {q['id']:20s} kw={r['keyword_hits']}/{r['keyword_total']} "
-                          f"conf={r['confidence']:.1f} | {query[:60]}")
+                    print(
+                        f"  [{n_done:3d}/{total}] {status_char} {q['id']:20s} kw={r['keyword_hits']}/{r['keyword_total']} "
+                        f"conf={r['confidence']:.1f} | {query[:60]}"
+                    )
                 else:
-                    print(f"  [{n_done:3d}/{total}] {pct:5.1f}% done — {n_pass}P/{n_fail}F/{n_error}E")
+                    print(
+                        f"  [{n_done:3d}/{total}] {pct:5.1f}% done — {n_pass}P/{n_fail}F/{n_error}E"
+                    )
 
     # ========================= AGGREGATE METRICS =========================
     print("\n" + "=" * 80)
@@ -184,14 +201,18 @@ def run_eval() -> None:
     # Overall
     pass_rate = n_pass / total if total else 0
     answer_rate = sum(1 for r in successful if r["has_answer"]) / total if total else 0
-    citation_rate = sum(1 for r in successful if r["has_citations"]) / len(successful) if successful else 0
+    citation_rate = (
+        sum(1 for r in successful if r["has_citations"]) / len(successful) if successful else 0
+    )
     intent_matches = sum(1 for r in successful if r.get("intent_match"))
     intent_rate = intent_matches / len(successful) if successful else 0
 
     # Keyword recall (precision proxy)
     total_kw_hits = sum(r["keyword_hits"] for r in with_keywords)
     total_kw_expected = sum(r["keyword_total"] for r in with_keywords)
-    macro_recall = sum(r["keyword_recall"] for r in with_keywords) / len(with_keywords) if with_keywords else 0
+    macro_recall = (
+        sum(r["keyword_recall"] for r in with_keywords) / len(with_keywords) if with_keywords else 0
+    )
     micro_recall = total_kw_hits / total_kw_expected if total_kw_expected else 0
 
     # Confidence
@@ -204,24 +225,28 @@ def run_eval() -> None:
     print(f"\nTotal questions:      {total}")
     print(f"Successful calls:     {len(successful)}")
     print(f"Errors:               {n_error}")
-    print(f"")
-    print(f"Pass rate:            {n_pass}/{total} ({pass_rate*100:.1f}%)")
-    print(f"Answer rate:          {answer_rate*100:.1f}%")
-    print(f"Intent match rate:    {intent_matches}/{len(successful)} ({intent_rate*100:.1f}%)")
-    print(f"Citation rate:        {citation_rate*100:.1f}%")
-    print(f"")
+    print("")
+    print(f"Pass rate:            {n_pass}/{total} ({pass_rate * 100:.1f}%)")
+    print(f"Answer rate:          {answer_rate * 100:.1f}%")
+    print(f"Intent match rate:    {intent_matches}/{len(successful)} ({intent_rate * 100:.1f}%)")
+    print(f"Citation rate:        {citation_rate * 100:.1f}%")
+    print("")
     print(f"Keyword recall (macro avg): {macro_recall:.3f}")
     print(f"Keyword recall (micro avg): {micro_recall:.3f}")
     print(f"Avg confidence:       {avg_confidence:.3f}")
-    print(f"")
+    print("")
     if latencies:
         p50 = latencies[len(latencies) // 2]
         p95 = latencies[int(len(latencies) * 0.95)]
-        print(f"Latency — min: {min(latencies):.1f}s  avg: {sum(latencies)/len(latencies):.1f}s  "
-              f"p50: {p50:.1f}s  p95: {p95:.1f}s  max: {max(latencies):.1f}s")
+        print(
+            f"Latency — min: {min(latencies):.1f}s  avg: {sum(latencies) / len(latencies):.1f}s  "
+            f"p50: {p50:.1f}s  p95: {p95:.1f}s  max: {max(latencies):.1f}s"
+        )
 
     # ========================= PER-CATEGORY BREAKDOWN =========================
-    print(f"\n{'CATEGORY':<25s} {'PASS':>6s} {'TOTAL':>6s} {'RATE':>7s} {'KW_REC':>7s} {'INTENT':>7s} {'CIT':>6s} {'CONF':>6s}")
+    print(
+        f"\n{'CATEGORY':<25s} {'PASS':>6s} {'TOTAL':>6s} {'RATE':>7s} {'KW_REC':>7s} {'INTENT':>7s} {'CIT':>6s} {'CONF':>6s}"
+    )
     print("-" * 80)
 
     cat_groups: dict[str, list[dict]] = defaultdict(list)
@@ -236,23 +261,31 @@ def run_eval() -> None:
         cat_kw = [r for r in group if r["keyword_total"] > 0 and not r.get("error")]
         cat_recall = sum(r["keyword_recall"] for r in cat_kw) / len(cat_kw) if cat_kw else 0
         cat_succ = [r for r in group if not r.get("error")]
-        cat_intent = sum(1 for r in cat_succ if r.get("intent_match")) / len(cat_succ) if cat_succ else 0
-        cat_cit = sum(1 for r in cat_succ if r.get("has_citations")) / len(cat_succ) if cat_succ else 0
+        cat_intent = (
+            sum(1 for r in cat_succ if r.get("intent_match")) / len(cat_succ) if cat_succ else 0
+        )
+        cat_cit = (
+            sum(1 for r in cat_succ if r.get("has_citations")) / len(cat_succ) if cat_succ else 0
+        )
         cat_conf = sum(r.get("confidence", 0) for r in cat_succ) / len(cat_succ) if cat_succ else 0
-        print(f"  {cat:<23s} {cat_pass:>6d} {cat_total:>6d} {cat_rate*100:>6.1f}% {cat_recall:>6.3f} {cat_intent*100:>6.1f}% {cat_cit*100:>5.1f}% {cat_conf:>5.2f}")
+        print(
+            f"  {cat:<23s} {cat_pass:>6d} {cat_total:>6d} {cat_rate * 100:>6.1f}% {cat_recall:>6.3f} {cat_intent * 100:>6.1f}% {cat_cit * 100:>5.1f}% {cat_conf:>5.2f}"
+        )
 
     # ========================= FAILURES DETAIL =========================
     failures = [r for r in results if not r["pass"] and not r.get("error")]
     if failures:
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print(f"FAILED CASES ({len(failures)})")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
         for r in failures[:30]:  # Show first 30 failures
-            print(f"  [{r['id']}] kw={r['keyword_hits']}/{r['keyword_total']} "
-                  f"intent={r.get('actual_intent','?')} conf={r['confidence']:.1f}")
+            print(
+                f"  [{r['id']}] kw={r['keyword_hits']}/{r['keyword_total']} "
+                f"intent={r.get('actual_intent', '?')} conf={r['confidence']:.1f}"
+            )
             print(f"    Q: {r['query'][:80]}")
-            print(f"    A: {r.get('answer_snippet','')[:100]}")
-            print(f"    Rewrite: {r.get('rewritten_query','')[:80]}")
+            print(f"    A: {r.get('answer_snippet', '')[:100]}")
+            print(f"    Rewrite: {r.get('rewritten_query', '')[:80]}")
             print()
 
     # ========================= WRITE RESULTS =========================
@@ -285,7 +318,9 @@ def run_eval() -> None:
             "total": len(group),
             "passed": cat_pass,
             "pass_rate": round(cat_pass / len(group), 3) if group else 0,
-            "keyword_recall": round(sum(r["keyword_recall"] for r in cat_kw) / len(cat_kw), 3) if cat_kw else 0,
+            "keyword_recall": round(sum(r["keyword_recall"] for r in cat_kw) / len(cat_kw), 3)
+            if cat_kw
+            else 0,
         }
 
     with open(RESULTS_FILE, "w") as f:

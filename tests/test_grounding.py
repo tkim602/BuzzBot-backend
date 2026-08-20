@@ -1,6 +1,6 @@
 """Tests for citation grounding check."""
 
-from app.rag.grounding import check_grounding, _is_grounded
+from app.rag.grounding import _is_grounded, check_grounding
 from app.rag.retrieval import RetrievedChunk
 
 
