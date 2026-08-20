@@ -37,7 +37,7 @@ sources:
       - "/registration"
     exclude_patterns:                    # URL path must NOT match these
       - "/node/"
-    max_urls: 100                        # Cap per run
+    max_urls: 100                        # Safety ceiling; exceeding fails planning
     refresh_policy:
       schedule: daily
       method: sitemap_incremental
@@ -50,6 +50,40 @@ The pipeline uses **conditional HTTP requests** to avoid re-fetching unchanged c
 1. **ETag**: Stored per URL in `fetch_state`. Sent as `If-None-Match` header.
 2. **Last-Modified**: Sent as `If-Modified-Since` header.
 3. **Content hash**: SHA-256 of extracted text. If hash matches existing document, skip re-indexing.
+
+## Controlled Registrar and Catalog manifests
+
+Registrar and Catalog use source-specific discovery adapters. A fresh production run discovers
+the official index once, allowlists and canonicalizes every URL, deduplicates it, then checks the
+configured `max_urls` safety ceiling. URLs are never silently truncated: exceeding the ceiling
+fails before planning with `MAX_URLS_EXCEEDED`.
+
+Full source runs are operator initiated:
+
+```bash
+make sync-doc-many source=gt-registrar
+make sync-doc-many source=gt-catalog
+```
+
+The explicit verification limit is only for bounded smoke tests and is applied after the safety
+ceiling succeeds:
+
+```bash
+make sync-doc-many source=gt-registrar verification_limit=2
+make sync-doc-many source=gt-catalog verification_limit=2
+```
+
+Resume uses the immutable stored manifest and does not rediscover URLs:
+
+```bash
+make resume-doc-run source=gt-registrar run_id=<RUN_ID>
+```
+
+Each canonical URL is committed independently. Failed URL updates roll back and preserve the
+previous document, chunks, and embeddings; the runner never deletes documents implicitly.
+HTML documents must have a nonblank title and body, must not match a recognized login/block/error
+page, and must produce at least one fully embedded chunk. Quality failures are recorded as
+`EXTRACT_FAILED` with reason `QUALITY_GATE_FAILED` and leave trusted data unchanged.
 
 ```mermaid
 sequenceDiagram

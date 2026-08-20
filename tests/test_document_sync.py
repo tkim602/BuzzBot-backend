@@ -11,10 +11,14 @@ from ingestion.documents.sync import (
     DocumentSyncOutcome,
     FetchedDocument,
     _edition,
+    _is_recognized_error_page,
     _store_document,
     sync_document_source,
+    sync_document_url,
 )
+from ingestion.extract import ExtractedContent
 from ingestion.index import get_embedding_function
+from ingestion.normalize import content_hash
 
 
 def _source() -> DocumentSource:
@@ -153,6 +157,254 @@ async def test_ready_probe_allows_one_fetch_and_passes_citation_metadata(
 
 
 @pytest.mark.asyncio
+async def test_one_url_sync_fetches_once_and_uses_canonical_citation(monkeypatch):
+    calls: list[httpx.Request] = []
+    captured: dict[str, object] = {}
+    url = "https://registrar.gatech.edu/registration/holds/#details"
+    html = "<html><title>Holds</title><body>" + "official holds policy " * 20 + "</body></html>"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, text=html, request=request)
+
+    def fake_store(session, source, fetched, embed_fn):
+        captured["fetched"] = fetched
+        return True, 1
+
+    monkeypatch.setattr("ingestion.documents.sync._store_document", fake_store)
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        url,
+        lambda: nullcontext(session),
+        lambda texts: [[0.0] * 1536 for _ in texts],
+        httpx.MockTransport(handler),
+    )
+
+    assert len(calls) == result.requests_used == 1
+    assert result.outcome is DocumentSyncOutcome.INDEXED
+    fetched = captured["fetched"]
+    assert isinstance(fetched, FetchedDocument)
+    assert fetched.canonical_url == "https://registrar.gatech.edu/registration/holds"
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_rejects_outside_allowlist_without_request():
+    def forbidden(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("disallowed URL must not be requested")
+
+    result = await sync_document_url(
+        _source(),
+        "https://example.com/registration/holds",
+        lambda: nullcontext(MagicMock()),
+        lambda texts: [],
+        httpx.MockTransport(forbidden),
+    )
+
+    assert result.outcome is DocumentSyncOutcome.FETCH_FAILED
+    assert result.requests_used == 0
+    assert result.reason == "URL_NOT_ALLOWED"
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_rejects_missing_title_as_quality_failure(monkeypatch):
+    html = "<html><body>" + "official policy text " * 30 + "</body></html>"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=html, request=request)
+
+    monkeypatch.setattr(
+        "ingestion.documents.sync.extract_content",
+        lambda url, body: ExtractedContent(url, None, "official policy text " * 30),
+    )
+    monkeypatch.setattr(
+        "ingestion.documents.sync._store_document",
+        lambda *args: (_ for _ in ()).throw(AssertionError("quality failure must not store")),
+    )
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        _source().seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is DocumentSyncOutcome.EXTRACT_FAILED
+    assert result.reason == "QUALITY_GATE_FAILED"
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_rejects_recognized_login_page(monkeypatch):
+    html = """
+    <html><title>Georgia Tech Sign In</title><body>
+      <form action="/login"><input name="username"><input type="password"></form>
+      Sign in with your Georgia Tech account to continue.
+    </body></html>
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=html, request=request)
+
+    monkeypatch.setattr(
+        "ingestion.documents.sync._store_document",
+        lambda *args: (_ for _ in ()).throw(AssertionError("login page must not store")),
+    )
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        _source().seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is DocumentSyncOutcome.EXTRACT_FAILED
+    assert result.reason == "QUALITY_GATE_FAILED"
+
+
+def test_recognized_error_titles_do_not_reject_legitimate_error_documentation():
+    assert _is_recognized_error_page("<html></html>", "Access Denied")
+    assert _is_recognized_error_page("<html></html>", "Attention Required! | Cloudflare")
+    assert not _is_recognized_error_page("<html></html>", "Registration Error Messages | Registrar")
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_reports_retry_after_without_retrying_itself():
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(429, headers={"Retry-After": "30"}, request=request)
+
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        _source().seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert calls == result.requests_used == 1
+    assert result.outcome is DocumentSyncOutcome.RATE_LIMITED
+    assert result.retry_after_seconds == 30
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_follows_one_safe_canonical_redirect(monkeypatch):
+    calls: list[str] = []
+    html = (
+        "<html><title>Accounting</title><body>" + "official course catalog " * 20 + "</body></html>"
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if request.url.path == "/coursesaz/acct":
+            return httpx.Response(301, headers={"Location": "/coursesaz/acct/"}, request=request)
+        return httpx.Response(200, text=html, request=request)
+
+    source = DocumentSource(
+        "gt-catalog",
+        "course_catalog",
+        "catalog",
+        ("https://catalog.gatech.edu/coursesaz/",),
+        ("https://catalog.gatech.edu/coursesaz/",),
+        150,
+    )
+    session = MagicMock()
+    session.scalar.return_value = None
+    monkeypatch.setattr("ingestion.documents.sync._store_document", lambda *args: (True, 1))
+
+    result = await sync_document_url(
+        source,
+        "https://catalog.gatech.edu/coursesaz/acct",
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert calls == [
+        "https://catalog.gatech.edu/coursesaz/acct",
+        "https://catalog.gatech.edu/coursesaz/acct/",
+    ]
+    assert result.outcome is DocumentSyncOutcome.INDEXED
+    assert result.requests_used == 2
+
+
+@pytest.mark.asyncio
+async def test_304_repairs_invalid_chunks_from_trusted_stored_content(monkeypatch):
+    source = _source()
+    state = MagicMock(etag='"v1"', last_modified=None)
+    document = MagicMock(
+        content_text="Official registration policy details. " * 80,
+        title="Registration",
+        etag='"v1"',
+        last_modified=None,
+        doc_id="doc-id",
+    )
+    bad_chunk = MagicMock(token_count=1)
+    session = MagicMock()
+    session.scalar.side_effect = [state, document]
+    session.scalars.return_value.all.return_value = [bad_chunk]
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(304, request=request)
+
+    def fake_store(session, source, fetched, embed_fn):
+        captured["fetched"] = fetched
+        return True, 2
+
+    monkeypatch.setattr("ingestion.documents.sync._store_document", fake_store)
+    result = await sync_document_url(
+        source,
+        source.seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert result.outcome is DocumentSyncOutcome.INDEXED
+    assert result.requests_used == 1
+    assert result.chunks_indexed == 2
+    fetched = captured["fetched"]
+    assert isinstance(fetched, FetchedDocument)
+    assert fetched.text == document.content_text
+
+
+@pytest.mark.asyncio
+async def test_one_url_sync_never_follows_auth_redirect():
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(
+            302,
+            headers={"Location": "https://sso.gatech.edu/login"},
+            request=request,
+        )
+
+    session = MagicMock()
+    session.scalar.return_value = None
+    result = await sync_document_url(
+        _source(),
+        _source().seed_urls[0],
+        lambda: nullcontext(session),
+        lambda texts: [],
+        httpx.MockTransport(handler),
+    )
+
+    assert len(calls) == result.requests_used == 1
+    assert result.outcome is DocumentSyncOutcome.AUTH_REQUIRED
+
+
+@pytest.mark.asyncio
 async def test_calendar_sync_fetches_official_proxy_with_public_xhr_headers(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -260,12 +512,44 @@ def test_calendar_store_uses_short_fact_chunk_threshold(monkeypatch: pytest.Monk
 
     def fake_chunk_text(text, **kwargs):
         captured.update(kwargs)
-        return []
+        return [object()]
 
     monkeypatch.setattr("ingestion.documents.sync.chunk_text", fake_chunk_text)
-    monkeypatch.setattr("ingestion.documents.sync.index_chunks", lambda *args: 0)
+    monkeypatch.setattr("ingestion.documents.sync.index_chunks", lambda *args: 1)
     monkeypatch.setattr("ingestion.documents.sync.update_fetch_state", lambda *args: None)
 
     _store_document(session, source, fetched, lambda texts: [])
 
     assert captured["min_chunk_size"] == 10
+
+
+def test_unchanged_document_reindexes_only_when_stored_chunks_are_invalid(monkeypatch):
+    source = _source()
+    fetched = FetchedDocument(
+        source.seed_urls[0],
+        source.seed_urls[0],
+        "Registration",
+        "Official registration policy details. " * 80,
+        datetime.now(UTC),
+        None,
+        None,
+        None,
+    )
+    existing = MagicMock()
+    existing.content_hash = content_hash(fetched.text)
+    existing.doc_id = "doc-id"
+    bad_chunk = MagicMock(token_count=1, metadata_json={})
+    session = MagicMock()
+    session.scalar.return_value = existing
+    session.scalars.return_value.all.return_value = [bad_chunk]
+
+    monkeypatch.setattr("ingestion.documents.sync.upsert_source", lambda *args: "source-id")
+    monkeypatch.setattr("ingestion.documents.sync.upsert_document", lambda *args: "doc-id")
+    monkeypatch.setattr("ingestion.documents.sync.chunk_text", lambda *args, **kwargs: [object()])
+    monkeypatch.setattr("ingestion.documents.sync.index_chunks", lambda *args: 1)
+    monkeypatch.setattr("ingestion.documents.sync.update_fetch_state", lambda *args: None)
+
+    changed, indexed = _store_document(session, source, fetched, lambda texts: [])
+
+    assert changed is True
+    assert indexed == 1

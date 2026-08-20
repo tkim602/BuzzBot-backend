@@ -3,11 +3,14 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
+from urllib.parse import urljoin
 
 import httpx
+from lxml import html as lxml_html
+from lxml.etree import ParserError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -33,6 +36,12 @@ class DocumentSyncOutcome(StrEnum):
     PROBE_FAILED = "PROBE_FAILED"
     FETCH_FAILED = "FETCH_FAILED"
     EXTRACT_FAILED = "EXTRACT_FAILED"
+    RATE_LIMITED = "RATE_LIMITED"
+    AUTH_REQUIRED = "AUTH_REQUIRED"
+
+
+class DocumentQualityError(ValueError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -44,6 +53,7 @@ class DocumentSyncResult:
     changed: int = 0
     chunks_indexed: int = 0
     reason: str | None = None
+    retry_after_seconds: int | None = None
 
 
 @dataclass(frozen=True)
@@ -78,6 +88,16 @@ async def sync_document_source(
         )
 
     seed = source.seed_urls[0]
+    if source.source_type != "academic_calendar":
+        result = await sync_document_url(
+            source,
+            seed,
+            session_factory,
+            embed_fn,
+            transport,
+        )
+        return replace(result, requests_used=probe.requests_used + result.requests_used)
+
     if source.source_type == "academic_calendar":
         if probe.edition is None:
             return DocumentSyncResult(
@@ -122,58 +142,193 @@ async def sync_document_source(
             last_modified=response.headers.get("Last-Modified"),
             edition=calendar.edition,
         )
-    else:
+    try:
         with session_factory() as session:
-            headers = _conditional_headers(session, seed)
-
-        async with httpx.AsyncClient(
-            transport=transport,
-            timeout=15,
-            follow_redirects=False,
-            headers={"User-Agent": USER_AGENT, **headers},
-        ) as client:
-            response = await client.get(seed)
-        requests_used = probe.requests_used + 1
-
-        if response.status_code == 304:
-            return DocumentSyncResult(
-                source.name,
-                DocumentSyncOutcome.UNCHANGED,
-                requests_used,
-                fetched=1,
-            )
-        if response.status_code != 200 or not source.allows(str(response.url)):
-            return DocumentSyncResult(
-                source.name,
-                DocumentSyncOutcome.FETCH_FAILED,
-                requests_used,
-                reason=f"HTTP_{response.status_code}",
-            )
-
-        extracted = extract_content(seed, response.text)
-        if not extracted.success or not extracted.text:
-            return DocumentSyncResult(
-                source.name,
-                DocumentSyncOutcome.EXTRACT_FAILED,
-                requests_used,
-                fetched=1,
-                reason="EXTRACTION_FAILED",
-            )
-
-        fetched = FetchedDocument(
-            source_url=seed,
-            canonical_url=normalize_url(seed),
-            title=extracted.title,
-            text=extracted.text,
-            fetched_at=datetime.now(UTC),
-            etag=response.headers.get("ETag"),
-            last_modified=response.headers.get("Last-Modified"),
-            edition=_edition(f"{extracted.title or ''}\n{extracted.text}"),
+            changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
+            session.commit()
+    except DocumentQualityError:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.EXTRACT_FAILED,
+            requests_used,
+            fetched=1,
+            reason="QUALITY_GATE_FAILED",
         )
-    with session_factory() as session:
-        changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
-        session.commit()
 
+    return DocumentSyncResult(
+        source.name,
+        DocumentSyncOutcome.INDEXED if changed else DocumentSyncOutcome.UNCHANGED,
+        requests_used,
+        fetched=1,
+        changed=int(changed),
+        chunks_indexed=chunks_indexed,
+    )
+
+
+async def sync_document_url(
+    source: DocumentSource,
+    url: str,
+    session_factory: Callable[[], AbstractContextManager[Session]],
+    embed_fn,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> DocumentSyncResult:
+    canonical_url = normalize_url(url)
+    if not source.allows(canonical_url):
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.FETCH_FAILED,
+            0,
+            reason="URL_NOT_ALLOWED",
+        )
+
+    with session_factory() as session:
+        headers = _conditional_headers(session, canonical_url)
+    async with httpx.AsyncClient(
+        transport=transport,
+        timeout=15,
+        follow_redirects=False,
+        headers={"User-Agent": USER_AGENT, **headers},
+    ) as client:
+        response = await client.get(canonical_url)
+    requests_used = 1
+
+    if 300 <= response.status_code < 400 and response.status_code != 304:
+        target = urljoin(canonical_url, response.headers.get("Location", ""))
+        if "login" in target.lower() or "sso" in target.lower():
+            return DocumentSyncResult(
+                source.name,
+                DocumentSyncOutcome.AUTH_REQUIRED,
+                requests_used,
+                reason="AUTH_REDIRECT",
+            )
+        if source.allows(target) and normalize_url(target) == canonical_url:
+            async with httpx.AsyncClient(
+                transport=transport,
+                timeout=15,
+                follow_redirects=False,
+                headers={"User-Agent": USER_AGENT, **headers},
+            ) as client:
+                response = await client.get(target)
+            requests_used += 1
+    if response.status_code == 304:
+        with session_factory() as session:
+            document = session.scalar(
+                select(Document).where(Document.canonical_url == canonical_url)
+            )
+            if document is not None and (not document.title or not document.content_text):
+                return DocumentSyncResult(
+                    source.name,
+                    DocumentSyncOutcome.EXTRACT_FAILED,
+                    requests_used,
+                    fetched=1,
+                    reason="QUALITY_GATE_FAILED",
+                )
+            if document is not None and document.content_text:
+                stored_chunks = session.scalars(
+                    select(Chunk).where(Chunk.doc_id == document.doc_id)
+                ).all()
+                min_chunk_size = 10 if source.source_type == "academic_calendar" else 50
+                if not stored_chunks or any(
+                    chunk.token_count < min_chunk_size for chunk in stored_chunks
+                ):
+                    fetched = FetchedDocument(
+                        source_url=canonical_url,
+                        canonical_url=canonical_url,
+                        title=document.title,
+                        text=document.content_text,
+                        fetched_at=datetime.now(UTC),
+                        etag=response.headers.get("ETag") or document.etag,
+                        last_modified=(
+                            response.headers.get("Last-Modified") or document.last_modified
+                        ),
+                        edition=_edition(f"{document.title or ''}\n{document.content_text}"),
+                    )
+                    try:
+                        changed, chunks_indexed = _store_document(
+                            session, source, fetched, embed_fn
+                        )
+                        session.commit()
+                    except DocumentQualityError:
+                        return DocumentSyncResult(
+                            source.name,
+                            DocumentSyncOutcome.EXTRACT_FAILED,
+                            requests_used,
+                            fetched=1,
+                            reason="QUALITY_GATE_FAILED",
+                        )
+                    return DocumentSyncResult(
+                        source.name,
+                        DocumentSyncOutcome.INDEXED,
+                        requests_used,
+                        fetched=1,
+                        changed=int(changed),
+                        chunks_indexed=chunks_indexed,
+                    )
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.UNCHANGED,
+            requests_used,
+            fetched=1,
+        )
+    if response.status_code == 429:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.RATE_LIMITED,
+            requests_used,
+            reason="HTTP_429",
+            retry_after_seconds=_retry_after_seconds(response.headers.get("Retry-After")),
+        )
+    if response.status_code != 200 or not source.allows(str(response.url)):
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.FETCH_FAILED,
+            requests_used,
+            reason=f"HTTP_{response.status_code}",
+        )
+
+    extracted = extract_content(canonical_url, response.text)
+    if not extracted.success or not extracted.text:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.EXTRACT_FAILED,
+            requests_used,
+            fetched=1,
+            reason="EXTRACTION_FAILED",
+        )
+    if (
+        not extracted.title
+        or not extracted.title.strip()
+        or _is_recognized_error_page(response.text, extracted.title)
+    ):
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.EXTRACT_FAILED,
+            requests_used,
+            fetched=1,
+            reason="QUALITY_GATE_FAILED",
+        )
+    fetched = FetchedDocument(
+        source_url=canonical_url,
+        canonical_url=canonical_url,
+        title=extracted.title,
+        text=extracted.text,
+        fetched_at=datetime.now(UTC),
+        etag=response.headers.get("ETag"),
+        last_modified=response.headers.get("Last-Modified"),
+        edition=_edition(f"{extracted.title or ''}\n{extracted.text}"),
+    )
+    try:
+        with session_factory() as session:
+            changed, chunks_indexed = _store_document(session, source, fetched, embed_fn)
+            session.commit()
+    except DocumentQualityError:
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.EXTRACT_FAILED,
+            requests_used,
+            fetched=1,
+            reason="QUALITY_GATE_FAILED",
+        )
     return DocumentSyncResult(
         source.name,
         DocumentSyncOutcome.INDEXED if changed else DocumentSyncOutcome.UNCHANGED,
@@ -200,6 +355,8 @@ def _store_document(
     fetched: FetchedDocument,
     embed_fn,
 ) -> tuple[bool, int]:
+    if not fetched.title or not fetched.title.strip() or not fetched.text.strip():
+        raise DocumentQualityError("document title and body are required")
     source_id = upsert_source(
         session,
         source.name,
@@ -218,6 +375,7 @@ def _store_document(
     }
     if fetched.edition:
         metadata["edition"] = fetched.edition
+    min_chunk_size = 10 if source.source_type == "academic_calendar" else 50
     existing = session.scalar(
         select(Document).where(Document.canonical_url == fetched.canonical_url)
     )
@@ -228,22 +386,32 @@ def _store_document(
         existing.last_modified = fetched.last_modified
         existing.metadata_json = metadata
         stored_chunks = session.scalars(select(Chunk).where(Chunk.doc_id == existing.doc_id)).all()
-        for chunk in stored_chunks:
-            chunk.source_id = source_id
-            chunk.url = fetched.canonical_url
-            chunk.title = fetched.title
-            chunk.fetched_at = fetched.fetched_at
-            chunk.metadata_json = {**(chunk.metadata_json or {}), **metadata}
-        update_fetch_state(
-            session,
-            fetched.source_url,
-            source_id,
-            fetched.etag,
-            fetched.last_modified,
-            digest,
-        )
-        return False, len(stored_chunks)
+        if stored_chunks and all(chunk.token_count >= min_chunk_size for chunk in stored_chunks):
+            for chunk in stored_chunks:
+                chunk.source_id = source_id
+                chunk.url = fetched.canonical_url
+                chunk.title = fetched.title
+                chunk.fetched_at = fetched.fetched_at
+                chunk.metadata_json = {**(chunk.metadata_json or {}), **metadata}
+            update_fetch_state(
+                session,
+                fetched.source_url,
+                source_id,
+                fetched.etag,
+                fetched.last_modified,
+                digest,
+            )
+            return False, len(stored_chunks)
 
+    chunks = chunk_text(
+        fetched.text,
+        chunk_size=500,
+        chunk_overlap=80,
+        min_chunk_size=min_chunk_size,
+        metadata=metadata,
+    )
+    if not chunks:
+        raise DocumentQualityError("document produced no chunks")
     document_id = upsert_document(
         session,
         source_id,
@@ -253,13 +421,6 @@ def _store_document(
         digest,
         fetched.etag,
         fetched.last_modified,
-    )
-    chunks = chunk_text(
-        fetched.text,
-        chunk_size=500,
-        chunk_overlap=80,
-        min_chunk_size=10 if source.source_type == "academic_calendar" else 50,
-        metadata=metadata,
     )
     indexed = index_chunks(
         session,
@@ -272,6 +433,8 @@ def _store_document(
         fetched.fetched_at,
         embed_fn,
     )
+    if indexed != len(chunks):
+        raise DocumentQualityError("document chunks were not fully indexed")
     update_fetch_state(
         session,
         fetched.source_url,
@@ -286,3 +449,32 @@ def _store_document(
 def _edition(text: str) -> str | None:
     match = re.search(r"\b(20\d{2}-20\d{2})\b", text)
     return match.group(1) if match else None
+
+
+def _retry_after_seconds(value: str | None) -> int | None:
+    return int(value) if value and value.isdigit() else None
+
+
+def _is_recognized_error_page(body: str, title: str) -> bool:
+    normalized_title = " ".join(title.lower().split())
+    error_titles = (
+        "access denied",
+        "forbidden",
+        "page not found",
+        "just a moment",
+        "request rejected",
+        "attention required",
+        "service unavailable",
+        "temporarily unavailable",
+        "internal server error",
+        "sign in",
+        "log in",
+        "login",
+    )
+    if normalized_title == "error" or any(item in normalized_title for item in error_titles):
+        return True
+    try:
+        root = lxml_html.fromstring(body)
+    except (ParserError, TypeError, ValueError):
+        return False
+    return bool(root.xpath("//input[translate(@type, 'PASSWORD', 'password')='password']"))

@@ -64,3 +64,16 @@ Event: Registration opens.
 
     assert len(result) == 1
     assert result[0].text == text.removeprefix("## ")
+
+
+def test_catalog_lists_are_content_not_one_token_headings():
+    text = "\n".join(
+        ["Courses", "A"]
+        + [f"- Accounting Course Subject {index} (ACCT{index})" for index in range(40)]
+    )
+
+    result = chunk_text(text, min_chunk_size=50)
+
+    assert result
+    assert all(chunk.token_count >= 50 for chunk in result)
+    assert "Accounting Course Subject" in result[0].text

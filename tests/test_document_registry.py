@@ -15,12 +15,17 @@ def test_registry_contains_only_bounded_authoritative_sources():
         "gt-omscs",
         "gt-admission",
     }
-    assert all(source.max_urls <= 25 for source in sources)
+    assert all(source.max_urls <= 500 for source in sources)
     assert all(source.seed_urls for source in sources)
     assert all(root.startswith("https://") for source in sources for root in source.allowed_roots)
     omscs = next(source for source in sources if source.name == "gt-omscs")
     assert omscs.allowed_roots == ("https://omscs.gatech.edu/",)
     assert omscs.seed_urls == ("https://omscs.gatech.edu/admission-criteria",)
+    registrar = next(source for source in sources if source.name == "gt-registrar")
+    catalog = next(source for source in sources if source.name == "gt-catalog")
+    assert registrar.max_urls == 50
+    assert catalog.max_urls == 150
+    assert catalog.seed_urls == ("https://catalog.gatech.edu/coursesaz/",)
 
 
 def test_document_source_rejects_seed_outside_allowed_roots():

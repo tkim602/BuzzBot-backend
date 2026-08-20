@@ -58,6 +58,8 @@ def _looks_like_heading(line: str) -> bool:
     m = MARKDOWN_HEADING_RE.match(line)
     if m:
         return True
+    if len(line) == 1 or line.startswith(("- ", "* ", "+ ")):
+        return False
     if len(line) > 100:
         return False
     if line.endswith((".", "!", "?")):
