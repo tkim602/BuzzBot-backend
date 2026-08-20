@@ -12,16 +12,28 @@ class UserContext(BaseModel):
     major: str | None = None
 
 
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=4000)
+
+
 class ChatRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000)
     user_context: UserContext | None = None
     rmp_excerpt: str | None = Field(None, max_length=5000)
-    history: list["ChatTurn"] = Field(default_factory=list)
+    history: list[ChatTurn] = Field(default_factory=list)
 
 
-class ChatTurn(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str = Field(..., min_length=1, max_length=4000)
+class AgentChatRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=2000)
+    user_context: UserContext | None = None
+    history: list[ChatTurn] = Field(default_factory=list, max_length=20)
+    thread_id: str | None = Field(
+        None,
+        min_length=1,
+        max_length=100,
+        pattern=r"^[A-Za-z0-9_.:-]+$",
+    )
 
 
 class Citation(BaseModel):
@@ -55,3 +67,7 @@ class ChatResponse(BaseModel):
     freshness: FreshnessInfo = FreshnessInfo()
     notes: list[str] = []
     debug: DebugInfo = DebugInfo()
+
+
+class AgentChatResponse(ChatResponse):
+    thread_id: str
