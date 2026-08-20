@@ -12,7 +12,10 @@ from ingestion.documents.sync import DocumentSyncOutcome, FetchedDocument, sync_
 
 
 def test_run3_registry_refreshes_known_stale_and_moved_paths():
-    sources = {source.name: source for source in load_document_sources(Path("ingestion/sources.yaml"))}
+    sources = {
+        source.name: source
+        for source in load_document_sources(Path("ingestion/sources.yaml"))
+    }
 
     programs = sources["gt-catalog-programs"]
     assert "/academics/research-support-facilities/oak-ridge-associated-universities" in (
@@ -43,7 +46,10 @@ def test_run3_registry_refreshes_known_stale_and_moved_paths():
 
 
 def test_health_registry_allows_only_declared_public_cdn_redirect_root():
-    sources = {source.name: source for source in load_document_sources(Path("ingestion/sources.yaml"))}
+    sources = {
+        source.name: source
+        for source in load_document_sources(Path("ingestion/sources.yaml"))
+    }
     health = sources["gt-health"]
 
     assert health.allowed_redirect_roots == ("https://c14750.wpmucdn.com/2790/files/",)
