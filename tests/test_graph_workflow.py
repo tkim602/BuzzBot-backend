@@ -175,6 +175,51 @@ async def test_policy_answer_with_grounded_quote_but_contradictory_claim_abstain
     assert search.await_args.args[1].source_types == ("admissions",)
 
 
+@pytest.mark.asyncio
+async def test_yes_no_answer_with_wrong_leading_polarity_abstains(monkeypatch):
+    evidence = DocumentEvidence(
+        chunk_id="deadlines",
+        text=(
+            "Early Action 1 — Application Deadline: October 15\n"
+            "Early Action 2 — Application Deadline: November 2"
+        ),
+        title="First-Year Deadlines",
+        canonical_url="https://admission.gatech.edu/first-year/deadlines",
+        source_name="gt-admission",
+        source_type="admissions",
+        authority="admissions",
+        fetched_at="2026-08-20T00:00:00+00:00",
+        edition=None,
+        score=0.9,
+        retrieval_method="hybrid_rrf",
+    )
+    monkeypatch.setattr("app.graph.workflow.search_policy_docs", AsyncMock(return_value=[evidence]))
+    monkeypatch.setattr("app.rag.grounding._call_llm", AsyncMock(return_value="INCONSISTENT"))
+    answer = AsyncMock(
+        return_value={
+            "answer": "Yes, November 2 is the Early Action 2 deadline.",
+            "citations": [
+                {
+                    "url": evidence.canonical_url,
+                    "title": evidence.title,
+                    "quote": "Early Action 2 — Application Deadline: November 2",
+                }
+            ],
+            "confidence": 0.9,
+            "notes": [],
+        }
+    )
+    graph = build_workflow(WorkflowServices(object(), AsyncMock(return_value=[0.1]), answer))
+
+    result = await graph.ainvoke(
+        {"query": "Is November 2 the Early Action 1 application deadline?"}
+    )
+
+    assert result["answer_valid"] is False
+    assert result["citations"] == []
+    assert "enough official evidence" in result["answer"].lower()
+
+
 def _document_evidence() -> DocumentEvidence:
     return DocumentEvidence(
         chunk_id="chunk-1",

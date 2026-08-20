@@ -24,7 +24,7 @@ from app.core.guardrails import (
 )
 from app.core.usage import UsageLimitExceeded, get_usage
 from app.rag.answerer import generate_answer
-from app.rag.grounding import check_claim_support, check_grounding
+from app.rag.grounding import check_claim_support, check_grounding, check_yes_no_consistency
 from app.rag.live_fetch import live_fetch_for_query
 from app.rag.query_rewrite import generate_hyde_passage, rewrite_query
 from app.rag.retrieval import (
@@ -765,11 +765,19 @@ async def chat(
                 )
                 grounding_notes.extend(claim_notes)
 
+        polarity_consistent = True
+        if is_factual and claims_supported:
+            polarity_consistent, polarity_notes = await check_yes_no_consistency(
+                query, raw_answer.get("answer", ""), chunks
+            )
+            grounding_notes.extend(polarity_notes)
+
         if is_factual and (
             not valid_citations
             or not date_verified
             or not program_evidence_ok
             or not claims_supported
+            or not polarity_consistent
         ):
             abstain_answer = (
                 "I don't have enough grounded evidence in the current retrieved sources to answer "

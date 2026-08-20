@@ -180,6 +180,9 @@ async def test_factual_yes_no_prompt_does_not_mirror_user_premise(monkeypatch, q
 
     system, user = call.await_args.args
     assert answer["answer"] == "No."
+    assert "identify the exact proposition" in system
+    assert "true, false, or unknown" in system
+    assert "Only then" in system
     assert "Do not assume or mirror the premise" in system
     assert query in user
     assert evidence in user

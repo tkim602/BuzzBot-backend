@@ -12,6 +12,11 @@ from app.rag.retrieval import RetrievedChunk
 logger = structlog.get_logger(__name__)
 _WORD_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)?", re.I)
 _NUMBER_RE = re.compile(r"\b\d+(?:\.\d+)?\b")
+_YES_NO_QUESTION_RE = re.compile(
+    r"^\s*(?:am|are|can|could|did|do|does|has|have|is|must|should|was|were|will|would)\b",
+    re.I,
+)
+_LEADING_POLARITY_RE = re.compile(r"^\s*(?:yes|no)\b", re.I)
 _CLAIM_SPLIT_RE = re.compile(r"(?:\n+|[!?;](?:\s+|$)|\.(?!\d)(?:\s+|$)|\s+(?:and|but)\s+)", re.I)
 _STOPWORDS = {
     "a",
@@ -176,6 +181,35 @@ async def check_claim_support(
                 f"factual claim: '{claim.strip()[:100]}'"
             )
     return not notes, notes
+
+
+async def check_yes_no_consistency(
+    question: str,
+    answer: str,
+    chunks: list[RetrievedChunk],
+) -> tuple[bool, list[str]]:
+    if not _YES_NO_QUESTION_RE.search(question) or not _LEADING_POLARITY_RE.search(answer):
+        return True, []
+    try:
+        verdict = await _call_llm(
+            (
+                "Identify the exact proposition in the question and determine from the evidence "
+                "whether it is true, false, or unknown. Check that the answer's leading Yes or "
+                "No matches that truth value and agrees with its explanation. Use only the "
+                "supplied evidence; do not mirror the question's premise. Return exactly one "
+                "word: CONSISTENT, INCONSISTENT, or INSUFFICIENT."
+            ),
+            f"QUESTION:\n{question.strip()}\n\nANSWER:\n{answer.strip()}\n\nEVIDENCE:\n"
+            + "\n\n".join(chunk.chunk_text for chunk in chunks),
+            temperature=0.0,
+            max_tokens=8,
+        )
+    except Exception:
+        logger.warning("yes/no consistency verifier failed")
+        verdict = "ERROR"
+    if verdict.strip() == "CONSISTENT":
+        return True, []
+    return False, ["Yes/no answer polarity is inconsistent or unsupported."]
 
 
 def _content_tokens(text: str) -> set[str]:

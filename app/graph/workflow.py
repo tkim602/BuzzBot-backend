@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.graph.state import AgentState, CitationItem, EvidenceItem, GraphIntent
 from app.graph.understanding import understand_query
 from app.rag.answerer import generate_answer
-from app.rag.grounding import check_claim_support, check_grounding
+from app.rag.grounding import check_claim_support, check_grounding, check_yes_no_consistency
 from app.rag.retrieval import RetrievedChunk, get_query_embedding
 from app.retrieval import (
     CourseDetailsQuery,
@@ -257,10 +257,25 @@ def build_workflow(
         chunks = _as_chunks(state.get("evidence", []))
         valid, grounding_notes = check_grounding(citations, chunks)
         claims_supported, claim_notes = await check_claim_support(state.get("answer", ""), chunks)
+        polarity_consistent, polarity_notes = True, []
+        if claims_supported:
+            polarity_consistent, polarity_notes = await check_yes_no_consistency(
+                state.get("query", ""), state.get("answer", ""), chunks
+            )
         return {
             "citations": cast(list[CitationItem], valid),
-            "answer_valid": bool(valid and claims_supported and state.get("answer", "").strip()),
-            "notes": [*state.get("notes", []), *grounding_notes, *claim_notes],
+            "answer_valid": bool(
+                valid
+                and claims_supported
+                and polarity_consistent
+                and state.get("answer", "").strip()
+            ),
+            "notes": [
+                *state.get("notes", []),
+                *grounding_notes,
+                *claim_notes,
+                *polarity_notes,
+            ],
         }
 
     async def abstain_node(state: AgentState) -> dict[str, object]:
