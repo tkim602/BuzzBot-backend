@@ -30,6 +30,7 @@ class DocumentSource:
     vertical: str = "general"
     adapter: str = ""
     allowed_path_prefixes: tuple[str, ...] = ()
+    excluded_paths: tuple[str, ...] = ()
     content_types: tuple[str, ...] = ("text/html",)
     freshness_class: str = "medium"
     profiles: tuple[str, ...] = ()
@@ -52,6 +53,8 @@ class DocumentSource:
             not path.startswith("/") for path in self.allowed_path_prefixes
         ):
             raise ValueError("allowed path prefixes must start with /")
+        if self.excluded_paths and any(not path.startswith("/") for path in self.excluded_paths):
+            raise ValueError("excluded paths must start with /")
         if not self.content_types or not set(self.content_types) <= {
             "text/html",
             "application/pdf",
@@ -79,6 +82,7 @@ def load_document_sources(path: Path | None = None) -> tuple[DocumentSource, ...
             vertical=item.get("vertical", "general"),
             adapter=item.get("adapter", item["authority"]),
             allowed_path_prefixes=tuple(item.get("allowed_path_prefixes", ())),
+            excluded_paths=tuple(item.get("excluded_paths", ())),
             content_types=tuple(item.get("content_types", ("text/html",))),
             freshness_class=item.get("freshness_class", "medium"),
             profiles=tuple(item.get("profiles", ())),
