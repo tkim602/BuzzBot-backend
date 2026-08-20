@@ -151,3 +151,35 @@ def test_cross_encoder_receives_title_headings_and_chunk_text(monkeypatch):
     monkeypatch.setattr(retrieval, "_cross_encoder_model_name", settings.rag_rerank_model)
 
     assert retrieval.rerank_with_cross_encoder(MAJOR_QUERY, [chunk])[0] is chunk
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("query", "evidence"),
+    [
+        (
+            "Do I have to submit recommendation letters?",
+            "Recommendation letters are completely optional.",
+        ),
+        (
+            "Are nine OMSCS courses enough?",
+            "The OMSCS degree requires 30 total credit hours (10 courses).",
+        ),
+        (
+            "Is November 2 the Early Action 1 deadline?",
+            "Early Action 1 — Application Deadline: October 15\n"
+            "Early Action 2 — Application Deadline: November 2",
+        ),
+    ],
+)
+async def test_factual_yes_no_prompt_does_not_mirror_user_premise(monkeypatch, query, evidence):
+    call = AsyncMock(return_value='{"answer":"No.","citations":[],"confidence":1.0,"notes":[]}')
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    answer = await generate_answer(query, [_chunk("policy", "Policy", evidence)], intent="policy")
+
+    system, user = call.await_args.args
+    assert answer["answer"] == "No."
+    assert "Do not assume or mirror the premise" in system
+    assert query in user
+    assert evidence in user

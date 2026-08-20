@@ -123,8 +123,8 @@ def test_html_table_relationships_survive_chunking():
       <p>Official application deadline information for first-year applicants.</p>
       <p>This page explains the available application plans and their deadlines.</p>
       <table>
-        <tr><th></th><th>Early Action 1</th><th>Early Action 2</th><th>Regular Decision</th></tr>
-        <tr><th>Application Deadline</th><td>October 15</td><td>November 2</td><td>January 6</td></tr>
+        <thead><tr><th>Important Dates</th><th>Early Action 1</th><th>Early Action 2</th><th>Regular Decision</th></tr></thead>
+        <tbody><tr><td>Application Deadline</td><td>October 15</td><td>November 2</td><td>January 6</td></tr></tbody>
       </table>
     </body></html>
     """

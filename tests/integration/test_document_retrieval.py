@@ -10,16 +10,103 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.rag.answerer import generate_answer
+from app.rag.retrieval import RetrievedChunk
 from app.retrieval import documents as document_retrieval
 from app.retrieval.documents import PolicyQuery, search_policy_docs
-from db.models import FetchState, Source
+from db.models import Chunk, Document, FetchState, Source
 from db.session import sync_engine
 from ingestion.documents.registry import DocumentSource
 from ingestion.documents.sync import FetchedDocument, _store_document
+from ingestion.extract import extract_content
 
 pytestmark = pytest.mark.skipif(
     os.getenv("RUN_DB_TESTS") != "1", reason="set RUN_DB_TESTS=1 for PostgreSQL tests"
 )
+
+
+@pytest.mark.asyncio
+async def test_deadline_table_relationships_reach_answer_context(monkeypatch):
+    suffix = uuid.uuid4().hex
+    source_name = f"test-admission-table-{suffix}"
+    url = f"https://admission.gatech.edu/first-year/deadlines-{suffix}"
+    source = DocumentSource(
+        source_name,
+        "admissions",
+        "admissions",
+        ("https://admission.gatech.edu/first-year/",),
+        (url,),
+        1,
+    )
+    html = """
+    <html><head><title>First-Year Deadlines</title></head><body>
+      <p>Official application deadline information for first-year applicants.</p>
+      <p>This page explains the available application plans and their deadlines.</p>
+      <table><thead><tr>
+        <th>Important Dates</th><th>Early Action 1</th><th>Early Action 2</th><th>Regular Decision</th>
+      </tr></thead><tbody><tr>
+        <td>Application Deadline</td><td>October 15</td><td>November 2</td><td>January 6</td>
+      </tr></tbody></table>
+    </body></html>
+    """
+    extracted = extract_content(url, html)
+    vector = [1.0, *([0.0] * 1535)]
+    try:
+        with Session(sync_engine) as session:
+            _store_document(
+                session,
+                source,
+                FetchedDocument(
+                    url,
+                    url,
+                    extracted.title,
+                    extracted.text,
+                    datetime.now(UTC),
+                    None,
+                    None,
+                    None,
+                ),
+                lambda texts: [vector for _ in texts],
+            )
+            session.commit()
+            document = session.scalar(select(Document).where(Document.canonical_url == url))
+            assert document is not None
+            chunks = session.scalars(select(Chunk).where(Chunk.doc_id == document.doc_id)).all()
+            stored = "\n".join(chunk.chunk_text for chunk in chunks)
+
+        expected = "Early Action 1 — Application Deadline: October 15"
+        assert expected in stored
+        context = [
+            RetrievedChunk(
+                chunk_id=str(chunk.chunk_id),
+                url=chunk.url,
+                title=chunk.title,
+                chunk_text=chunk.chunk_text,
+                score=1.0,
+            )
+            for chunk in chunks
+        ]
+
+        async def answer(system, user, **kwargs):
+            assert expected in user
+            assert "Early Action 2 — Application Deadline: November 2" in user
+            return '{"answer":"No. EA1 is October 15; November 2 is EA2.","citations":[],"confidence":1.0,"notes":[]}'
+
+        monkeypatch.setattr("app.rag.answerer._call_llm", answer)
+        result = await generate_answer(
+            "Is November 2 the Early Action 1 deadline?", context, intent="policy"
+        )
+        assert result["answer"].startswith("No.")
+    finally:
+        with Session(sync_engine) as session:
+            stored_source = session.scalar(select(Source).where(Source.name == source_name))
+            if stored_source is not None:
+                session.execute(delete(FetchState).where(FetchState.source_id == stored_source.id))
+                for document in list(stored_source.documents):
+                    session.delete(document)
+                session.flush()
+                session.delete(stored_source)
+                session.commit()
 
 
 @pytest.mark.asyncio

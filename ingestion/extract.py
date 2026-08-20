@@ -57,9 +57,14 @@ def _extract_table_rows(html: str, max_tables: int = 8, max_rows_per_table: int 
         if caption:
             title = " ".join(" ".join(caption).split())
 
-        header_nodes = table.xpath(".//tr[1]/*[self::th or self::td]")
-        headers = [" ".join(" ".join(cell.xpath(".//text()")).split()) for cell in header_nodes]
-        row_nodes = table.xpath(".//tr")[1:] if headers else table.xpath(".//tr")
+        table_rows = table.xpath(".//tr")
+        header_nodes = table_rows[0].xpath("./th|./td") if table_rows else []
+        headers = (
+            [" ".join(" ".join(cell.xpath(".//text()")).split()) for cell in header_nodes]
+            if any(cell.tag.lower() == "th" for cell in header_nodes)
+            else []
+        )
+        row_nodes = table_rows[1:] if headers else table_rows
 
         for r_idx, row in enumerate(row_nodes[:max_rows_per_table]):
             cell_nodes = row.xpath("./th|./td")
@@ -68,7 +73,7 @@ def _extract_table_rows(html: str, max_tables: int = 8, max_rows_per_table: int 
                 continue
 
             if headers and len(headers) == len(cells):
-                if len(cells) > 1 and (not headers[0] or cell_nodes[0].tag.lower() == "th"):
+                if len(cells) > 1:
                     row_text = "\n".join(
                         f"{headers[i]} — {cells[0]}: {cells[i]}"
                         for i in range(1, len(cells))
