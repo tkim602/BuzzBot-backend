@@ -45,7 +45,7 @@ from eval.quality.metrics import (
 from eval.quality.schema import GoldCase, load_cases
 from ingestion.documents.registry import load_document_sources
 
-DEFAULT_DATASET = Path(__file__).parent / "data" / "gt_public_gold_facts_100.jsonl"
+DEFAULT_DATASET = Path(__file__).parent / "data"
 DEFAULT_REPORT_DIR = Path(__file__).parent / "reports"
 MODES = ("production", "raw", "vector", "fts")
 _SOURCE_VERTICAL = {source.name: source.vertical for source in load_document_sources()}
