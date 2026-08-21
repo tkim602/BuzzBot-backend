@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-gt-all resume-gt-all sync-oscar sync-oscar-all run-backend run-frontend test test-db lint fmt usage eval-v2
+.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-gt-all resume-gt-all sync-oscar sync-oscar-all run-backend run-frontend test test-db lint fmt usage eval-v2 quality-eval
 
 setup:
 	pip install -e ".[dev]"
@@ -88,6 +88,9 @@ test-db:
 
 eval-v2:
 	PYTHONPATH=$$PWD $(PYTHON) eval/agentic_rag_eval.py
+
+quality-eval:
+	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.runner
 
 lint:
 	ruff check .
