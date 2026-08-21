@@ -6,7 +6,7 @@ import json
 import time
 from collections import Counter
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -287,7 +287,7 @@ async def run(dataset: Path, report_dir: Path, top_k: int = 10) -> dict[str, obj
 
     report = {
         "benchmark": "buzzbot_gt_public_gold_1000",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "dataset": str(dataset),
         "cases": len(cases),
         "facts": len({case.variant_group for case in cases}),
