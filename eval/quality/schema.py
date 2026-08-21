@@ -66,18 +66,22 @@ def _expand_fact(raw: dict[str, object]) -> list[GoldCase]:
 def load_cases(path: Path) -> list[GoldCase]:
     cases: list[GoldCase] = []
     groups: set[str] = set()
-    with path.open("r", encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            if not line.strip():
-                continue
-            raw = json.loads(line)
-            group = str(raw.get("fact_id", ""))
-            if not group:
-                raise ValueError(f"line {line_number}: fact_id is required")
-            if group in groups:
-                raise ValueError(f"line {line_number}: duplicate fact_id {group}")
-            groups.add(group)
-            cases.extend(_expand_fact(raw))
+    files = sorted(path.glob("gold_facts_part*.jsonl")) if path.is_dir() else [path]
+    if not files:
+        raise ValueError(f"no gold fact files found at {path}")
+    for file_path in files:
+        with file_path.open("r", encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                if not line.strip():
+                    continue
+                raw = json.loads(line)
+                group = str(raw.get("fact_id", ""))
+                if not group:
+                    raise ValueError(f"{file_path}:{line_number}: fact_id is required")
+                if group in groups:
+                    raise ValueError(f"{file_path}:{line_number}: duplicate fact_id {group}")
+                groups.add(group)
+                cases.extend(_expand_fact(raw))
     if not cases:
         raise ValueError("dataset is empty")
     if len({case.id for case in cases}) != len(cases):
