@@ -25,12 +25,35 @@ _STYLES = (
     ("keyword", lambda topic, direct: f"GT {topic}"),
     ("search_bar", lambda topic, direct: f"Georgia Tech {topic} official policy"),
     ("fragment", lambda topic, direct: f"{topic.capitalize()} — what's the rule?"),
-    ("casual", lambda topic, direct: f"Quick question: what do I actually need to know about {topic} at Tech?"),
-    ("formal", lambda topic, direct: f"What is Georgia Tech's official rule or procedure regarding {topic}?"),
-    ("scenario", lambda topic, direct: f"I'm dealing with {topic} right now. What's the Georgia Tech rule I should follow?"),
-    ("confirmation", lambda topic, direct: f"Just to confirm, what does Georgia Tech officially say about {topic}?"),
+    (
+        "casual",
+        lambda topic, direct: (
+            f"Quick question: what do I actually need to know about {topic} at Tech?"
+        ),
+    ),
+    (
+        "formal",
+        lambda topic, direct: (
+            f"What is Georgia Tech's official rule or procedure regarding {topic}?"
+        ),
+    ),
+    (
+        "scenario",
+        lambda topic, direct: (
+            f"I'm dealing with {topic} right now. What's the Georgia Tech rule I should follow?"
+        ),
+    ),
+    (
+        "confirmation",
+        lambda topic, direct: (
+            f"Just to confirm, what does Georgia Tech officially say about {topic}?"
+        ),
+    ),
     ("minimal", lambda topic, direct: f"{topic} at GT?"),
-    ("support_desk", lambda topic, direct: f"Where can I find the official Georgia Tech guidance on {topic}?"),
+    (
+        "support_desk",
+        lambda topic, direct: f"Where can I find the official Georgia Tech guidance on {topic}?",
+    ),
 )
 
 
