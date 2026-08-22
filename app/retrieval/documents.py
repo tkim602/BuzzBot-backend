@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +13,6 @@ SOURCE_NAMES_BY_TYPE = {
     for source_type in {source.source_type for source in _SOURCES}
 }
 OFFICIAL_SOURCE_NAMES = [source.name for source in _SOURCES]
-DEADLINE_RE = re.compile(r"\b(exact|deadline|last day|academic calendar|what date|when)\b", re.I)
 
 
 @dataclass(frozen=True)
@@ -59,8 +57,6 @@ async def search_policy_docs(
         source_filter = [
             name for source_type in query.source_types for name in _source_names(source_type)
         ]
-    elif DEADLINE_RE.search(query.text):
-        source_filter = list(_source_names("academic_calendar"))
     else:
         source_filter = OFFICIAL_SOURCE_NAMES
 

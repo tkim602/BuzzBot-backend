@@ -1,7 +1,7 @@
 import pytest
 
 from app.rag.retrieval import RetrievedChunk
-from app.retrieval.documents import PolicyQuery, search_policy_docs
+from app.retrieval.documents import OFFICIAL_SOURCE_NAMES, PolicyQuery, search_policy_docs
 
 
 def test_policy_query_validates_text_types_and_limit():
@@ -40,7 +40,10 @@ async def test_exact_deadline_uses_calendar_authority_and_preserves_citation(mon
     monkeypatch.setattr("app.retrieval.documents.hybrid_retrieve", fake_hybrid)
     evidence = await search_policy_docs(
         object(),
-        PolicyQuery("What is the exact registration deadline?"),
+        PolicyQuery(
+            "What is the exact registration deadline?",
+            source_types=("academic_calendar",),
+        ),
         [0.1] * 1536,
     )
 
@@ -49,6 +52,28 @@ async def test_exact_deadline_uses_calendar_authority_and_preserves_citation(mon
     assert evidence[0].authority == "academic_calendar"
     assert evidence[0].edition == "2026-2027"
     assert evidence[0].retrieval_method == "hybrid_rrf"
+
+
+@pytest.mark.parametrize(
+    "question",
+    (
+        "When are degrees awarded after commencement?",
+        "What is the tuition payment deadline?",
+        "When do unused Dining Dollars expire?",
+    ),
+)
+@pytest.mark.asyncio
+async def test_generic_deadline_policy_does_not_force_calendar_source(monkeypatch, question):
+    captured: dict[str, object] = {}
+
+    async def fake_hybrid(session, query, query_embedding, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr("app.retrieval.documents.hybrid_retrieve", fake_hybrid)
+    await search_policy_docs(object(), PolicyQuery(question), [0.1] * 1536)
+
+    assert captured["source_filter"] == OFFICIAL_SOURCE_NAMES
 
 
 @pytest.mark.asyncio
