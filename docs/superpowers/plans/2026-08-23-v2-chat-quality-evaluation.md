@@ -4,7 +4,7 @@
 
 **Goal:** Add fast, fixed 100/200-case retrieval gates and a resumable end-to-end `/v2/chat` evaluation that uses the configured `gpt-4o-mini` without automatically running all 1,000 live questions.
 
-**Architecture:** Keep the existing 1,000-query verified dataset as the immutable master. Tiny versioned manifests select fixed variants for the 100- and 200-case tiers. The current retrieval runner consumes those selections, while one new evaluation module calls the real `/v2/chat` HTTP endpoint sequentially, judges completed answers with the existing configured LLM and usage accounting, appends resumable JSONL results, and renders a compact summary.
+**Architecture:** Keep the existing 1,000-query verified dataset as the immutable master. Versioned manifests contain concrete case IDs for the 100- and 200-case tiers, and the 200-case tier is a strict superset of the 100-case tier. The current retrieval runner consumes those selections, while one new evaluation module calls the real `/v2/chat` HTTP endpoint sequentially, judges completed answers with the existing configured LLM and shared usage accounting, appends resumable JSONL results, and renders a compact summary.
 
 **Tech Stack:** Python 3.12, asyncio, httpx, FastAPI `/v2/chat`, existing OpenAI configuration and usage guard, pytest, PostgreSQL/pgvector, Ruff.
 
@@ -22,8 +22,8 @@
 
 ## File Map
 
-- Create `eval/quality/manifests/dev_100.json`: fixed one-variant-per-fact selection.
-- Create `eval/quality/manifests/change_200.json`: fixed two-variants-per-fact selection.
+- Create `eval/quality/manifests/dev_100.json`: 100 explicit case IDs, one per fact.
+- Create `eval/quality/manifests/change_200.json`: 200 explicit case IDs, two per fact and all dev IDs included.
 - Modify `eval/quality/schema.py`: load and strictly validate a tier manifest against the master dataset.
 - Modify `eval/quality/runner.py`: optionally use a manifest without changing the full benchmark behavior.
 - Create `eval/quality/chat_runner.py`: `/v2/chat` calling, LLM judging, resume, metrics, and reports.
@@ -59,7 +59,7 @@ def test_dev_manifest_selects_one_fixed_case_per_fact():
 
     assert len(cases) == 100
     assert len({case.variant_group for case in cases}) == 100
-    assert {case.id.rsplit("-", 1)[-1] for case in cases} == {"v3"}
+    assert len({case.id for case in cases}) == 100
 
 
 def test_change_manifest_selects_two_fixed_cases_per_fact():
@@ -69,7 +69,14 @@ def test_change_manifest_selects_two_fixed_cases_per_fact():
     counts = Counter(case.variant_group for case in cases)
     assert len(counts) == 100
     assert set(counts.values()) == {2}
-    assert {case.id.rsplit("-", 1)[-1] for case in cases} == {"v3", "v10"}
+    assert len({case.id for case in cases}) == 200
+
+
+def test_change_manifest_contains_all_dev_cases():
+    dev = load_manifest_cases(Path("eval/quality/manifests/dev_100.json"))
+    change = load_manifest_cases(Path("eval/quality/manifests/change_200.json"))
+
+    assert {case.id for case in dev} <= {case.id for case in change}
 
 
 def test_manifest_fails_when_a_requested_variant_is_missing(tmp_path):
@@ -96,10 +103,12 @@ def test_manifest_fails_when_a_requested_variant_is_missing(tmp_path):
     manifest.write_text(
         json.dumps(
             {
+                "version": 1,
                 "name": "broken",
                 "master_dataset": "dataset",
-                "variant_suffixes": ["v2"],
+                "case_ids": ["gold-001-v2"],
                 "expected_fact_count": 1,
+                "cases_per_fact": 1,
             }
         ),
         encoding="utf-8",
@@ -119,36 +128,106 @@ Run:
 PYTHONPATH=$PWD python3 -m pytest -q \
   tests/test_quality_eval.py::test_dev_manifest_selects_one_fixed_case_per_fact \
   tests/test_quality_eval.py::test_change_manifest_selects_two_fixed_cases_per_fact \
+  tests/test_quality_eval.py::test_change_manifest_contains_all_dev_cases \
   tests/test_quality_eval.py::test_manifest_fails_when_a_requested_variant_is_missing
 ```
 
 Expected: collection fails because `load_manifest_cases` and the manifest files do not exist.
 
-- [ ] **Step 3: Add the two small versioned manifests**
+- [ ] **Step 3: Add the two explicit versioned manifests**
 
-Create `eval/quality/manifests/dev_100.json`:
+Create both manifests with this schema:
 
 ```json
 {
+  "version": 1,
   "name": "buzzbot_gt_public_dev_100",
   "master_dataset": "../data_verified",
-  "variant_suffixes": ["v3"],
-  "expected_fact_count": 100
+  "expected_fact_count": 100,
+  "cases_per_fact": 1,
+  "case_ids": ["gold-001-v7", "gold-002-v7", "gold-003-v9"]
 }
 ```
 
-Create `eval/quality/manifests/change_200.json`:
+The shown IDs illustrate the schema. Produce the complete concrete lists once from the verified 2026-08-22 production report using this read-only command, then add its JSON output with `apply_patch`:
 
-```json
-{
-  "name": "buzzbot_gt_public_change_200",
-  "master_dataset": "../data_verified",
-  "variant_suffixes": ["v3", "v10"],
-  "expected_fact_count": 100
+```bash
+python3 - <<'PY'
+import json
+from collections import defaultdict
+from pathlib import Path
+
+report = Path("eval/quality/reports_verified_after_corpus_fix/latest_cases.jsonl")
+rows = [json.loads(line) for line in report.read_text().splitlines() if line.strip()]
+groups = defaultdict(list)
+for row in rows:
+    if row.get("mode") == "production":
+        groups[row["variant_group"]].append(row)
+
+wording_priority = {
+    "v10": 9,  # student chat
+    "v7": 8,   # casual
+    "v3": 7,   # scenario
+    "v9": 6,   # decision first
+    "v5": 5,   # indirect
+    "v2": 4,   # natural
+    "v8": 3,   # confirmation
+    "v4": 2,   # concise
+    "v1": 1,   # direct
+    "v6": 0,   # keyword
 }
+
+
+def score(row):
+    rank = row.get("rank")
+    missed = rank is None or rank > 5
+    severity = 999 if rank is None else rank
+    suffix = row["case_id"].rsplit("-", 1)[-1]
+    return missed, severity, wording_priority[suffix]
+
+
+dev = []
+change = []
+for group in sorted(groups):
+    selected = max(groups[group], key=score)["case_id"]
+    second = f"{group}-v1" if selected.endswith("-v2") else f"{group}-v2"
+    dev.append(selected)
+    change.extend((selected, second))
+
+assert len(dev) == len(set(dev)) == 100
+assert len(change) == len(set(change)) == 200
+assert set(dev) < set(change)
+
+for name, ids, cases_per_fact in (
+    ("dev_100", dev, 1),
+    ("change_200", change, 2),
+):
+    print(
+        json.dumps(
+            {
+                "version": 1,
+                "name": f"buzzbot_gt_public_{name}",
+                "master_dataset": "../data_verified",
+                "expected_fact_count": 100,
+                "cases_per_fact": cases_per_fact,
+                "case_ids": ids,
+            },
+            indent=2,
+        )
+    )
+PY
 ```
 
-`v3` is the fixed student-scenario variant and `v10` is the fixed student-chat variant. The manifest stores the selection rule rather than duplicating 300 gold records.
+The one-time selection order encoded above is:
+
+1. a case that missed production Hit@5;
+2. among misses, the most difficult realistic wording;
+3. when every variant succeeded, the realistic variant with the worst rank;
+4. when ranks tie, prefer student-chat, casual, scenario, decision, indirect, natural, confirmation, concise, direct, then keyword wording.
+
+Commit the resulting IDs; the loader never recomputes them from a report.
+
+Create `change_200.json` with `cases_per_fact: 2` and 200 concrete IDs. For each fact include its exact dev ID plus one natural second wording. Use `v2` for the second wording unless the dev ID is already `v2`, then use `v1`. This guarantees `dev_100` is a strict subset without making the dev selection positional.
 
 - [ ] **Step 4: Implement strict manifest loading**
 
@@ -157,22 +236,28 @@ Add this function below `load_cases` in `eval/quality/schema.py`:
 ```python
 def load_manifest_cases(path: Path) -> list[GoldCase]:
     payload = json.loads(path.read_text(encoding="utf-8"))
-    suffixes = tuple(str(value) for value in payload.get("variant_suffixes", []))
+    case_ids = tuple(str(value) for value in payload.get("case_ids", []))
     expected_facts = int(payload.get("expected_fact_count", 0))
+    cases_per_fact = int(payload.get("cases_per_fact", 0))
     master_value = payload.get("master_dataset")
-    if not isinstance(master_value, str) or not suffixes or expected_facts < 1:
+    if (
+        payload.get("version") != 1
+        or not isinstance(master_value, str)
+        or not case_ids
+        or expected_facts < 1
+        or cases_per_fact < 1
+    ):
         raise ValueError(f"{path}: invalid evaluation manifest")
-    if len(set(suffixes)) != len(suffixes):
-        raise ValueError(f"{path}: duplicate variant suffix")
+    if len(set(case_ids)) != len(case_ids):
+        raise ValueError(f"{path}: duplicate case id")
 
     master = (path.parent / master_value).resolve()
-    selected = [
-        case
-        for case in load_cases(master)
-        if case.id.rsplit("-", 1)[-1] in suffixes
-    ]
+    by_id = {case.id: case for case in load_cases(master)}
+    if unknown := sorted(set(case_ids) - set(by_id)):
+        raise ValueError(f"{path}: unknown case ids: {', '.join(unknown)}")
+    selected = [by_id[case_id] for case_id in case_ids]
     counts = Counter(case.variant_group for case in selected)
-    if len(counts) != expected_facts or set(counts.values()) != {len(suffixes)}:
+    if len(counts) != expected_facts or set(counts.values()) != {cases_per_fact}:
         raise ValueError(f"{path}: manifest selection is incomplete")
     return selected
 ```
@@ -268,21 +353,25 @@ report = asyncio.run(
 
 - [ ] **Step 4: Add explicit Make targets**
 
-Add the targets to `.PHONY` and below `quality-eval`:
+Replace the single ambiguous target with explicit retrieval tiers and add them to `.PHONY`:
 
 ```make
-quality-eval-100:
+quality-retrieval-dev:
 	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.runner \
 		--manifest eval/quality/manifests/dev_100.json \
 		--report-dir eval/quality/reports_retrieval_100
 
-quality-eval-200:
+quality-retrieval-change:
 	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.runner \
 		--manifest eval/quality/manifests/change_200.json \
 		--report-dir eval/quality/reports_retrieval_200
+
+quality-retrieval-full:
+	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.runner \
+		--dataset eval/quality/data_verified
 ```
 
-Keep `quality-eval` as the existing full 1,000-query retrieval command.
+Do not add a `--tier release` shortcut.
 
 - [ ] **Step 5: Run focused tests and a no-network CLI parse check**
 
@@ -493,8 +582,24 @@ async def evaluate_case(case: GoldCase, client: httpx.AsyncClient) -> dict[str, 
         "/v2/chat",
         json={"query": case.question, "thread_id": f"eval-{case.id}"},
     )
-    if response.status_code == 429 and response.json().get("detail", {}).get("error") == "usage_limit_exceeded":
-        raise UsageLimitExceeded("chat evaluation budget exhausted")
+    if (
+        response.status_code == 429
+        and response.json().get("detail", {}).get("error") == "usage_limit_exceeded"
+    ):
+        return {
+            **_case_fields(case),
+            "status": "CHAT_BUDGET_EXHAUSTED",
+            "answer": "",
+            "citations": [],
+            "confidence": 0.0,
+            "notes": [],
+            "abstained": False,
+            "correct": False,
+            "supported": False,
+            "judgment": None,
+            "citation_gold_hit": False,
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
     response.raise_for_status()
     body = response.json()
     citations = body.get("citations", [])
@@ -505,11 +610,52 @@ async def evaluate_case(case: GoldCase, client: httpx.AsyncClient) -> dict[str, 
         if isinstance(citation, dict)
     )
     abstained = not citations and float(body.get("confidence", 0.0)) <= 0.2
-    judged = (
-        {"verdict": "ABSTAINED", "supported": False, "reason": "answerable gold case abstained"}
-        if abstained
-        else await judge_answer(case, body)
-    )
+    try:
+        judged = (
+            {
+                "verdict": "ABSTAINED",
+                "supported": False,
+                "reason": "answerable gold case abstained",
+            }
+            if abstained
+            else await judge_answer(case, body)
+        )
+    except UsageLimitExceeded:
+        return {
+            **_case_fields(case),
+            "status": "JUDGE_BUDGET_EXHAUSTED",
+            "answer": body.get("answer", ""),
+            "citations": citations,
+            "confidence": float(body.get("confidence", 0.0)),
+            "notes": body.get("notes", []),
+            "abstained": abstained,
+            "correct": False,
+            "supported": False,
+            "judgment": None,
+            "citation_gold_hit": citation_hit,
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+    status = "JUDGE_FAILED" if judged["verdict"] == "ERROR" else "COMPLETED"
+    return {
+        **_case_fields(case),
+        "status": status,
+        "answer": body.get("answer", ""),
+        "citations": citations,
+        "confidence": float(body.get("confidence", 0.0)),
+        "notes": body.get("notes", []),
+        "abstained": abstained,
+        "correct": judged["verdict"] == "CORRECT" and judged["supported"],
+        "supported": judged["supported"],
+        "judgment": judged,
+        "citation_gold_hit": citation_hit,
+        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+    }
+```
+
+Add this local helper above `evaluate_case`:
+
+```python
+def _case_fields(case: GoldCase) -> dict[str, object]:
     return {
         "case_id": case.id,
         "variant_group": case.variant_group,
@@ -520,22 +666,10 @@ async def evaluate_case(case: GoldCase, client: httpx.AsyncClient) -> dict[str, 
         "question_type": case.question_type,
         "style": case.style,
         "time_sensitive": case.time_sensitive,
-        "status": "COMPLETED",
-        "answer": body.get("answer", ""),
-        "citations": citations,
-        "confidence": float(body.get("confidence", 0.0)),
-        "notes": body.get("notes", []),
-        "abstained": abstained,
-        "correct": judged["verdict"] == "CORRECT" and judged["supported"],
-        "supported": judged["supported"],
-        "judge_verdict": judged["verdict"],
-        "judge_reason": judged["reason"],
-        "citation_gold_hit": citation_hit,
-        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
     }
 ```
 
-Format the long 429 condition to satisfy Ruff. HTTP errors other than budget exhaustion are recorded by the run loop in Task 4; do not retry indefinitely.
+HTTP errors other than budget exhaustion are recorded by the run loop in Task 4; do not retry indefinitely.
 
 - [ ] **Step 5: Implement summary metrics with simple grouped counts**
 
@@ -635,7 +769,7 @@ git commit -m "eval: add v2 chat quality checks"
 
 **Interfaces:**
 - Consumes: `load_manifest_cases`, `evaluate_case`, `summarize_results`, and `get_usage`.
-- Produces: `run(manifest, base_url, report_dir, force=False, limit=None, min_interval=2.6)`, CLI entry point, `quality-chat-100`, and `quality-chat-200`.
+- Produces: `run(manifest, base_url, report_dir, force=False, limit=None, min_interval=2.6)`, CLI entry point, `quality-chat-dev`, and `quality-chat-change`.
 
 - [ ] **Step 1: Add failing resume and budget-stop tests**
 
@@ -685,12 +819,20 @@ async def test_run_resumes_completed_case_ids(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_run_stops_cleanly_when_usage_budget_is_exhausted(monkeypatch, tmp_path):
+async def test_run_records_chat_budget_rejection_then_stops(monkeypatch, tmp_path):
     monkeypatch.setattr(chat_runner, "load_manifest_cases", lambda path: [_case()])
+    budget_row = {
+        **chat_runner._case_fields(_case()),
+        "status": "CHAT_BUDGET_EXHAUSTED",
+        "answer": "",
+        "citations": [],
+        "confidence": 0.0,
+        "judgment": None,
+    }
     monkeypatch.setattr(
         chat_runner,
         "evaluate_case",
-        AsyncMock(side_effect=UsageLimitExceeded("limit")),
+        AsyncMock(return_value=budget_row),
     )
 
     report = await chat_runner.run(
@@ -700,11 +842,157 @@ async def test_run_stops_cleanly_when_usage_budget_is_exhausted(monkeypatch, tmp
         min_interval=0,
     )
 
-    assert report["stop_reason"] == "USAGE_LIMIT_EXCEEDED"
+    rows = chat_runner._read_results(tmp_path / "report" / "latest_cases.jsonl")
+    assert rows[-1]["status"] == "CHAT_BUDGET_EXHAUSTED"
+    assert report["stop_reason"] == "CHAT_BUDGET_EXHAUSTED"
     assert report["remaining"] == 1
+
+
+@pytest.mark.asyncio
+async def test_judge_budget_rejection_preserves_production_answer(monkeypatch):
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "thread_id": "eval-gold-001-v3",
+                "answer": "Order it through Parchment.",
+                "citations": [
+                    {
+                        "url": _case().gold_urls[0],
+                        "quote": "Order it through Parchment.",
+                    }
+                ],
+                "confidence": 0.9,
+                "notes": [],
+                "freshness": {},
+                "debug": {},
+            },
+        )
+
+    monkeypatch.setattr(
+        chat_runner,
+        "judge_answer",
+        AsyncMock(side_effect=UsageLimitExceeded("limit")),
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), base_url="http://test"
+    ) as client:
+        row = await chat_runner.evaluate_case(_case(), client)
+
+    assert row["status"] == "JUDGE_BUDGET_EXHAUSTED"
+    assert row["answer"] == "Order it through Parchment."
+    assert row["citations"]
+    assert row["judgment"] is None
+
+
+@pytest.mark.asyncio
+async def test_run_records_judge_budget_result_then_stops(monkeypatch, tmp_path):
+    row = {
+        **chat_runner._case_fields(_case()),
+        "status": "JUDGE_BUDGET_EXHAUSTED",
+        "answer": "Production answer preserved.",
+        "citations": [{"url": _case().gold_urls[0]}],
+        "confidence": 0.9,
+        "judgment": None,
+    }
+    monkeypatch.setattr(chat_runner, "load_manifest_cases", lambda path: [_case()])
+    monkeypatch.setattr(chat_runner, "evaluate_case", AsyncMock(return_value=row))
+
+    report = await chat_runner.run(
+        tmp_path / "manifest.json",
+        "http://test",
+        tmp_path / "report",
+        min_interval=0,
+    )
+
+    stored = chat_runner._read_results(tmp_path / "report" / "latest_cases.jsonl")
+    assert stored[-1]["answer"] == "Production answer preserved."
+    assert stored[-1]["judgment"] is None
+    assert report["stop_reason"] == "JUDGE_BUDGET_EXHAUSTED"
+
+
+@pytest.mark.asyncio
+async def test_general_case_error_is_recorded_and_next_case_runs(monkeypatch, tmp_path):
+    first = _case()
+    second = replace(first, id="gold-002-v3", variant_group="gold-002")
+    third = replace(first, id="gold-003-v3", variant_group="gold-003")
+    monkeypatch.setattr(chat_runner, "load_manifest_cases", lambda path: [first, second, third])
+    judge_failed = {
+        **chat_runner._case_fields(second),
+        "status": "JUDGE_FAILED",
+        "answer": "Production answer preserved.",
+        "citations": [{"url": second.gold_urls[0]}],
+        "confidence": 0.8,
+        "correct": False,
+        "supported": False,
+        "abstained": False,
+        "judgment": None,
+        "citation_gold_hit": True,
+        "latency_ms": 10.0,
+    }
+    completed = {
+        **chat_runner._case_fields(third),
+        "status": "COMPLETED",
+        "answer": "Supported answer.",
+        "citations": [{"url": third.gold_urls[0]}],
+        "confidence": 0.9,
+        "correct": True,
+        "supported": True,
+        "abstained": False,
+        "citation_gold_hit": True,
+        "latency_ms": 10.0,
+    }
+    evaluate = AsyncMock(
+        side_effect=[httpx.HTTPError("broken"), judge_failed, completed]
+    )
+    monkeypatch.setattr(chat_runner, "evaluate_case", evaluate)
+
+    report = await chat_runner.run(
+        tmp_path / "manifest.json",
+        "http://test",
+        tmp_path / "report",
+        min_interval=0,
+    )
+
+    assert evaluate.await_count == 3
+    assert report["completed"] == 1
+    assert report["stop_reason"] is None
+
+
+@pytest.mark.asyncio
+async def test_cost_delta_includes_chat_and_judge_usage(monkeypatch, tmp_path):
+    monkeypatch.setattr(chat_runner, "load_manifest_cases", lambda path: [_case()])
+    completed = {
+        **chat_runner._case_fields(_case()),
+        "status": "COMPLETED",
+        "answer": "Supported answer.",
+        "citations": [{"url": _case().gold_urls[0]}],
+        "confidence": 0.9,
+        "correct": True,
+        "supported": True,
+        "abstained": False,
+        "citation_gold_hit": True,
+        "latency_ms": 10.0,
+    }
+    monkeypatch.setattr(chat_runner, "evaluate_case", AsyncMock(return_value=completed))
+    monkeypatch.setattr(
+        chat_runner,
+        "get_usage",
+        MagicMock(side_effect=[{"total_cost": 0.10}, {"total_cost": 0.25}]),
+    )
+
+    await chat_runner.run(
+        tmp_path / "manifest.json",
+        "http://test",
+        tmp_path / "report",
+        min_interval=0,
+    )
+
+    rows = chat_runner._read_results(tmp_path / "report" / "latest_cases.jsonl")
+    assert rows[-1]["cost_usd"] == pytest.approx(0.15)
 ```
 
-Add `from dataclasses import replace` and `from app.core.usage import UsageLimitExceeded`.
+Add `from dataclasses import replace`, `from unittest.mock import AsyncMock, MagicMock`, and `from app.core.usage import UsageLimitExceeded`.
 
 - [ ] **Step 2: Run the tests and verify they fail**
 
@@ -713,7 +1001,11 @@ Run:
 ```bash
 PYTHONPATH=$PWD python3 -m pytest -q \
   tests/test_chat_quality_eval.py::test_run_resumes_completed_case_ids \
-  tests/test_chat_quality_eval.py::test_run_stops_cleanly_when_usage_budget_is_exhausted
+  tests/test_chat_quality_eval.py::test_run_records_chat_budget_rejection_then_stops \
+  tests/test_chat_quality_eval.py::test_judge_budget_rejection_preserves_production_answer \
+  tests/test_chat_quality_eval.py::test_run_records_judge_budget_result_then_stops \
+  tests/test_chat_quality_eval.py::test_general_case_error_is_recorded_and_next_case_runs \
+  tests/test_chat_quality_eval.py::test_cost_delta_includes_chat_and_judge_usage
 ```
 
 Expected: FAIL because `run` does not exist.
@@ -763,14 +1055,17 @@ async def run(
             before = float(get_usage()["total_cost"])
             try:
                 row = await evaluate_case(case, client)
-            except UsageLimitExceeded:
-                stop_reason = "USAGE_LIMIT_EXCEEDED"
-                break
             except Exception as exc:
                 row = _failed_row(case, type(exc).__name__)
             row["cost_usd"] = max(0.0, float(get_usage()["total_cost"]) - before)
             _append_result(results_path, row)
             latest[case.id] = row
+            if row["status"] in {
+                "CHAT_BUDGET_EXHAUSTED",
+                "JUDGE_BUDGET_EXHAUSTED",
+            }:
+                stop_reason = str(row["status"])
+                break
 
     relevant = [latest[case.id] for case in cases if case.id in latest]
     summary = summarize_results(relevant)
@@ -825,6 +1120,7 @@ def _failed_row(case: GoldCase, error: str) -> dict[str, object]:
         "abstained": False,
         "correct": False,
         "supported": False,
+        "judgment": None,
         "citation_gold_hit": False,
         "latency_ms": 0.0,
     }
@@ -894,15 +1190,15 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-Add Make targets, but deliberately omit a 1,000-case chat target:
+Add Make targets, but deliberately omit `quality-chat-full`:
 
 ```make
-quality-chat-100:
+quality-chat-dev:
 	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.chat_runner \
 		--manifest eval/quality/manifests/dev_100.json \
 		--report-dir eval/quality/reports_chat_100
 
-quality-chat-200:
+quality-chat-change:
 	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.chat_runner \
 		--manifest eval/quality/manifests/change_200.json \
 		--report-dir eval/quality/reports_chat_200
@@ -914,22 +1210,22 @@ Update `eval/quality/README.md` with:
 
 ```bash
 # Fast retrieval loop; uses embeddings but no chat completion
-make quality-eval-100
+make quality-retrieval-dev
 
 # Material-change retrieval gate
-make quality-eval-200
+make quality-retrieval-change
 
 # Full retrieval release gate only
-make quality-eval
+make quality-retrieval-full
 
 # In another terminal, start the API before a live chat evaluation
 make run-backend
 
 # Actual gpt-4o-mini + /v2/chat evaluation; resumes automatically
-make quality-chat-100
+make quality-chat-dev
 
 # Only after a material change
-make quality-chat-200
+make quality-chat-change
 ```
 
 State explicitly that all current gold cases are answerable, so abstention is a failure and `correct_abstention_rate` is `null` until an unanswerable benchmark is separately approved.
@@ -1041,6 +1337,6 @@ Report:
 - changed files and commits;
 - exact test, DB integration, and lint results;
 - two-case live smoke status and cost delta;
-- `make quality-eval-100` for fast retrieval;
-- `make quality-chat-100` for the manual live development gate;
+- `make quality-retrieval-dev` for fast retrieval;
+- `make quality-chat-dev` for the manual live development gate;
 - confirmation that no full live 100/200/1,000 chat run was executed.
