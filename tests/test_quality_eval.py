@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,7 @@ from eval.quality.metrics import (
     reciprocal_rank,
     summarize,
 )
-from eval.quality.schema import GoldCase, load_cases
+from eval.quality.schema import GoldCase, load_cases, load_manifest_cases
 
 
 def _case(case_id: str = "gold-001-v1", group: str = "gold-001") -> GoldCase:
@@ -27,6 +28,7 @@ def _case(case_id: str = "gold-001-v1", group: str = "gold-001") -> GoldCase:
         gold_locator="official transcript",
         question_type="process",
         time_sensitive=False,
+        difficulty="direct",
         style="direct",
     )
 
@@ -82,6 +84,7 @@ def test_load_cases_reads_fixed_query_level_json_shards(tmp_path):
                 "question_type": "policy",
                 "time_sensitive": False,
                 "difficulty": "direct",
+                "style": "direct",
             }
         ]
     }
@@ -91,6 +94,7 @@ def test_load_cases_reads_fixed_query_level_json_shards(tmp_path):
 
     assert len(cases) == 1
     assert cases[0].id == "fixed-001-v1"
+    assert cases[0].difficulty == "direct"
     assert cases[0].style == "direct"
 
 
@@ -100,6 +104,70 @@ def test_verified_dataset_is_fixed_1000_query_benchmark():
     assert len(cases) == 1000
     assert len({case.variant_group for case in cases}) == 100
     assert len({case.id for case in cases}) == 1000
+
+
+def test_dev_manifest_selects_one_fixed_case_per_fact():
+    cases = load_manifest_cases(Path("eval/quality/manifests/dev_100.json"))
+
+    assert len(cases) == 100
+    assert len({case.variant_group for case in cases}) == 100
+    assert len({case.id for case in cases}) == 100
+
+
+def test_change_manifest_selects_two_fixed_cases_per_fact():
+    cases = load_manifest_cases(Path("eval/quality/manifests/change_200.json"))
+
+    assert len(cases) == 200
+    counts = Counter(case.variant_group for case in cases)
+    assert len(counts) == 100
+    assert set(counts.values()) == {2}
+    assert len({case.id for case in cases}) == 200
+
+
+def test_change_manifest_contains_all_dev_cases():
+    dev = load_manifest_cases(Path("eval/quality/manifests/dev_100.json"))
+    change = load_manifest_cases(Path("eval/quality/manifests/change_200.json"))
+
+    assert {case.id for case in dev} <= {case.id for case in change}
+
+
+def test_manifest_fails_when_a_case_id_is_unknown(tmp_path):
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "cases.json").write_text(
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "id": "gold-001-v1",
+                        "variant_group": "gold-001",
+                        "question": "Question?",
+                        "gold_answer": "Answer.",
+                        "gold_urls": ["https://example.gatech.edu/rule"],
+                        "gold_sources": ["gt-example"],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "name": "broken",
+                "master_dataset": "dataset",
+                "case_ids": ["gold-001-v2"],
+                "expected_fact_count": 1,
+                "cases_per_fact": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown case ids"):
+        load_manifest_cases(manifest)
 
 
 def test_production_lift_is_positive_when_production_beats_raw():

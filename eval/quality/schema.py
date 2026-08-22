@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,6 +18,7 @@ class GoldCase:
     gold_locator: str
     question_type: str
     time_sensitive: bool
+    difficulty: str
     style: str
 
 
@@ -79,6 +81,7 @@ def _expand_fact(raw: dict[str, object]) -> list[GoldCase]:
         GoldCase(
             id=f"{group}-v{index}",
             question=builder(topic, direct),
+            difficulty="generated",
             style=style,
             **common,
         )
@@ -116,7 +119,8 @@ def _load_query_level_json(file_path: Path) -> list[GoldCase]:
                 gold_locator=str(raw.get("gold_locator", "")),
                 question_type=str(raw.get("question_type", "unknown")),
                 time_sensitive=bool(raw.get("time_sensitive", False)),
-                style=str(raw.get("style") or raw.get("difficulty") or "unknown"),
+                difficulty=str(raw.get("difficulty") or "unknown"),
+                style=str(raw.get("style") or "unknown"),
             )
         )
 
@@ -169,3 +173,31 @@ def load_cases(path: Path) -> list[GoldCase]:
     if len({case.id for case in cases}) != len(cases):
         raise ValueError("duplicate case ids detected")
     return cases
+
+
+def load_manifest_cases(path: Path) -> list[GoldCase]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    case_ids = tuple(str(value) for value in payload.get("case_ids", []))
+    expected_facts = int(payload.get("expected_fact_count", 0))
+    cases_per_fact = int(payload.get("cases_per_fact", 0))
+    master_value = payload.get("master_dataset")
+    if (
+        payload.get("version") != 1
+        or not isinstance(master_value, str)
+        or not case_ids
+        or expected_facts < 1
+        or cases_per_fact < 1
+    ):
+        raise ValueError(f"{path}: invalid evaluation manifest")
+    if len(set(case_ids)) != len(case_ids):
+        raise ValueError(f"{path}: duplicate case id")
+
+    master = (path.parent / master_value).resolve()
+    by_id = {case.id: case for case in load_cases(master)}
+    if unknown := sorted(set(case_ids) - set(by_id)):
+        raise ValueError(f"{path}: unknown case ids: {', '.join(unknown)}")
+    selected = [by_id[case_id] for case_id in case_ids]
+    counts = Counter(case.variant_group for case in selected)
+    if len(counts) != expected_facts or set(counts.values()) != {cases_per_fact}:
+        raise ValueError(f"{path}: manifest selection is incomplete")
+    return selected
