@@ -79,7 +79,7 @@ def test_change_manifest_contains_all_dev_cases():
     assert {case.id for case in dev} <= {case.id for case in change}
 
 
-def test_manifest_fails_when_a_requested_variant_is_missing(tmp_path):
+def test_manifest_fails_when_a_case_id_is_unknown(tmp_path):
     dataset = tmp_path / "dataset"
     dataset.mkdir()
     (dataset / "cases.json").write_text(
@@ -114,7 +114,7 @@ def test_manifest_fails_when_a_requested_variant_is_missing(tmp_path):
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="manifest selection is incomplete"):
+    with pytest.raises(ValueError, match="unknown case ids"):
         load_manifest_cases(manifest)
 ```
 
@@ -129,27 +129,14 @@ PYTHONPATH=$PWD python3 -m pytest -q \
   tests/test_quality_eval.py::test_dev_manifest_selects_one_fixed_case_per_fact \
   tests/test_quality_eval.py::test_change_manifest_selects_two_fixed_cases_per_fact \
   tests/test_quality_eval.py::test_change_manifest_contains_all_dev_cases \
-  tests/test_quality_eval.py::test_manifest_fails_when_a_requested_variant_is_missing
+  tests/test_quality_eval.py::test_manifest_fails_when_a_case_id_is_unknown
 ```
 
 Expected: collection fails because `load_manifest_cases` and the manifest files do not exist.
 
 - [ ] **Step 3: Add the two explicit versioned manifests**
 
-Create both manifests with this schema:
-
-```json
-{
-  "version": 1,
-  "name": "buzzbot_gt_public_dev_100",
-  "master_dataset": "../data_verified",
-  "expected_fact_count": 100,
-  "cases_per_fact": 1,
-  "case_ids": ["gold-001-v7", "gold-002-v7", "gold-003-v9"]
-}
-```
-
-The shown IDs illustrate the schema. Produce the complete concrete lists once from the verified 2026-08-22 production report using this read-only command, then add its JSON output with `apply_patch`:
+Produce the complete concrete manifests once from the verified 2026-08-22 production report using this read-only command, then add its two JSON outputs with `apply_patch`:
 
 ```bash
 python3 - <<'PY'
@@ -189,7 +176,8 @@ def score(row):
 dev = []
 change = []
 for group in sorted(groups):
-    selected = max(groups[group], key=score)["case_id"]
+    realistic = [row for row in groups[group] if not row["case_id"].endswith("-v6")]
+    selected = max(realistic or groups[group], key=score)["case_id"]
     second = f"{group}-v1" if selected.endswith("-v2") else f"{group}-v2"
     dev.append(selected)
     change.extend((selected, second))
@@ -202,6 +190,7 @@ for name, ids, cases_per_fact in (
     ("dev_100", dev, 1),
     ("change_200", change, 2),
 ):
+    print(f"### eval/quality/manifests/{name}.json")
     print(
         json.dumps(
             {
@@ -262,7 +251,24 @@ def load_manifest_cases(path: Path) -> list[GoldCase]:
     return selected
 ```
 
-Add `from collections import Counter` to `eval/quality/schema.py`. Do not change `load_cases` or the master JSON files.
+Add `from collections import Counter` to `eval/quality/schema.py`. Preserve the master dataset's separate dimensions with these exact field changes:
+
+```python
+@dataclass(frozen=True)
+class GoldCase:
+    # existing fields remain unchanged
+    difficulty: str
+    style: str
+```
+
+In `_load_query_level_json`, pass:
+
+```python
+difficulty=str(raw.get("difficulty") or "unknown"),
+style=str(raw.get("style") or "unknown"),
+```
+
+In `_expand_fact`, pass `difficulty="generated"`. Add `difficulty="direct"` to the `_case` test helper. Do not modify the master JSON files.
 
 - [ ] **Step 5: Run focused tests**
 
@@ -340,6 +346,8 @@ async def run(
 ```
 
 Record `"manifest": str(manifest) if manifest else None` in the report. Keep all current retrieval modes and metrics unchanged.
+
+Add `"difficulty": grouped_summary(production, "difficulty")` beside the existing style breakdown, and include `"difficulty": result.case.difficulty` in `_case_payload`. Difficulty and style remain separate report dimensions.
 
 Add the CLI argument and pass it through:
 
@@ -429,6 +437,7 @@ def _case() -> GoldCase:
         gold_locator="official transcript",
         question_type="process",
         time_sensitive=False,
+        difficulty="student_scenario",
         style="student_scenario",
     )
 
@@ -482,7 +491,7 @@ async def test_judge_fails_closed_on_malformed_output(monkeypatch):
     assert result["supported"] is False
 
 
-def test_summary_counts_unsupported_confident_answer_as_unsafe():
+def test_summary_leaves_confidence_policy_unset_before_baseline():
     summary = chat_runner.summarize_results(
         [
             {
@@ -502,8 +511,63 @@ def test_summary_counts_unsupported_confident_answer_as_unsafe():
         ]
     )
 
-    assert summary["unsafe_confident_answer_rate"] == 1.0
+    assert summary["unsafe_confident_answer_rate"] is None
     assert summary["correct_abstention_rate"] is None
+
+
+def test_abstention_uses_production_note_not_confidence_threshold():
+    assert chat_runner._is_abstention(
+        {"notes": ["Strict cite-or-abstain policy applied."], "confidence": 0.9}
+    )
+    assert not chat_runner._is_abstention({"notes": [], "confidence": 0.1})
+
+
+def test_summary_separates_correctness_support_and_all_attempt_cost():
+    common = {
+        "abstained": False,
+        "confidence": 0.9,
+        "citation_gold_hit": True,
+        "latency_ms": 10,
+        "vertical": "academics",
+        "question_type": "process",
+        "difficulty": "student_scenario",
+        "style": "scenario",
+        "time_sensitive": False,
+    }
+    summary = chat_runner.summarize_results(
+        [
+            {
+                **common,
+                "status": "COMPLETED",
+                "correct": True,
+                "supported": False,
+                "citations": [],
+                "cost_usd": 0.01,
+                "input_tokens": 100,
+                "output_tokens": 20,
+                "total_tokens": 120,
+                "usage_attribution_valid": True,
+            },
+            {
+                **common,
+                "status": "JUDGE_FAILED",
+                "correct": False,
+                "supported": False,
+                "citations": [],
+                "cost_usd": 0.02,
+                "input_tokens": 50,
+                "output_tokens": 10,
+                "total_tokens": 60,
+                "usage_attribution_valid": True,
+            },
+        ]
+    )
+
+    assert summary["answer_correctness"] == 1.0
+    assert summary["evidence_support_rate"] == 0.0
+    assert summary["total_cost_usd"] == pytest.approx(0.03)
+    assert summary["input_tokens"] == 150
+    assert summary["total_tokens"] == 180
 ```
 
 Add `from unittest.mock import AsyncMock`.
@@ -609,7 +673,7 @@ async def evaluate_case(case: GoldCase, client: httpx.AsyncClient) -> dict[str, 
         for citation in citations
         if isinstance(citation, dict)
     )
-    abstained = not citations and float(body.get("confidence", 0.0)) <= 0.2
+    abstained = _is_abstention(body)
     try:
         judged = (
             {
@@ -644,7 +708,7 @@ async def evaluate_case(case: GoldCase, client: httpx.AsyncClient) -> dict[str, 
         "confidence": float(body.get("confidence", 0.0)),
         "notes": body.get("notes", []),
         "abstained": abstained,
-        "correct": judged["verdict"] == "CORRECT" and judged["supported"],
+        "correct": judged["verdict"] == "CORRECT",
         "supported": judged["supported"],
         "judgment": judged,
         "citation_gold_hit": citation_hit,
@@ -666,7 +730,19 @@ def _case_fields(case: GoldCase) -> dict[str, object]:
         "question_type": case.question_type,
         "style": case.style,
         "time_sensitive": case.time_sensitive,
+        "difficulty": case.difficulty,
     }
+```
+
+Use the production graph's explicit note as the deterministic abstention signal:
+
+```python
+_ABSTENTION_NOTE = "Strict cite-or-abstain policy applied."
+
+
+def _is_abstention(response: dict[str, object]) -> bool:
+    notes = response.get("notes", [])
+    return isinstance(notes, list) and _ABSTENTION_NOTE in notes
 ```
 
 HTTP errors other than budget exhaustion are recorded by the run loop in Task 4; do not retry indefinitely.
@@ -690,9 +766,11 @@ def _percentile(values: list[float], fraction: float) -> float:
 
 def _basic_metrics(rows: list[dict[str, object]]) -> dict[str, object]:
     latencies = [float(row.get("latency_ms", 0.0)) for row in rows]
+    confidences = [float(row.get("confidence", 0.0)) for row in rows]
     return {
         "cases": len(rows),
         "answer_correctness": _ratio(rows, "correct"),
+        "evidence_support_rate": _ratio(rows, "supported"),
         "supported_cited_answer_rate": (
             sum(bool(row.get("supported") and row.get("citations")) for row in rows)
             / len(rows)
@@ -701,25 +779,17 @@ def _basic_metrics(rows: list[dict[str, object]]) -> dict[str, object]:
         ),
         "abstention_rate": _ratio(rows, "abstained"),
         "correct_abstention_rate": None,
-        "unsafe_confident_answer_rate": (
-            sum(
-                bool(
-                    not row.get("correct")
-                    and not row.get("abstained")
-                    and float(row.get("confidence", 0.0)) >= 0.5
-                )
-                for row in rows
-            )
-            / len(rows)
-            if rows
-            else 0.0
-        ),
+        "confidence_threshold": None,
+        "unsafe_confident_answer_rate": None,
         "citation_gold_url_hit_rate": _ratio(rows, "citation_gold_hit"),
+        "confidence": {
+            "p50": statistics.median(confidences) if confidences else 0.0,
+            "p95": _percentile(confidences, 0.95),
+        },
         "latency_ms": {
             "p50": statistics.median(latencies) if latencies else 0.0,
             "p95": _percentile(latencies, 0.95),
         },
-        "total_cost_usd": sum(float(row.get("cost_usd", 0.0)) for row in rows),
     }
 
 
@@ -727,7 +797,7 @@ def summarize_results(results: list[dict[str, object]]) -> dict[str, object]:
     rows = [row for row in results if row.get("status") == "COMPLETED"]
     summary = _basic_metrics(rows)
     breakdowns: dict[str, dict[str, object]] = {}
-    for key in ("vertical", "question_type", "style", "time_sensitive"):
+    for key in ("vertical", "question_type", "difficulty", "style", "time_sensitive"):
         buckets: dict[str, list[dict[str, object]]] = {}
         for row in rows:
             buckets.setdefault(str(row.get(key, "unknown")), []).append(row)
@@ -735,6 +805,22 @@ def summarize_results(results: list[dict[str, object]]) -> dict[str, object]:
             value: _basic_metrics(bucket) for value, bucket in sorted(buckets.items())
         }
     summary["breakdowns"] = breakdowns
+    summary["attempted_cases"] = len(results)
+    usage_valid = all(
+        row.get("usage_attribution_valid", False) for row in results
+    )
+    summary["usage_attribution_valid"] = usage_valid
+    summary["total_cost_usd"] = (
+        sum(float(row.get("cost_usd") or 0.0) for row in results)
+        if usage_valid
+        else None
+    )
+    for key in ("input_tokens", "output_tokens", "embedding_tokens", "total_tokens"):
+        summary[key] = (
+            sum(int(row.get(key, 0) or 0) for row in results)
+            if usage_valid
+            else None
+        )
     return summary
 ```
 
@@ -975,10 +1061,28 @@ async def test_cost_delta_includes_chat_and_judge_usage(monkeypatch, tmp_path):
         "latency_ms": 10.0,
     }
     monkeypatch.setattr(chat_runner, "evaluate_case", AsyncMock(return_value=completed))
+    old = {
+        "timestamp": "t0",
+        "model": "gpt-4o-mini",
+        "type": "input",
+        "tokens": 10,
+        "cost": 0.10,
+    }
+    new_entries = [
+        {"timestamp": "t1", "model": "gpt-4o-mini", "type": "input", "tokens": 100, "cost": 0.04},
+        {"timestamp": "t2", "model": "gpt-4o-mini", "type": "output", "tokens": 20, "cost": 0.03},
+        {"timestamp": "t3", "model": "gpt-4o-mini", "type": "input", "tokens": 50, "cost": 0.05},
+        {"timestamp": "t4", "model": "gpt-4o-mini", "type": "output", "tokens": 10, "cost": 0.03},
+    ]
     monkeypatch.setattr(
         chat_runner,
         "get_usage",
-        MagicMock(side_effect=[{"total_cost": 0.10}, {"total_cost": 0.25}]),
+        MagicMock(
+            side_effect=[
+                {"total_cost": 0.10, "history": [old]},
+                {"total_cost": 0.25, "history": [old, *new_entries]},
+            ]
+        ),
     )
 
     await chat_runner.run(
@@ -990,6 +1094,9 @@ async def test_cost_delta_includes_chat_and_judge_usage(monkeypatch, tmp_path):
 
     rows = chat_runner._read_results(tmp_path / "report" / "latest_cases.jsonl")
     assert rows[-1]["cost_usd"] == pytest.approx(0.15)
+    assert rows[-1]["input_tokens"] == 150
+    assert rows[-1]["output_tokens"] == 30
+    assert rows[-1]["total_tokens"] == 180
 ```
 
 Add `from dataclasses import replace`, `from unittest.mock import AsyncMock, MagicMock`, and `from app.core.usage import UsageLimitExceeded`.
@@ -1052,12 +1159,12 @@ async def run(
             if wait:
                 await asyncio.sleep(wait)
             last_started = time.monotonic()
-            before = float(get_usage()["total_cost"])
+            before = get_usage()
             try:
                 row = await evaluate_case(case, client)
             except Exception as exc:
                 row = _failed_row(case, type(exc).__name__)
-            row["cost_usd"] = max(0.0, float(get_usage()["total_cost"]) - before)
+            row.update(_usage_delta(before, get_usage()))
             _append_result(results_path, row)
             latest[case.id] = row
             if row["status"] in {
@@ -1082,6 +1189,54 @@ async def run(
     return report
 ```
 
+The current usage store exposes token counts through its bounded `history`, not top-level counters. Attribute the new history entries between the before/after snapshots:
+
+```python
+def _usage_delta(
+    before: dict[str, object], after: dict[str, object]
+) -> dict[str, object]:
+    before_history = list(before.get("history", []))
+    after_history = list(after.get("history", []))
+    if before_history:
+        marker = before_history[-1]
+        matches = [
+            index for index, entry in enumerate(after_history) if entry == marker
+        ]
+        if not matches:
+            return {
+                "usage_attribution_valid": False,
+                "cost_usd": None,
+                "input_tokens": None,
+                "output_tokens": None,
+                "embedding_tokens": None,
+                "total_tokens": None,
+            }
+        entries = after_history[matches[-1] + 1 :]
+    else:
+        entries = after_history
+
+    def tokens(usage_type: str) -> int:
+        return sum(
+            int(entry.get("tokens", 0))
+            for entry in entries
+            if entry.get("type") == usage_type
+        )
+
+    input_tokens = tokens("input")
+    output_tokens = tokens("output")
+    embedding_tokens = tokens("embedding")
+    return {
+        "usage_attribution_valid": True,
+        "cost_usd": sum(float(entry.get("cost", 0.0)) for entry in entries),
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "embedding_tokens": embedding_tokens,
+        "total_tokens": input_tokens + output_tokens + embedding_tokens,
+    }
+```
+
+Sequential execution ensures the new history slice contains the production chat and its judge for only this case. If the marker disappears because another process resets or rewrites usage history, preserve the case result but mark attribution invalid rather than reporting false zero usage.
+
 Add the exact local helpers below. JSONL writes flush after each row, and only the latest row for a case contributes to the summary:
 
 ```python
@@ -1103,15 +1258,7 @@ def _append_result(path: Path, row: dict[str, object]) -> None:
 
 def _failed_row(case: GoldCase, error: str) -> dict[str, object]:
     return {
-        "case_id": case.id,
-        "variant_group": case.variant_group,
-        "question": case.question,
-        "gold_answer": case.gold_answer,
-        "gold_urls": list(case.gold_urls),
-        "vertical": case.gold_vertical,
-        "question_type": case.question_type,
-        "style": case.style,
-        "time_sensitive": case.time_sensitive,
+        **_case_fields(case),
         "status": "FAILED",
         "error": error,
         "answer": "",
@@ -1132,6 +1279,8 @@ def _write_reports(report_dir: Path, report: dict[str, object]) -> None:
         encoding="utf-8",
     )
     metrics = report["metrics"]
+    cost = metrics["total_cost_usd"]
+    cost_label = f"${cost:.6f}" if isinstance(cost, int | float) else "unavailable"
     markdown = "\n".join(
         [
             "# BuzzBot `/v2/chat` quality report",
@@ -1141,11 +1290,15 @@ def _write_reports(report_dir: Path, report: dict[str, object]) -> None:
             f"- Remaining: {report['remaining']}",
             f"- Stop reason: {report['stop_reason'] or 'none'}",
             f"- Answer correctness: {metrics['answer_correctness']:.2%}",
+            f"- Evidence support: {metrics['evidence_support_rate']:.2%}",
             f"- Supported and cited: {metrics['supported_cited_answer_rate']:.2%}",
             f"- Abstention rate: {metrics['abstention_rate']:.2%}",
-            f"- Unsafe confident answers: {metrics['unsafe_confident_answer_rate']:.2%}",
+            "- Unsafe confident answers: not scored until baseline threshold is frozen",
             f"- Gold citation hit: {metrics['citation_gold_url_hit_rate']:.2%}",
-            f"- Cost: ${metrics['total_cost_usd']:.6f}",
+            f"- Cost: {cost_label}",
+            f"- Input tokens: {metrics['input_tokens']}",
+            f"- Output tokens: {metrics['output_tokens']}",
+            f"- Total tokens: {metrics['total_tokens']}",
             "",
         ]
     )
@@ -1229,6 +1382,7 @@ make quality-chat-change
 ```
 
 State explicitly that all current gold cases are answerable, so abstention is a failure and `correct_abstention_rate` is `null` until an unanswerable benchmark is separately approved.
+Also state that `unsafe_confident_answer_rate` and `confidence_threshold` remain `null` for the first baseline; raw case confidence and p50/p95 are recorded so a later reviewed threshold can be frozen without changing historical results.
 
 - [ ] **Step 6: Run focused tests and lint**
 

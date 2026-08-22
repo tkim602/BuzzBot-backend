@@ -51,7 +51,7 @@ The correctness judge uses the already configured model and returns a small fixe
 
 ## Execution semantics
 
-- Process cases with small bounded concurrency.
+- Process cases sequentially with a bounded start rate so `/v2/chat` and judge usage can be attributed to one case without file-accounting races.
 - Append one JSONL result per completed case.
 - On restart, skip completed case IDs unless `--force` is supplied.
 - Stop cleanly when the existing usage limiter rejects further API calls.
@@ -74,10 +74,11 @@ Report separately:
 - breakdowns by vertical, question type, difficulty, and time sensitivity.
 
 Retrieval metrics remain separate from answer metrics. A retrieved gold document is not counted as a correct final answer.
+Answer-quality rates use successfully judged cases, while cost and token totals include every attempted case, including HTTP failures and judge failures. Correctness and evidence support remain separate metrics.
 
 ## Initial quality policy
 
-The system remains fail-closed: a supported abstention is preferable to an unsupported confident answer. Initial runs establish the baseline. Release thresholds are frozen only after reviewing the 100-case end-to-end report, rather than inventing thresholds before observing the production path.
+The system remains fail-closed: a supported abstention is preferable to an unsupported confident answer. Initial runs establish the baseline. Before a confidence threshold is frozen, reports preserve raw confidence and set the threshold-dependent unsafe confident-answer rate to `null`. Abstention uses the production `/v2/chat` cite-or-abstain note, not an evaluation-only confidence cutoff. Release thresholds are frozen only after reviewing the 100-case end-to-end report.
 
 ## Scope exclusions
 
