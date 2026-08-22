@@ -165,7 +165,10 @@ async def test_hybrid_document_retrieval_returns_official_citation(monkeypatch):
         async with sessions() as session:
             evidence = await search_policy_docs(
                 session,
-                PolicyQuery("What is the exact Fall 2026 registration deadline?"),
+                PolicyQuery(
+                    "What is the exact Fall 2026 registration deadline?",
+                    source_types=("academic_calendar",),
+                ),
                 vector,
             )
         assert evidence
