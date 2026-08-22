@@ -42,7 +42,7 @@ from eval.quality.metrics import (
     normalize_url,
     summarize,
 )
-from eval.quality.schema import GoldCase, load_cases
+from eval.quality.schema import GoldCase, load_cases, load_manifest_cases
 from ingestion.documents.registry import load_document_sources
 
 DEFAULT_DATASET = Path(__file__).parent / "data"
@@ -244,8 +244,17 @@ def _production_lift_at_5(summaries: dict[str, dict[str, object]]) -> float:
     return float(summaries["production"]["hit_at_5"]) - float(summaries["raw"]["hit_at_5"])
 
 
-async def run(dataset: Path, report_dir: Path, top_k: int = 10) -> dict[str, object]:
-    cases = load_cases(dataset)
+def _evaluation_cases(dataset: Path, manifest: Path | None) -> list[GoldCase]:
+    return load_manifest_cases(manifest) if manifest else load_cases(dataset)
+
+
+async def run(
+    dataset: Path,
+    report_dir: Path,
+    top_k: int = 10,
+    manifest: Path | None = None,
+) -> dict[str, object]:
+    cases = _evaluation_cases(dataset, manifest)
     report_dir.mkdir(parents=True, exist_ok=True)
 
     async with AsyncSessionLocal() as session:
@@ -291,6 +300,7 @@ async def run(dataset: Path, report_dir: Path, top_k: int = 10) -> dict[str, obj
         "benchmark": "buzzbot_gt_public_gold_1000",
         "generated_at": datetime.now(UTC).isoformat(),
         "dataset": str(dataset),
+        "manifest": str(manifest) if manifest else None,
         "cases": len(cases),
         "facts": len({case.variant_group for case in cases}),
         "top_k": top_k,
@@ -306,6 +316,7 @@ async def run(dataset: Path, report_dir: Path, top_k: int = 10) -> dict[str, obj
         "breakdowns": {
             "vertical": grouped_summary(production, "gold_vertical"),
             "source": _group_by_source(production),
+            "difficulty": grouped_summary(production, "difficulty"),
             "style": grouped_summary(production, "style"),
             "question_type": grouped_summary(production, "question_type"),
             "time_sensitive": grouped_summary(production, "time_sensitive"),
@@ -353,6 +364,8 @@ def _case_payload(result: CaseResult) -> dict[str, object]:
         "gold_urls": list(result.case.gold_urls),
         "gold_sources": list(result.case.gold_sources),
         "gold_vertical": result.case.gold_vertical,
+        "difficulty": result.case.difficulty,
+        "style": result.case.style,
         "rank": result.rank,
         "source_rank": result.source_rank,
         "vertical_rank": result.vertical_rank,
@@ -408,12 +421,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     parser.add_argument("--report-dir", type=Path, default=DEFAULT_REPORT_DIR)
     parser.add_argument("--top-k", type=int, default=10)
+    parser.add_argument("--manifest", type=Path)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    report = asyncio.run(run(args.dataset, args.report_dir, top_k=args.top_k))
+    report = asyncio.run(
+        run(args.dataset, args.report_dir, top_k=args.top_k, manifest=args.manifest)
+    )
     production = report["modes"]["production"]
     raw = report["modes"]["raw"]
     print("\n=== BuzzBot deterministic retrieval quality ===")

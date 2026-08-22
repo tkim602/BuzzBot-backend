@@ -178,3 +178,13 @@ def test_production_lift_is_positive_when_production_beats_raw():
 
     assert hasattr(runner, "_production_lift_at_5")
     assert runner._production_lift_at_5(summaries) == pytest.approx(0.115)
+
+
+def test_runner_uses_manifest_cases_when_requested(monkeypatch, tmp_path):
+    selected = [_case()]
+    monkeypatch.setattr(runner, "load_manifest_cases", lambda path: selected)
+    monkeypatch.setattr(runner, "load_cases", lambda path: pytest.fail("master loader used"))
+
+    assert runner._evaluation_cases(
+        tmp_path / "master", tmp_path / "manifest.json"
+    ) == selected
