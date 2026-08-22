@@ -22,11 +22,16 @@ make quality-chat-dev
 
 # Only after a material change
 make quality-chat-change
+
+# Offline A/B/C diagnosis; reads the current DB and existing dev-100 reports
+make quality-diagnose-dev
 ```
 
 The fixed 100- and 200-case manifests select from the unchanged 1,000-query verified dataset in `eval/quality/data_verified`. There is intentionally no `quality-chat-full` target.
 
 Retrieval reports are written beneath `eval/quality/reports_retrieval_*`; chat reports beneath `eval/quality/reports_chat_*`.
+
+`quality-diagnose-dev` makes no network/model calls. It separates missing indexed evidence (A), retrieval misses (B), and post-retrieval failures (C). Pass `retrieval_report=... chat_report=...` when the frozen baseline reports live outside the checkout.
 
 Chat evaluation is sequential and resumable. Only `COMPLETED` case IDs are skipped; failed or budget-stopped cases retry on the next run. Production chat and judge token/cost deltas are attributed per case from the shared usage history.
 
