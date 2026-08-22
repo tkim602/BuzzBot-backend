@@ -67,6 +67,7 @@ async def search_policy_docs(
         top_k=query.top_k,
         source_filter=source_filter,
         force_fts=True,
+        max_chunks_per_url=1,
     )
     seen: set[str] = set()
     evidence: list[DocumentEvidence] = []

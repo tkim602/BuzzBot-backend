@@ -553,6 +553,31 @@ def _rrf_fuse_results(
     return merged
 
 
+def _cap_chunks_per_url(
+    chunks: list[RetrievedChunk],
+    *,
+    max_chunks_per_url: int,
+    top_k: int,
+) -> list[RetrievedChunk]:
+    if max_chunks_per_url < 1:
+        raise ValueError("max_chunks_per_url must be positive")
+    counts: dict[tuple[str, str, str] | tuple[str, str], int] = {}
+    selected: list[RetrievedChunk] = []
+    for chunk in chunks:
+        if chunk.url:
+            parts = urlsplit(chunk.url)
+            key = (parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip("/") or "/")
+        else:
+            key = ("chunk", chunk.chunk_id)
+        if counts.get(key, 0) >= max_chunks_per_url:
+            continue
+        counts[key] = counts.get(key, 0) + 1
+        selected.append(chunk)
+        if len(selected) >= top_k:
+            break
+    return selected
+
+
 def _signal_match_count(chunk: RetrievedChunk, hints: QueryHints) -> int:
     haystack = f"{chunk.title or ''}\n{chunk.chunk_text}".lower()
     score = 0
@@ -626,6 +651,7 @@ async def hybrid_retrieve(
     similarity_threshold: float = 0.3,
     force_fts: bool = False,
     hyde_embedding: list[float] | None = None,
+    max_chunks_per_url: int | None = None,
 ) -> list[RetrievedChunk]:
     """Combined vector + FTS retrieval with reciprocal rank fusion."""
     # Use HyDE embedding for vector search if provided
@@ -646,6 +672,7 @@ async def hybrid_retrieve(
     fts_top_k = max(3, min(top_k, settings.rag_fts_top_k))
     if settings.rag_enable_reranking:
         fts_top_k = max(fts_top_k, fusion_top_k)
+    fts_fetch_k = fts_top_k * 3 if max_chunks_per_url else fts_top_k
 
     exact_schedule_lookup = schedule_only and metadata_course_code and metadata_term_name
     if settings.rag_skip_fts_for_exact_schedule and exact_schedule_lookup:
@@ -664,7 +691,7 @@ async def hybrid_retrieve(
         fts_results = await fts_search(
             session,
             keyword_query,
-            top_k=max(fts_top_k, top_k),
+            top_k=max(fts_fetch_k, top_k),
             source_filter=source_filter,
             metadata_course_code=metadata_course_code,
             metadata_term_name=metadata_term_name,
@@ -692,12 +719,24 @@ async def hybrid_retrieve(
         fts_results = await fts_search(
             session,
             keyword_query,
-            top_k=fts_top_k,
+            top_k=fts_fetch_k,
             source_filter=source_filter,
             metadata_course_code=metadata_course_code,
             metadata_term_name=metadata_term_name,
             metadata_semester=metadata_semester,
             match_any=force_fts,
+        )
+
+    if max_chunks_per_url:
+        vector_results = _cap_chunks_per_url(
+            vector_results,
+            max_chunks_per_url=max_chunks_per_url,
+            top_k=fusion_top_k,
+        )
+        fts_results = _cap_chunks_per_url(
+            fts_results,
+            max_chunks_per_url=max_chunks_per_url,
+            top_k=fusion_top_k,
         )
 
     merged = _rrf_fuse_results(vector_results, fts_results, top_k=fusion_top_k)

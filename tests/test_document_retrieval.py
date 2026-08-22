@@ -102,6 +102,7 @@ async def test_requested_source_types_map_to_official_sources_and_deduplicate(mo
     )
 
     assert captured["source_filter"] == ["gt-catalog"]
+    assert captured["max_chunks_per_url"] == 1
     assert len(evidence) == 1
 
 
