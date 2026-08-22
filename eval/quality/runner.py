@@ -240,6 +240,10 @@ def _diagnose(results_by_mode: dict[str, list[CaseResult]]) -> None:
         object.__setattr__(prod, "failure_tags", tuple(tags))
 
 
+def _production_lift_at_5(summaries: dict[str, dict[str, object]]) -> float:
+    return float(summaries["production"]["hit_at_5"]) - float(summaries["raw"]["hit_at_5"])
+
+
 async def run(dataset: Path, report_dir: Path, top_k: int = 10) -> dict[str, object]:
     cases = load_cases(dataset)
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -281,9 +285,7 @@ async def run(dataset: Path, report_dir: Path, top_k: int = 10) -> dict[str, obj
 
     summaries = {mode: summarize(results) for mode, results in results_by_mode.items()}
     production = results_by_mode["production"]
-    raw_summary = summaries["raw"]
-    prod_summary = summaries["production"]
-    routing_loss = float(raw_summary["hit_at_5"]) - float(prod_summary["hit_at_5"])
+    production_lift = _production_lift_at_5(summaries)
 
     report = {
         "benchmark": "buzzbot_gt_public_gold_1000",
@@ -300,7 +302,7 @@ async def run(dataset: Path, report_dir: Path, top_k: int = 10) -> dict[str, obj
             "fts": summaries["fts"],
             "hybrid": summaries["raw"],
         },
-        "routing_loss_at_5": routing_loss,
+        "production_lift_at_5": production_lift,
         "breakdowns": {
             "vertical": grouped_summary(production, "gold_vertical"),
             "source": _group_by_source(production),
@@ -384,7 +386,7 @@ def _render_markdown(report: dict[str, object]) -> str:
     lines.extend(
         [
             "",
-            f"Routing/filter loss at 5: {report['routing_loss_at_5']:.2%}",
+            f"Production lift over raw at 5: {report['production_lift_at_5']:.2%}",
             "",
             "## Production robustness",
             "",
@@ -421,7 +423,7 @@ def main() -> None:
         f"production hit@1={production['hit_at_1']:.2%} hit@3={production['hit_at_3']:.2%} "
         f"hit@5={production['hit_at_5']:.2%} mrr@5={production['mrr_at_5']:.3f}"
     )
-    print(f"raw hit@5={raw['hit_at_5']:.2%} routing_loss@5={report['routing_loss_at_5']:.2%}")
+    print(f"raw hit@5={raw['hit_at_5']:.2%} production_lift@5={report['production_lift_at_5']:.2%}")
     print(f"report={args.report_dir / 'latest_summary.md'}")
 
 

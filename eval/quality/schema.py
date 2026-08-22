@@ -86,7 +86,66 @@ def _expand_fact(raw: dict[str, object]) -> list[GoldCase]:
     ]
 
 
+def _load_query_level_json(file_path: Path) -> list[GoldCase]:
+    payload = json.loads(file_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
+        raise ValueError(f"{file_path}: expected JSON object with an items list")
+
+    cases: list[GoldCase] = []
+    for index, raw in enumerate(payload["items"], start=1):
+        if not isinstance(raw, dict):
+            raise ValueError(f"{file_path}:items[{index}] must be an object")
+
+        gold_urls = tuple(str(url) for url in raw.get("gold_urls", []))
+        gold_sources = tuple(str(source) for source in raw.get("gold_sources", []))
+
+        if not gold_urls:
+            raise ValueError(f"{file_path}:items[{index}]: gold_urls is required")
+        if not gold_sources:
+            raise ValueError(f"{file_path}:items[{index}]: gold_sources is required")
+
+        cases.append(
+            GoldCase(
+                id=str(raw["id"]),
+                variant_group=str(raw["variant_group"]),
+                question=str(raw["question"]),
+                gold_answer=str(raw.get("gold_answer", "")),
+                gold_urls=gold_urls,
+                gold_sources=gold_sources,
+                gold_vertical=str(raw.get("gold_vertical", "unknown")),
+                gold_locator=str(raw.get("gold_locator", "")),
+                question_type=str(raw.get("question_type", "unknown")),
+                time_sensitive=bool(raw.get("time_sensitive", False)),
+                style=str(raw.get("style") or raw.get("difficulty") or "unknown"),
+            )
+        )
+
+    return cases
+
+
 def load_cases(path: Path) -> list[GoldCase]:
+    if path.is_file() and path.suffix == ".json":
+        cases = _load_query_level_json(path)
+        if len({case.id for case in cases}) != len(cases):
+            raise ValueError("duplicate case ids detected")
+        return cases
+
+    if path.is_dir():
+        query_files = sorted(path.glob("*.json"))
+        fact_files = sorted(path.glob("gold_facts_part*.jsonl"))
+
+        if query_files and not fact_files:
+            cases: list[GoldCase] = []
+            for file_path in query_files:
+                cases.extend(_load_query_level_json(file_path))
+
+            if not cases:
+                raise ValueError("dataset is empty")
+            if len({case.id for case in cases}) != len(cases):
+                raise ValueError("duplicate case ids detected")
+
+            return cases
+
     cases: list[GoldCase] = []
     groups: set[str] = set()
     files = sorted(path.glob("gold_facts_part*.jsonl")) if path.is_dir() else [path]

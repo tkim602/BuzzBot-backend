@@ -8,7 +8,7 @@ This is the local, deterministic benchmark for BuzzBot's official-document RAG. 
 make quality-eval
 ```
 
-The command evaluates 1,000 gold questions (100 verified facts × 10 deterministic phrasings) against the current local PostgreSQL + pgvector corpus and writes:
+The command evaluates the fixed 1,000-query verified dataset in `eval/quality/data_verified` against the current local PostgreSQL + pgvector corpus and writes:
 
 - `eval/quality/reports/latest_summary.md`
 - `eval/quality/reports/latest_summary.json`

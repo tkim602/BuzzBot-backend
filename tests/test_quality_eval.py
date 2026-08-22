@@ -1,3 +1,9 @@
+import json
+from pathlib import Path
+
+import pytest
+
+from eval.quality import runner
 from eval.quality.metrics import (
     CaseResult,
     RankedItem,
@@ -6,7 +12,7 @@ from eval.quality.metrics import (
     reciprocal_rank,
     summarize,
 )
-from eval.quality.schema import GoldCase
+from eval.quality.schema import GoldCase, load_cases
 
 
 def _case(case_id: str = "gold-001-v1", group: str = "gold-001") -> GoldCase:
@@ -59,3 +65,48 @@ def test_summarize_reports_question_and_fact_robustness():
     assert summary["hit_at_5"] == 2 / 3
     assert summary["fact_macro_hit_at_5"] == 0.75
     assert summary["all_variants_hit_at_5"] == 0.5
+
+
+def test_load_cases_reads_fixed_query_level_json_shards(tmp_path):
+    payload = {
+        "items": [
+            {
+                "id": "fixed-001-v1",
+                "variant_group": "fixed-001",
+                "question": "What is the official rule?",
+                "gold_answer": "The official answer.",
+                "gold_urls": ["https://example.gatech.edu/rule"],
+                "gold_sources": ["gt-example"],
+                "gold_vertical": "academics",
+                "gold_locator": "official rule",
+                "question_type": "policy",
+                "time_sensitive": False,
+                "difficulty": "direct",
+            }
+        ]
+    }
+    (tmp_path / "gold_v1.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    cases = load_cases(tmp_path)
+
+    assert len(cases) == 1
+    assert cases[0].id == "fixed-001-v1"
+    assert cases[0].style == "direct"
+
+
+def test_verified_dataset_is_fixed_1000_query_benchmark():
+    cases = load_cases(Path("eval/quality/data_verified"))
+
+    assert len(cases) == 1000
+    assert len({case.variant_group for case in cases}) == 100
+    assert len({case.id for case in cases}) == 1000
+
+
+def test_production_lift_is_positive_when_production_beats_raw():
+    summaries = {
+        "production": {"hit_at_5": 0.443},
+        "raw": {"hit_at_5": 0.328},
+    }
+
+    assert hasattr(runner, "_production_lift_at_5")
+    assert runner._production_lift_at_5(summaries) == pytest.approx(0.115)

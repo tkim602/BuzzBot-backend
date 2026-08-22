@@ -51,6 +51,7 @@ documents:
       - https://omscs.gatech.edu/prospective-student-faqs
       - https://omscs.gatech.edu/specializations
       - https://omscs.gatech.edu/cost-and-payment-schedule
+      - https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines
     allowed_path_prefixes: [/]
     content_types: [text/html]
     freshness_class: medium
@@ -71,6 +72,10 @@ documents:
       - https://admission.gatech.edu/first-year/personal-essays
       - https://admission.gatech.edu/first-year/recommendations
       - https://admission.gatech.edu/first-year/major-selection
+      - https://admission.gatech.edu/first-year/decision-outcomes
+      - https://admission.gatech.edu/first-year/defer-enrollment-gap-year
+      - https://admission.gatech.edu/first-year/standardized-tests
+      - https://admission.gatech.edu/first-year/waitlist
     allowed_path_prefixes: [/first-year]
     content_types: [text/html]
     freshness_class: high
@@ -83,7 +88,7 @@ documents:
     vertical: academics
     adapter: paths
     allowed_roots: [https://catalog.gatech.edu/]
-    seed_urls: [https://catalog.gatech.edu/programs/]
+    seed_urls: [https://catalog.gatech.edu/programs/, https://catalog.gatech.edu/academics/undergraduate/bs-ms-degree-programs]
     allowed_path_prefixes: [/programs, /academics]
     excluded_paths:
       - /academics/research-support-facilities/oak-ridge-associated-universities
@@ -211,7 +216,7 @@ documents:
     vertical: health_support
     adapter: paths
     allowed_roots: [https://studentlife.gatech.edu/]
-    seed_urls: [https://studentlife.gatech.edu/request-assistance]
+    seed_urls: [https://studentlife.gatech.edu/request-assistance, https://studentlife.gatech.edu/services/mental-health-well-being]
     allowed_path_prefixes: [/request-assistance, /services]
     content_types: [text/html, application/pdf]
     freshness_class: medium
@@ -224,8 +229,13 @@ documents:
     vertical: international
     adapter: paths
     allowed_roots: [https://isss.oie.gatech.edu/]
-    seed_urls: [https://isss.oie.gatech.edu/isss/travel, https://isss.oie.gatech.edu/content/international-student-employment-overview]
-    allowed_path_prefixes: [/isss, /content, /i-20-and-ds-2019-form-guides, /sites/default/files]
+    seed_urls:
+      - https://isss.oie.gatech.edu/isss/travel
+      - https://isss.oie.gatech.edu/content/international-student-employment-overview
+      - https://isss.oie.gatech.edu/content/curricular-practical-training-cpt-georgia-tech
+      - https://isss.oie.gatech.edu/content/international-student-scholar-services-advising
+      - https://isss.oie.gatech.edu/isss-check-in
+    allowed_path_prefixes: [/isss, /isss-check-in, /content, /i-20-and-ds-2019-form-guides, /sites/default/files]
     excluded_paths:
       - /content/isss-welcome
       - /sites/default/files/i-94_instructions_updated.pdf
@@ -305,7 +315,10 @@ documents:
     vertical: admissions
     adapter: paths
     allowed_roots: [https://grad.gatech.edu/admissions/]
-    seed_urls: [https://grad.gatech.edu/admissions]
+    seed_urls:
+      - https://grad.gatech.edu/admissions
+      - https://grad.gatech.edu/admissions/domestic/before-you-apply
+      - https://grad.gatech.edu/admissions/international/before-you-apply
     allowed_path_prefixes: [/admissions, /sites/default/files]
     content_types: [text/html, application/pdf]
     freshness_class: high

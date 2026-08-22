@@ -90,7 +90,7 @@ eval-v2:
 	PYTHONPATH=$$PWD $(PYTHON) eval/agentic_rag_eval.py
 
 quality-eval:
-	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.runner
+	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.runner --dataset eval/quality/data_verified
 
 lint:
 	ruff check .
