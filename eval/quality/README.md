@@ -1,14 +1,38 @@
-# BuzzBot deterministic retrieval quality eval
+# BuzzBot quality evaluation
 
-This is the local, deterministic benchmark for BuzzBot's official-document RAG. It does not use LangSmith or an LLM judge.
+The retrieval benchmark is local and deterministic. The chat benchmark calls the real `/v2/chat` production contract and judges responses with the configured `gpt-4o-mini`; both production and judge calls share the existing $3 usage guard.
 
-## One-command run
+## Commands
 
 ```bash
-make quality-eval
+# Fast retrieval loop; uses embeddings but no chat completion
+make quality-retrieval-dev
+
+# Material-change retrieval gate
+make quality-retrieval-change
+
+# Full retrieval release gate only
+make quality-retrieval-full
+
+# In another terminal, start the API before a live chat evaluation
+make run-backend
+
+# Actual gpt-4o-mini + /v2/chat evaluation; resumes automatically
+make quality-chat-dev
+
+# Only after a material change
+make quality-chat-change
 ```
 
-The command evaluates the fixed 1,000-query verified dataset in `eval/quality/data_verified` against the current local PostgreSQL + pgvector corpus and writes:
+The fixed 100- and 200-case manifests select from the unchanged 1,000-query verified dataset in `eval/quality/data_verified`. There is intentionally no `quality-chat-full` target.
+
+Retrieval reports are written beneath `eval/quality/reports_retrieval_*`; chat reports beneath `eval/quality/reports_chat_*`.
+
+Chat evaluation is sequential and resumable. Only `COMPLETED` case IDs are skipped; failed or budget-stopped cases retry on the next run. Production chat and judge token/cost deltas are attributed per case from the shared usage history.
+
+All current gold cases are answerable, so abstention is a failure and `correct_abstention_rate` remains `null` until a separate unanswerable benchmark is approved. The first baseline also leaves `confidence_threshold` and `unsafe_confident_answer_rate` as `null`; raw case confidence and p50/p95 values are retained for a later reviewed threshold.
+
+The full retrieval command writes:
 
 - `eval/quality/reports/latest_summary.md`
 - `eval/quality/reports/latest_summary.json`

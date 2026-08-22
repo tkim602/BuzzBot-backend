@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-gt-all resume-gt-all sync-oscar sync-oscar-all run-backend run-frontend test test-db lint fmt usage eval-v2 quality-retrieval-dev quality-retrieval-change quality-retrieval-full
+.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-gt-all resume-gt-all sync-oscar sync-oscar-all run-backend run-frontend test test-db lint fmt usage eval-v2 quality-retrieval-dev quality-retrieval-change quality-retrieval-full quality-chat-dev quality-chat-change
 
 setup:
 	pip install -e ".[dev]"
@@ -101,6 +101,16 @@ quality-retrieval-change:
 
 quality-retrieval-full:
 	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.runner --dataset eval/quality/data_verified
+
+quality-chat-dev:
+	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.chat_runner \
+		--manifest eval/quality/manifests/dev_100.json \
+		--report-dir eval/quality/reports_chat_100
+
+quality-chat-change:
+	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.chat_runner \
+		--manifest eval/quality/manifests/change_200.json \
+		--report-dir eval/quality/reports_chat_200
 
 lint:
 	ruff check .

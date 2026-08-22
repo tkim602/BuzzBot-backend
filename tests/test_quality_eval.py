@@ -185,6 +185,4 @@ def test_runner_uses_manifest_cases_when_requested(monkeypatch, tmp_path):
     monkeypatch.setattr(runner, "load_manifest_cases", lambda path: selected)
     monkeypatch.setattr(runner, "load_cases", lambda path: pytest.fail("master loader used"))
 
-    assert runner._evaluation_cases(
-        tmp_path / "master", tmp_path / "manifest.json"
-    ) == selected
+    assert runner._evaluation_cases(tmp_path / "master", tmp_path / "manifest.json") == selected
