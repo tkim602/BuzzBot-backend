@@ -45,6 +45,10 @@ from ingestion.schedule.validate import FreshnessState
             "What determines Georgia Tech registration time tickets?",
             ("official_policy",),
         ),
+        (
+            "Why can my roommate register before me? What determines Georgia Tech time tickets?",
+            ("official_policy",),
+        ),
         ("When is my housing room-selection time ticket?", ("housing", "dining")),
         (
             "Can I take more than 16 total credits over summer?",

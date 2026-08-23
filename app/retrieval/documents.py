@@ -82,7 +82,9 @@ def policy_source_types(query: str) -> tuple[str, ...]:
         ):
             return ("admissions",)
         return ("official_policy",)
-    if "time ticket" in lowered and not any(cue in lowered for cue in ("room", "housing")):
+    if "time ticket" in lowered and not any(
+        cue in lowered for cue in ("room selection", "room-selection", "housing")
+    ):
         return ("official_policy",)
     if (
         "summer" in lowered
