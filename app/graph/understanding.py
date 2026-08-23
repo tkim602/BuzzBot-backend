@@ -30,6 +30,18 @@ def _schedule_query_type(text: str) -> ScheduleQueryType:
     return "general_schedule"
 
 
+def _schedule_follow_up(text: str) -> bool:
+    return bool(
+        re.search(r"\bit\b|\bthat (?:class|course)\b|\bwhich one\b", text, re.I)
+        and re.search(
+            r"\bsections?\b|\bcrns?\b|\bteaches?\b|\binstructors?\b|\bprofessors?\b|"
+            r"\bmeets?\b|\btimes?\b|\bwhere\b|\blocations?\b|\bonline\b",
+            text,
+            re.I,
+        )
+    )
+
+
 def _course(query: str) -> tuple[str, str] | None:
     course_code = extract_course_code(query)
     if course_code is None:
@@ -50,7 +62,11 @@ def _term_code(text: str) -> str | None:
     return None
 
 
-def understand_query(query: str, user_term: str | None = None) -> dict[str, object]:
+def understand_query(
+    query: str,
+    user_term: str | None = None,
+    context: dict[str, object] | None = None,
+) -> dict[str, object]:
     text = query.strip()
     if not text:
         raise ValueError("query is required")
@@ -59,9 +75,20 @@ def understand_query(query: str, user_term: str | None = None) -> dict[str, obje
     domain_policy = policy_source_types(text)
     course = _course(text)
     term_code = _term_code(text) or (_term_code(user_term) if user_term else None)
+    previous_schedule = bool(context and context.get("intent") == "course_schedule")
+    schedule_follow_up = _schedule_follow_up(text)
+    what_about = text.lower().startswith("what about ") and previous_schedule
+    if previous_schedule and (schedule_follow_up or what_about):
+        if course is None and schedule_follow_up:
+            previous_subject = context.get("subject")
+            previous_number = context.get("course_number")
+            if isinstance(previous_subject, str) and isinstance(previous_number, str):
+                course = previous_subject, previous_number
+        if term_code is None and isinstance(context.get("term_code"), str):
+            term_code = str(context["term_code"])
 
     intent: GraphIntent
-    if route.intent == "course_schedule_sections":
+    if route.intent == "course_schedule_sections" or schedule_follow_up or what_about:
         intent = "course_schedule"
     elif route.intent == "registrar_calendar" and not domain_policy:
         intent = "registration_calendar"

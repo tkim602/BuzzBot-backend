@@ -177,7 +177,9 @@ def build_workflow(
     checkpointer: BaseCheckpointSaver[Any] | None = None,
 ) -> CompiledStateGraph:
     async def understand_node(state: AgentState) -> dict[str, object]:
-        return understand_query(state["query"], state.get("user_term"))
+        return understand_query(
+            state["query"], state.get("user_term"), cast(dict[str, object], state)
+        )
 
     async def retrieve_node(state: AgentState) -> dict[str, object]:
         intent = cast(GraphIntent, state["intent"])

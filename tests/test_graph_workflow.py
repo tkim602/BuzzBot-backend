@@ -368,3 +368,42 @@ async def test_checkpointed_thread_clears_optional_fields_between_queries(monkey
     assert second["subject"] is None
     assert second["course_number"] is None
     assert second["term_code"] is None
+
+
+@pytest.mark.asyncio
+async def test_checkpointed_schedule_follow_up_reuses_resolved_course_and_term(monkeypatch):
+    offering = SimpleNamespace(
+        term_code="202608",
+        subject="CS",
+        course_number="7650",
+        title="Natural Language",
+        credits=3.0,
+        crn="12345",
+        section_code="A",
+        campus="Atlanta",
+        schedule_type="Lecture",
+        instructional_method="In Person",
+        instructors=("Ada Lovelace",),
+        notes=None,
+        meetings=(),
+        source_url="https://oscar.gatech.edu/schedule",
+        data_as_of=datetime(2026, 8, 20, tzinfo=UTC),
+        data_version_id=uuid.uuid4(),
+        freshness=FreshnessState.CURRENT,
+    )
+    lookup = AsyncMock(return_value=[offering])
+    monkeypatch.setattr("app.graph.workflow.lookup_course_offerings", lookup)
+    graph = build_workflow(
+        WorkflowServices(object(), AsyncMock(), AsyncMock()), checkpointer=InMemorySaver()
+    )
+    config = {"configurable": {"thread_id": "schedule-thread"}}
+
+    await graph.ainvoke({"query": "Is CS 7650 offered in Fall 2026?"}, config)
+    follow_up = await graph.ainvoke({"query": "Who teaches it?"}, config)
+
+    assert follow_up["intent"] == "course_schedule"
+    assert follow_up["subject"] == "CS"
+    assert follow_up["course_number"] == "7650"
+    assert follow_up["term_code"] == "202608"
+    assert follow_up["schedule_query_type"] == "instructors"
+    assert "Ada Lovelace" in follow_up["answer"]
