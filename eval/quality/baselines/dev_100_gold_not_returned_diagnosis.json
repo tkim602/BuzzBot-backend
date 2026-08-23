@@ -105,8 +105,27 @@
     "name": "LEXICAL_OR_RECOVERABLE_DEEP",
     "count": 20
   },
-  "next_single_hypothesis": "Applying document diversity before lexical candidate truncation will surface more relevant official URLs without globally increasing answer-time top_k.",
+  "next_single_hypothesis": "Production lexical retrieval truncates the candidate space before enough document-diverse lexical evidence can reach fusion. Fetching a bounded deeper OR-lexical pool, diversifying by canonical URL, and only then truncating back to the existing fusion budget will recover relevant URLs without increasing final answer-time top_k.",
   "fix_applied": false,
+  "experiment": {
+    "status": "REJECTED",
+    "evaluated_at": "2026-08-23T05:00:24.924926+00:00",
+    "report": "eval/quality/reports_retrieval_100_lexical_r2_comparable/latest_summary.json",
+    "change": "Fetch up to 200 OR-lexical chunks, cap one chunk per canonical URL, then preserve the existing 15-candidate fusion budget.",
+    "acceptance_gate": {
+      "hit_at_5_min": 0.62,
+      "mrr_at_5_min": 0.40016666666666667,
+      "wins_must_exceed_regressions": true
+    },
+    "result": {
+      "hit_at_5": 0.57,
+      "mrr_at_5": 0.4018333333333333,
+      "wins": 0,
+      "regressions": 0,
+      "target_bucket_new_hits": 0
+    },
+    "conclusion": "A deeper document-diverse OR-lexical pool alone did not recover any additional gold URL, so the production change was reverted and the 57% baseline remains current."
+  },
   "limitations": [
     "The diagnosis identifies the largest observed boundary; it does not claim causal attribution between the prior calendar and diversification changes.",
     "Individual PostgreSQL FTS ranks can move among equal-score chunks, so the stable signal is bucket membership within the observed top-200 window rather than an exact tied rank."
