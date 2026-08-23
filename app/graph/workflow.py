@@ -9,7 +9,13 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.graph.state import AgentState, CitationItem, EvidenceItem, GraphIntent
+from app.graph.state import (
+    AgentState,
+    CitationItem,
+    EvidenceItem,
+    EvidenceValidationReason,
+    GraphIntent,
+)
 from app.graph.understanding import understand_query
 from app.rag.answerer import generate_answer
 from app.rag.grounding import check_binary_polarity, check_claim_support, check_grounding
@@ -187,18 +193,39 @@ def build_workflow(
                     embedding,
                 )
             evidence = [_document_item(document) for document in documents]
-        return {"evidence": evidence}
+        return {
+            "evidence": evidence,
+            "retrieval_top_k": top_k,
+            "returned_evidence_count": len(evidence),
+            "returned_urls": [item["url"] for item in evidence],
+            "retrieval_scores": [
+                _numeric(item["metadata"].get("score"), 1.0) for item in evidence
+            ],
+            "retrieval_methods": [
+                str(item["metadata"].get("retrieval_method", item["kind"]))
+                for item in evidence
+            ],
+        }
 
     async def validate_evidence_node(state: AgentState) -> dict[str, object]:
         evidence = state.get("evidence", [])
-        valid = bool(evidence)
+        reason: EvidenceValidationReason = "VALID"
+        if not evidence:
+            reason = "NO_EVIDENCE"
         for item in evidence:
-            valid = valid and bool(item["text"].strip() and item["url"].startswith("https://"))
-            if item["kind"] == "schedule":
-                valid = valid and item["metadata"].get("freshness") != "EXPIRED"
-            else:
-                valid = valid and bool(item["metadata"].get("authority"))
-        return {"evidence_valid": valid}
+            if not item["text"].strip():
+                reason = "MISSING_TEXT"
+                break
+            if not item["url"].startswith("https://"):
+                reason = "INVALID_URL"
+                break
+            if item["kind"] == "schedule" and item["metadata"].get("freshness") == "EXPIRED":
+                reason = "EXPIRED_SCHEDULE"
+                break
+            if item["kind"] == "document" and not item["metadata"].get("authority"):
+                reason = "MISSING_AUTHORITY"
+                break
+        return {"evidence_valid": reason == "VALID", "evidence_validation_reason": reason}
 
     async def prepare_retry_node(state: AgentState) -> dict[str, object]:
         return {
@@ -244,13 +271,15 @@ def build_workflow(
         polarity_consistent, polarity_notes = check_binary_polarity(
             state.get("answer", ""), state.get("binary_verdict")
         )
+        answer_nonempty = bool(state.get("answer", "").strip())
         return {
             "citations": cast(list[CitationItem], valid),
+            "grounding_valid": bool(valid),
+            "claims_supported": claims_supported,
+            "polarity_consistent": polarity_consistent,
+            "answer_nonempty": answer_nonempty,
             "answer_valid": bool(
-                valid
-                and claims_supported
-                and polarity_consistent
-                and state.get("answer", "").strip()
+                valid and claims_supported and polarity_consistent and answer_nonempty
             ),
             "notes": [
                 *state.get("notes", []),
@@ -262,6 +291,12 @@ def build_workflow(
 
     async def abstain_node(state: AgentState) -> dict[str, object]:
         clarification = state.get("clarification")
+        if clarification:
+            reason = "CLARIFICATION_REQUIRED"
+        elif not state.get("evidence_valid"):
+            reason = "NO_VALID_EVIDENCE"
+        else:
+            reason = "ANSWER_VALIDATION_FAILED"
         return {
             "answer": clarification
             or (
@@ -272,6 +307,7 @@ def build_workflow(
             "confidence": 0.2,
             "notes": [*state.get("notes", []), "Strict cite-or-abstain policy applied."],
             "answer_valid": False,
+            "abstain_reason": reason,
         }
 
     def after_understand(state: AgentState) -> Literal["retrieve", "abstain"]:

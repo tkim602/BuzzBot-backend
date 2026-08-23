@@ -157,6 +157,8 @@ async def test_missing_document_evidence_retries_once_then_abstains(monkeypatch)
     assert result["citations"] == []
     assert result["confidence"] == 0.2
     assert "enough official evidence" in result["answer"].lower()
+    assert result["evidence_validation_reason"] == "NO_EVIDENCE"
+    assert result["abstain_reason"] == "NO_VALID_EVIDENCE"
 
 
 @pytest.mark.asyncio
@@ -206,6 +208,10 @@ async def test_grounded_document_answer_keeps_official_citation(monkeypatch):
     assert result["answer_valid"] is True
     assert result["citations"][0]["url"] == evidence.canonical_url
     assert result["confidence"] == 0.8
+    assert result["grounding_valid"] is True
+    assert result["claims_supported"] is True
+    assert result["polarity_consistent"] is True
+    assert result["answer_nonempty"] is True
 
 
 @pytest.mark.asyncio

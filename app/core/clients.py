@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 
 
@@ -5,4 +6,9 @@ from functools import lru_cache
 def get_openai_client(api_key: str):
     import openai
 
-    return openai.AsyncOpenAI(api_key=api_key)
+    client = openai.AsyncOpenAI(api_key=api_key)
+    if os.getenv("LANGSMITH_TRACING", "false").lower() == "true":
+        from langsmith.wrappers import wrap_openai
+
+        return wrap_openai(client)
+    return client

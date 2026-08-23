@@ -50,7 +50,9 @@ async def agent_chat(
             "configurable": {
                 "thread_id": thread_id,
                 "checkpoint_ns": f"client:{client_id}",
-            }
+            },
+            "metadata": {"app": "buzzbot", "environment": "local", "thread_id": thread_id},
+            "tags": ["buzzbot", "v2-chat"],
         }
         async with acquire_chat_slot():
             result = cast(AgentState, await graph.ainvoke(initial_state, config))
