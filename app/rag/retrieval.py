@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.cache import TTLCache
+from app.core.clients import get_openai_client
 from app.core.config import settings
 from app.core.usage import check_limit_or_raise, record_usage
 from db.models import Chunk, Embedding, Source
@@ -228,10 +229,8 @@ async def get_text_embeddings(texts: list[str]) -> list[list[float]]:
         fresh_embeddings: list[list[float]]
 
         if provider == "openai":
-            import openai
-
             check_limit_or_raise()
-            client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+            client = get_openai_client(settings.openai_api_key)
             resp = await client.embeddings.create(input=inputs, model=model)
             total_tokens = resp.usage.total_tokens if resp.usage else 0
             if total_tokens:

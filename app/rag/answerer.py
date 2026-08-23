@@ -8,6 +8,7 @@ from pathlib import Path
 
 import structlog
 
+from app.core.clients import get_openai_client
 from app.core.config import settings
 from app.core.usage import check_limit_or_raise, record_usage
 from app.rag.retrieval import RetrievedChunk, _lexical_match_score, _lexical_terms
@@ -296,9 +297,7 @@ async def _call_llm(
     provider = settings.llm_provider
 
     if provider == "openai":
-        import openai
-
-        client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+        client = get_openai_client(settings.openai_api_key)
         resp = await client.chat.completions.create(
             model=settings.openai_model,
             messages=[

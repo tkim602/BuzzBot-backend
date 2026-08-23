@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
+from app.core.clients import get_openai_client
 from app.core.config import settings
 from app.core.usage import check_limit_or_raise, record_usage
 from app.rag.router import extract_course_code
@@ -348,9 +349,7 @@ async def _rewrite_with_llm(
         check_limit_or_raise()
 
         if provider == "openai":
-            import openai
-
-            client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+            client = get_openai_client(settings.openai_api_key)
             resp = await client.chat.completions.create(
                 model=settings.openai_model,
                 messages=[
@@ -438,9 +437,7 @@ async def generate_hyde_passage(query: str) -> str | None:
         check_limit_or_raise()
 
         if provider == "openai":
-            import openai
-
-            client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+            client = get_openai_client(settings.openai_api_key)
             resp = await client.chat.completions.create(
                 model=settings.openai_model,
                 messages=[
