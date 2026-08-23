@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.rag.retrieval import (
+    RetrievedChunk,
     _cap_chunks_per_url,
     _lexical_match_score,
     hybrid_retrieve,
@@ -25,6 +27,22 @@ SOURCE_TYPES_BY_VERTICAL = {
     for vertical in {source.vertical for source in _SOURCES}
 }
 OFFICIAL_SOURCE_NAMES = [source.name for source in _SOURCES]
+_SLASH_COMPOUND_RE = re.compile(r"\b([a-z0-9]+)/([a-z0-9]+)\b", re.I)
+_TITLE_COMPOUND_RE = re.compile(r"\b([a-z0-9]+)[/-]([a-z0-9]+)\b", re.I)
+
+
+def _is_strong_lexical_anchor(query: str, chunk: RetrievedChunk) -> bool:
+    title_path = f"{chunk.title or ''} {urlsplit(chunk.url or '').path}"
+    compounds = {
+        tuple(part.lower() for part in match) for match in _SLASH_COMPOUND_RE.findall(query)
+    }
+    return bool(
+        compounds
+        & {
+            tuple(part.lower() for part in match)
+            for match in _TITLE_COMPOUND_RE.findall(title_path)
+        }
+    )
 
 
 def policy_source_types(query: str) -> tuple[str, ...]:
@@ -42,6 +60,14 @@ def policy_source_types(query: str) -> tuple[str, ...]:
         return ("admissions",)
     if re.search(r"\b(?:sat|act)\b", lowered):
         return ("admissions",)
+    if "registration hold" in lowered:
+        return ("official_policy",)
+    if re.search(r"\bpass[-/ ]fail\b", lowered):
+        return ("academic_policy",)
+    if "careerbuzz" in lowered or (
+        "graduate internship" in lowered and re.search(r"\bregister(?:ed|ing)?\b", lowered)
+    ):
+        return ("career",)
     if "waitlist" in lowered:
         if any(
             cue in lowered
@@ -241,6 +267,9 @@ async def search_policy_docs(
         force_fts=True,
         max_chunks_per_url=1,
     )
+    lexical_anchor = max(
+        chunks, key=lambda chunk: _lexical_match_score(query.text, chunk), default=None
+    )
     urls = list(dict.fromkeys(chunk.url for chunk in chunks if chunk.url))
     if urls and query_embedding:
         url_rank = {url: rank for rank, url in enumerate(urls)}
@@ -267,6 +296,12 @@ async def search_policy_docs(
                 max_chunks_per_url=2,
                 top_k=query.top_k,
             )
+            if lexical_anchor is not None and _is_strong_lexical_anchor(query.text, lexical_anchor):
+                chunks = _cap_chunks_per_url(
+                    [lexical_anchor, *(c for c in chunks if c.chunk_id != lexical_anchor.chunk_id)],
+                    max_chunks_per_url=2,
+                    top_k=query.top_k,
+                )
             for chunk in chunks:
                 chunk.method = "parent_child_vector"
     seen: set[str] = set()

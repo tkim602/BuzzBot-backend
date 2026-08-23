@@ -388,6 +388,20 @@ def test_user_20_routing_baseline_is_bound_to_frozen_manifest():
     assert baseline["case_delta"] == {"wins": 5, "regressions": 0, "net": 5}
 
 
+def test_user_holdout_baseline_preserves_blind_result_and_scoped_follow_up():
+    baseline = json.loads(
+        Path("eval/quality/baselines/user_holdout_10.json").read_text(encoding="utf-8")
+    )
+
+    assert baseline["manifest_sha256"] == (
+        "f0906d09440167b5f364eef621ed3ace2bda05783ce64cb182fcf0209c35e5b5"
+    )
+    failures = set(baseline["blind_run"]["failed_case_ids"])
+    assert baseline["blind_run"]["correct_and_supported"] == 7
+    assert set(baseline["focused_verification"]["passed_case_ids"]) == failures
+    assert baseline["focused_verification"]["full_manifest_rerun"] is False
+
+
 def test_gold_not_returned_diagnosis_selects_one_largest_bucket():
     diagnosis = json.loads(
         Path("eval/quality/baselines/dev_100_gold_not_returned_diagnosis.json").read_text(

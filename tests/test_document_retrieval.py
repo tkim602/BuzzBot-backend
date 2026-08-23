@@ -83,6 +83,56 @@ async def test_policy_reselects_children_within_discovered_urls(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_policy_reselection_keeps_high_confidence_lexical_evidence(monkeypatch):
+    def chunk(chunk_id, url, title, text, score):
+        return RetrievedChunk(
+            chunk_id,
+            url,
+            title,
+            text,
+            score,
+            source_name="gt-catalog-rules",
+            metadata_json={"source_type": "academic_policy", "authority": "catalog"},
+        )
+
+    anchor = chunk(
+        "pass-fail",
+        "https://example.gatech.edu/policies/pass-fail-system-rules",
+        "Pass/Fail System Rules",
+        "No more than nine pass/fail credits count toward an undergraduate degree.",
+        0.4,
+    )
+    other_root = chunk(
+        "other-root", "https://example.gatech.edu/rules", "Academic Rules", "Rules.", 0.9
+    )
+    children = [
+        chunk("generic-1", other_root.url, other_root.title, "Undergraduate degree rules.", 0.99),
+        chunk("generic-2", other_root.url, other_root.title, "Credit counting rules.", 0.98),
+        anchor,
+    ]
+
+    async def fake_hybrid(*args, **kwargs):
+        return [anchor, other_root]
+
+    async def fake_vector(*args, **kwargs):
+        return children
+
+    monkeypatch.setattr("app.retrieval.documents.hybrid_retrieve", fake_hybrid)
+    monkeypatch.setattr("app.retrieval.documents.vector_search", fake_vector, raising=False)
+
+    evidence = await search_policy_docs(
+        object(),
+        PolicyQuery(
+            "How many pass/fail credits count toward an undergraduate degree?",
+            top_k=2,
+        ),
+        [0.1] * 1536,
+    )
+
+    assert evidence[0].chunk_id == anchor.chunk_id
+
+
+@pytest.mark.asyncio
 async def test_exact_deadline_uses_calendar_authority_and_preserves_citation(monkeypatch):
     captured: dict[str, object] = {}
 

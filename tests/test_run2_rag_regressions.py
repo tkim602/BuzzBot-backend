@@ -186,6 +186,31 @@ def test_claim_span_selection_ignores_unrelated_text_from_same_source():
     assert unrelated.chunk_text not in selected[0]["quote"]
 
 
+def test_negative_claim_cites_span_with_matching_polarity():
+    claim = "Registering a graduate internship does not charge tuition."
+    url = "https://example.gatech.edu/register-internships"
+    distractor = _chunk(
+        "overview",
+        "Graduate Internship Program",
+        "Flexibility Without Delay. In short, registering your graduate internship at "
+        "Georgia Tech protects your status and academic record.",
+    )
+    decisive = _chunk(
+        "tuition",
+        "Graduate Internship Program",
+        "There is no tuition associated with participation in the graduate internship program.",
+    )
+    distractor.url = decisive.url = url
+
+    selected = _ground_citation_quotes(
+        [{"url": url, "quote": distractor.chunk_text}],
+        [distractor, decisive],
+        claim,
+    )
+
+    assert selected[0]["quote"] == decisive.chunk_text
+
+
 def test_multi_claim_answer_selects_support_for_each_claim():
     ordering = _chunk(
         "ordering",

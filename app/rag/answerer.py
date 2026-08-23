@@ -28,6 +28,7 @@ _BINARY_QUESTION_RE = re.compile(
 )
 _LEADING_ANSWER_RE = re.compile(r"^\s*(?:yes|no)\b\s*[,.;:—–-]?\s*", re.I)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+_NEGATION_RE = re.compile(r"\b(?:no|not|never)\b", re.I)
 
 
 def _load_prompt(name: str) -> str:
@@ -107,7 +108,7 @@ def _ground_citation_quotes(
     for claim in split_factual_claims(answer):
         claim_words = _lexical_terms(claim)
         claim_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", claim))
-        candidates: list[tuple[tuple[int, int, float, float], RetrievedChunk, str]] = []
+        candidates: list[tuple[tuple[int, int, int, float, float], RetrievedChunk, str]] = []
         for chunk in chunks:
             sentences = [
                 part.strip() for part in _SENTENCE_SPLIT_RE.split(chunk.chunk_text) if part.strip()
@@ -126,6 +127,9 @@ def _ground_citation_quotes(
                     (
                         (
                             len(claim_numbers & span_numbers),
+                            int(
+                                bool(_NEGATION_RE.search(claim)) == bool(_NEGATION_RE.search(span))
+                            ),
                             len(overlap),
                             len(overlap) / max(len(claim_words), 1),
                             _lexical_match_score(claim, chunk),

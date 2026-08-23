@@ -56,6 +56,12 @@ from ingestion.schedule.validate import FreshnessState
         ),
         ("Can I use paratransit for personal trips?", ("health_support",)),
         ("Do first-year students have to live on campus?", ("housing", "dining")),
+        ("What does a registration hold prevent?", ("official_policy",)),
+        ("How many pass/fail credits count toward my degree?", ("academic_policy",)),
+        ("What can I do in CareerBuzz?", ("career",)),
+        ("Does registering a graduate internship charge tuition?", ("career",)),
+        ("Can financial aid pay for my internship?", ("finance",)),
+        ("What are the CPT internship rules for F-1 students?", ("international",)),
     ],
 )
 def test_policy_source_routing_uses_domain_verticals(query, expected):
