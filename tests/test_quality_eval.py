@@ -162,6 +162,23 @@ def test_user_20_manifest_uses_unseen_facts_and_urls():
     )
 
 
+def test_user_holdout_10_is_disjoint_from_both_development_sets():
+    holdout = load_manifest_cases(Path("eval/quality/manifests/user_holdout_10.json"))
+    development = [
+        *load_manifest_cases(Path("eval/quality/manifests/dev_100.json")),
+        *load_manifest_cases(Path("eval/quality/manifests/user_20.json")),
+    ]
+
+    assert len(holdout) == 10
+    assert len({case.variant_group for case in holdout}) == 10
+    assert {case.variant_group for case in holdout}.isdisjoint(
+        case.variant_group for case in development
+    )
+    assert {url.rstrip("/") for case in holdout for url in case.gold_urls}.isdisjoint(
+        url.rstrip("/") for case in development for url in case.gold_urls
+    )
+
+
 def test_dev_evidence_artifact_covers_every_fixed_fact():
     cases = load_manifest_cases(Path("eval/quality/manifests/dev_100.json"))
     evidence = load_gold_evidence(Path("eval/quality/gold_evidence/dev_100.json"), cases)

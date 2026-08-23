@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "name": "buzzbot_untouched_user_holdout_10",
+  "master_dataset": "../data_user_holdout",
+  "expected_fact_count": 10,
+  "cases_per_fact": 1,
+  "case_ids": [
+    "holdout-001-v1",
+    "holdout-002-v1",
+    "holdout-003-v1",
+    "holdout-004-v1",
+    "holdout-005-v1",
+    "holdout-006-v1",
+    "holdout-007-v1",
+    "holdout-008-v1",
+    "holdout-009-v1",
+    "holdout-010-v1"
+  ]
+}
