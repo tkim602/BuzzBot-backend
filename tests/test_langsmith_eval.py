@@ -11,6 +11,7 @@ from eval.langsmith.datasets import DATASET_NAME, ensure_dataset, load_course_de
 from eval.langsmith.evaluators import score_stages, stage_evaluator
 from eval.langsmith.failure_stage import classify_failure
 from eval.langsmith.run_course_details import (
+    _run_url,
     semantic_and_failure_evaluator,
     summarize_rows,
 )
@@ -241,6 +242,12 @@ async def test_semantic_evaluator_keeps_correctness_and_support_separate(monkeyp
 
 async def _async_result(value):
     return value
+
+
+def test_run_url_supports_current_langsmith_runtree_api():
+    run = SimpleNamespace(get_url=lambda: "https://smith.example/current-trace")
+
+    assert _run_url(run) == "https://smith.example/current-trace"
 
 
 def test_summary_uses_stage_and_semantic_feedback_without_one_aggregate():
