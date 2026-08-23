@@ -179,6 +179,23 @@ def test_user_holdout_10_is_disjoint_from_both_development_sets():
     )
 
 
+def test_user_shadow_8_is_disjoint_from_all_existing_evaluation_sets():
+    shadow = load_manifest_cases(Path("eval/quality/manifests/user_shadow_8.json"))
+    existing = [
+        *load_manifest_cases(Path("eval/quality/manifests/dev_100.json")),
+        *load_manifest_cases(Path("eval/quality/manifests/user_20.json")),
+        *load_manifest_cases(Path("eval/quality/manifests/user_holdout_10.json")),
+    ]
+
+    assert len(shadow) == len({case.id for case in shadow}) == 8
+    assert {case.variant_group for case in shadow}.isdisjoint(
+        case.variant_group for case in existing
+    )
+    assert {url.rstrip("/") for case in shadow for url in case.gold_urls}.isdisjoint(
+        url.rstrip("/") for case in existing for url in case.gold_urls
+    )
+
+
 def test_dev_evidence_artifact_covers_every_fixed_fact():
     cases = load_manifest_cases(Path("eval/quality/manifests/dev_100.json"))
     evidence = load_gold_evidence(Path("eval/quality/gold_evidence/dev_100.json"), cases)
