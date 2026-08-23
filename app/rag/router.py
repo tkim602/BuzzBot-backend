@@ -44,14 +44,6 @@ CATALOG_KEYWORDS = [
     "department",
     "school",
 ]
-RMP_KEYWORDS = [
-    "rate my professor",
-    "ratemyprofessor",
-    "rmp",
-    "professor rating",
-    "professor review",
-    "teaching quality",
-]
 FRESHNESS_KEYWORDS = [
     "deadline",
     "when",
@@ -161,37 +153,26 @@ FIRST_YEAR_POLICY_KEYWORDS = [
 ]
 
 
-def _extract_course_code(query: str) -> str | None:
-    m = COURSE_CODE_RE.search(query)
-    if not m:
-        return None
-    dept = m.group(1).lower()
-    if dept in COURSE_CODE_STOPWORDS:
-        return None
-    return f"{m.group(1).upper()} {m.group(2).upper()}"
+def extract_course_code(query: str) -> str | None:
+    for match in COURSE_CODE_RE.finditer(query):
+        if match.group(1).lower() not in COURSE_CODE_STOPWORDS:
+            return f"{match.group(1).upper()} {match.group(2).upper()}"
+    return None
 
 
 @dataclass
 class RouterResult:
-    intent: str  # registrar_calendar | admissions_deadline | catalog_course | course_schedule_sections | rmp_user_provided | general | unknown
+    intent: str
     freshness_strategy: str  # indexed | live_fetch | hybrid
     source_filter: str | list[str] | None = None  # source name filter for retrieval
 
 
-def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
+def classify_query(query: str) -> RouterResult:
     """Classify query intent and decide freshness strategy using rules."""
     q = query.lower().strip()
 
-    # RMP user-provided mode
-    if has_rmp_excerpt or any(kw in q for kw in RMP_KEYWORDS):
-        return RouterResult(
-            intent="rmp_user_provided",
-            freshness_strategy="indexed",
-            source_filter=None,
-        )
-
     # Explicit course schedule intent (prefer gt-scheduler over registrar pages)
-    has_course_code = bool(_extract_course_code(q))
+    has_course_code = bool(extract_course_code(q))
     has_schedule_keyword = any(kw in q for kw in SCHEDULE_KEYWORDS)
     has_term_keyword = any(kw in q for kw in TERM_KEYWORDS)
     has_calendar_keyword = any(kw in q for kw in CALENDAR_KEYWORDS)

@@ -20,11 +20,11 @@ def test_registry_contains_only_bounded_authoritative_sources():
     assert all(root.startswith("https://") for source in sources for root in source.allowed_roots)
     omscs = next(source for source in sources if source.name == "gt-omscs")
     assert omscs.allowed_roots == ("https://omscs.gatech.edu/",)
-    assert len(omscs.seed_urls) == 6
+    assert len(omscs.seed_urls) == 7
     assert omscs.seed_urls[0] == "https://omscs.gatech.edu/admission-criteria"
     admission = next(source for source in sources if source.name == "gt-admission")
     assert admission.allowed_roots == ("https://admission.gatech.edu/first-year/",)
-    assert len(admission.seed_urls) == 7
+    assert len(admission.seed_urls) == 11
     assert admission.seed_urls[0] == "https://admission.gatech.edu/first-year/"
     assert admission.max_urls == 30
     registrar = next(source for source in sources if source.name == "gt-registrar")

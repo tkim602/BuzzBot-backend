@@ -81,7 +81,6 @@ async def agent_chat(
             debug=DebugInfo(
                 intent=result.get("intent"),
                 source_filter=None,
-                live_fetch_used=False,
                 retrieval_top_k=len(evidence),
                 top_sources=sources,
                 rewritten_query=payload.query,

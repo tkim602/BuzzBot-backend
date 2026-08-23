@@ -8,9 +8,88 @@ from unittest.mock import AsyncMock
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
-from app.graph.workflow import WorkflowServices, build_workflow
+from app.graph.workflow import WorkflowServices, _policy_source_types, build_workflow
 from app.retrieval.documents import DocumentEvidence
 from ingestion.schedule.validate import FreshnessState
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("How do financial-aid appeals work?", ("finance",)),
+        ("How do I cancel my housing contract?", ("housing", "dining")),
+        ("How do I request disability accommodations?", ("health_support",)),
+        ("What counts as full-time enrollment for F-1 students?", ("international",)),
+        ("Does the Stinger bus require a fare?", ("campus_operations",)),
+        ("Who is eligible to become a Knack tutor?", ("student_support",)),
+        (
+            "What is the undergraduate minor credit-hour requirement?",
+            (
+                "official_policy",
+                "academic_calendar",
+                "course_catalog",
+                "omscs_policy",
+                "degree_programs",
+                "academic_policy",
+                "academic_lifecycle",
+            ),
+        ),
+        ("What are first-year recommendation requirements?", ("admissions",)),
+        (
+            "I got a course waitlist notification. How long do I have to register?",
+            ("official_policy",),
+        ),
+        ("What are the first-year admission waitlist rules?", ("admissions",)),
+        ("Does accepting a waitlist spot commit me to enroll?", ("admissions",)),
+        (
+            "What determines Georgia Tech registration time tickets?",
+            ("official_policy",),
+        ),
+        (
+            "Why can my roommate register before me? What determines Georgia Tech time tickets?",
+            ("official_policy",),
+        ),
+        ("When is my housing room-selection time ticket?", ("housing", "dining")),
+        (
+            "Can I take more than 16 total credits over summer?",
+            ("official_policy",),
+        ),
+        (
+            "Do I receive academic credit when auditing a class?",
+            ("academic_policy",),
+        ),
+        ("Can I use paratransit for personal trips?", ("health_support",)),
+        ("Do first-year students have to live on campus?", ("housing", "dining")),
+        ("What does a registration hold prevent?", ("official_policy",)),
+        ("How many pass/fail credits count toward my degree?", ("academic_policy",)),
+        ("What can I do in CareerBuzz?", ("career",)),
+        ("Does registering a graduate internship charge tuition?", ("career",)),
+        ("Can financial aid pay for my internship?", ("finance",)),
+        ("What are the CPT internship rules for F-1 students?", ("international",)),
+        ("Where does a refund from my student account go?", ("finance",)),
+        ("Can a student organization charter a campus bus?", ("campus_operations",)),
+        (
+            "How many credits count as full-time, part-time, and less-than-part-time?",
+            ("official_policy",),
+        ),
+        ("Can I take an AP or IB exam for credit after enrolling?", ("academic_lifecycle",)),
+        (
+            "I'm a junior with a 3.0 GPA. Can I take a graduate-level course?",
+            ("official_policy",),
+        ),
+    ],
+)
+def test_policy_source_routing_uses_domain_verticals(query, expected):
+    assert _policy_source_types(query) == expected
+
+
+def test_policy_source_routing_preserves_cross_domain_precedence():
+    assert _policy_source_types("Does OMSCS offer financial aid?") == ("omscs_policy",)
+    assert _policy_source_types("Are first-year meal plans required?") == ("housing", "dining")
+    assert _policy_source_types("How do I request disability housing accommodations?") == (
+        "health_support",
+    )
+    assert _policy_source_types("What is the minimum satisfactory GPA?") != ("admissions",)
 
 
 @pytest.mark.asyncio

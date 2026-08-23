@@ -2,45 +2,29 @@
 
 ## Overview
 
-The ingestion pipeline discovers, fetches, extracts, chunks, and indexes content from configured Georgia Tech sources.
+BuzzBot has two explicit ingestion domains:
 
-## Pipeline Diagram
+- official documents are discovered by source-specific adapters and indexed for RAG;
+- public OSCAR schedules are normalized into structured versioned tables.
+
+Both use the same immutable run manifest and resume infrastructure. There is no generic crawler or
+Common Crawl fallback.
+
+## Official-document flow
 
 ```mermaid
-flowchart TB
-    A[sources.yaml] --> B[Discover]
-    B -->|robots.txt check| C{Allowed?}
-    C -->|Yes| D[Parse Sitemap]
-    C -->|No| E[Skip Source]
-    D --> F[Filter URLs<br/>include/exclude patterns]
-    F --> G[Fetch<br/>async httpx + rate limit]
-    G -->|ETag / If-Modified-Since| H{Modified?}
-    H -->|304 Not Modified| I[Skip]
-    H -->|200 OK| J[Extract<br/>trafilatura + readability]
-    J --> K[Normalize<br/>canonical URL + content hash]
-    K --> L[Chunk<br/>500 tokens, 80 overlap]
-    L --> M[Index<br/>embed + upsert pgvector]
-    M --> N[Artifacts<br/>manifest.json + failed_urls.json]
-```
-
-## sources.yaml Schema
-
-```yaml
-sources:
-  - name: gt-registrar                  # Unique identifier
-    base_url: https://registrar.gatech.edu
-    allowed: true                        # Policy gate
-    reason: "Official GT registrar"      # Why allowed/blocked
-    sitemap_url: https://registrar.gatech.edu/sitemap.xml
-    include_patterns:                    # URL path must contain one of these
-      - "/calendar"
-      - "/registration"
-    exclude_patterns:                    # URL path must NOT match these
-      - "/node/"
-    max_urls: 100                        # Safety ceiling; exceeding fails planning
-    refresh_policy:
-      schedule: daily
-      method: sitemap_incremental
+flowchart LR
+    A[sources.yaml] --> B[Source adapter discovery]
+    B --> C[Allowlist + canonicalize + dedupe]
+    C --> D{Within max_urls ceiling?}
+    D -->|no| E[Fail planning]
+    D -->|yes| F[Immutable URL manifest]
+    F --> G[Fetch + redirect gate]
+    G --> H[Extract + quality gate]
+    H --> I{Content changed?}
+    I -->|no| J[Refresh metadata]
+    I -->|yes| K[Chunk + embed]
+    K --> L[Transactional publish]
 ```
 
 ## Incremental Updates
@@ -84,63 +68,6 @@ previous document, chunks, and embeddings; the runner never deletes documents im
 HTML documents must have a nonblank title and body, must not match a recognized login/block/error
 page, and must produce at least one fully embedded chunk. Quality failures are recorded as
 `EXTRACT_FAILED` with reason `QUALITY_GATE_FAILED` and leave trusted data unchanged.
-
-```mermaid
-sequenceDiagram
-    participant Pipeline
-    participant Server
-    participant DB
-
-    Pipeline->>DB: Get fetch_state (etag, last_modified)
-    Pipeline->>Server: GET url (If-None-Match: etag)
-    alt 304 Not Modified
-        Server-->>Pipeline: 304
-        Pipeline->>DB: Update last_fetched_at
-    else 200 OK
-        Server-->>Pipeline: HTML + new ETag
-        Pipeline->>Pipeline: Extract + Hash
-        alt Content unchanged
-            Pipeline->>DB: Update fetch_state only
-        else Content changed
-            Pipeline->>Pipeline: Chunk + Embed
-            Pipeline->>DB: Upsert document + chunks + embeddings
-        end
-    end
-```
-
-## Robots.txt Compliance
-
-Before fetching any URL, the pipeline:
-1. Fetches `robots.txt` for the source domain
-2. Checks each URL against the robots rules for `BuzzBot/1.0` user-agent
-3. Skips disallowed URLs
-
-## Rate Limiting
-
-- **Per-domain rate limiter**: configurable via `INGEST_RATE_LIMIT_PER_DOMAIN` (default: 2 req/s)
-- **Concurrency semaphore**: `INGEST_CONCURRENCY` (default: 5)
-- **Exponential backoff**: 3 retries with 2-15s delays
-
-## Artifacts
-
-Each run produces:
-- `artifacts/manifest.json`: per-source stats (fetched, indexed, skipped, failed counts)
-- `artifacts/failed_urls.json`: list of URLs that failed with error details
-
-## Common Crawl (Optional)
-
-Enable with `ENABLE_COMMONCRAWL=true`. Restricted to:
-- `gatech.edu`
-- `registrar.gatech.edu`
-- `catalog.gatech.edu`
-
-**RateMyProfessors is never included.**
-
-## Monitoring
-
-- Structured logs with `structlog` (request IDs, source names, URL counts)
-- Artifacts uploaded as GitHub Actions artifacts on nightly runs
-- `GET /stats` endpoint shows document/chunk counts
 
 ## Versioned OSCAR Schedule Runs
 

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.cache import TTLCache
+from app.core.clients import get_openai_client
 from app.core.config import settings
 from app.core.usage import check_limit_or_raise, record_usage
 from db.models import Chunk, Embedding, Source
@@ -228,10 +229,8 @@ async def get_text_embeddings(texts: list[str]) -> list[list[float]]:
         fresh_embeddings: list[list[float]]
 
         if provider == "openai":
-            import openai
-
             check_limit_or_raise()
-            client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+            client = get_openai_client(settings.openai_api_key)
             resp = await client.embeddings.create(input=inputs, model=model)
             total_tokens = resp.usage.total_tokens if resp.usage else 0
             if total_tokens:
@@ -266,24 +265,28 @@ async def get_text_embeddings(texts: list[str]) -> list[list[float]]:
     return [emb if emb is not None else [] for emb in resolved]
 
 
+def preload_cross_encoder():
+    global _cross_encoder_model, _cross_encoder_model_name
+    if _cross_encoder_model is None or _cross_encoder_model_name != settings.rag_rerank_model:
+        from sentence_transformers import CrossEncoder
+
+        _cross_encoder_model = CrossEncoder(settings.rag_rerank_model)
+        _cross_encoder_model_name = settings.rag_rerank_model
+        logger.info("cross-encoder loaded", model=settings.rag_rerank_model)
+    return _cross_encoder_model
+
+
 def rerank_with_cross_encoder(
     query: str,
     chunks: list[RetrievedChunk],
     top_k: int | None = None,
 ) -> list[RetrievedChunk]:
     """Rerank chunks using a cross-encoder model for more accurate relevance scoring."""
-    global _cross_encoder_model, _cross_encoder_model_name
     if not chunks:
         return chunks
     try:
-        from sentence_transformers import CrossEncoder
+        model = preload_cross_encoder()
 
-        if _cross_encoder_model is None or _cross_encoder_model_name != settings.rag_rerank_model:
-            _cross_encoder_model = CrossEncoder(settings.rag_rerank_model)
-            _cross_encoder_model_name = settings.rag_rerank_model
-            logger.info("cross-encoder loaded", model=settings.rag_rerank_model)
-
-        model = _cross_encoder_model
         pairs = [[query, _ranking_text(c)] for c in chunks]
         scores = model.predict(pairs)
         for chunk, score in zip(chunks, scores, strict=True):
@@ -321,6 +324,7 @@ async def vector_search(
     query_embedding: list[float],
     top_k: int = 8,
     source_filter: SourceFilter = None,
+    url_filter: list[str] | None = None,
     similarity_threshold: float = 0.3,
     metadata_course_code: str | None = None,
     metadata_term_name: str | None = None,
@@ -347,6 +351,10 @@ async def vector_search(
     )
 
     stmt = _apply_source_filter(stmt, source_filter)
+    if url_filter is not None:
+        if not url_filter:
+            return []
+        stmt = stmt.where(Chunk.url.in_(url_filter))
 
     if metadata_course_code:
         stmt = stmt.where(
@@ -553,6 +561,31 @@ def _rrf_fuse_results(
     return merged
 
 
+def _cap_chunks_per_url(
+    chunks: list[RetrievedChunk],
+    *,
+    max_chunks_per_url: int,
+    top_k: int,
+) -> list[RetrievedChunk]:
+    if max_chunks_per_url < 1:
+        raise ValueError("max_chunks_per_url must be positive")
+    counts: dict[tuple[str, str, str] | tuple[str, str], int] = {}
+    selected: list[RetrievedChunk] = []
+    for chunk in chunks:
+        if chunk.url:
+            parts = urlsplit(chunk.url)
+            key = (parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip("/") or "/")
+        else:
+            key = ("chunk", chunk.chunk_id)
+        if counts.get(key, 0) >= max_chunks_per_url:
+            continue
+        counts[key] = counts.get(key, 0) + 1
+        selected.append(chunk)
+        if len(selected) >= top_k:
+            break
+    return selected
+
+
 def _signal_match_count(chunk: RetrievedChunk, hints: QueryHints) -> int:
     haystack = f"{chunk.title or ''}\n{chunk.chunk_text}".lower()
     score = 0
@@ -626,6 +659,7 @@ async def hybrid_retrieve(
     similarity_threshold: float = 0.3,
     force_fts: bool = False,
     hyde_embedding: list[float] | None = None,
+    max_chunks_per_url: int | None = None,
 ) -> list[RetrievedChunk]:
     """Combined vector + FTS retrieval with reciprocal rank fusion."""
     # Use HyDE embedding for vector search if provided
@@ -646,6 +680,7 @@ async def hybrid_retrieve(
     fts_top_k = max(3, min(top_k, settings.rag_fts_top_k))
     if settings.rag_enable_reranking:
         fts_top_k = max(fts_top_k, fusion_top_k)
+    fts_fetch_k = fts_top_k * 3 if max_chunks_per_url else fts_top_k
 
     exact_schedule_lookup = schedule_only and metadata_course_code and metadata_term_name
     if settings.rag_skip_fts_for_exact_schedule and exact_schedule_lookup:
@@ -664,7 +699,7 @@ async def hybrid_retrieve(
         fts_results = await fts_search(
             session,
             keyword_query,
-            top_k=max(fts_top_k, top_k),
+            top_k=max(fts_fetch_k, top_k),
             source_filter=source_filter,
             metadata_course_code=metadata_course_code,
             metadata_term_name=metadata_term_name,
@@ -692,12 +727,24 @@ async def hybrid_retrieve(
         fts_results = await fts_search(
             session,
             keyword_query,
-            top_k=fts_top_k,
+            top_k=fts_fetch_k,
             source_filter=source_filter,
             metadata_course_code=metadata_course_code,
             metadata_term_name=metadata_term_name,
             metadata_semester=metadata_semester,
             match_any=force_fts,
+        )
+
+    if max_chunks_per_url:
+        vector_results = _cap_chunks_per_url(
+            vector_results,
+            max_chunks_per_url=max_chunks_per_url,
+            top_k=fusion_top_k,
+        )
+        fts_results = _cap_chunks_per_url(
+            fts_results,
+            max_chunks_per_url=max_chunks_per_url,
+            top_k=fusion_top_k,
         )
 
     merged = _rrf_fuse_results(vector_results, fts_results, top_k=fusion_top_k)

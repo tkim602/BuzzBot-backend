@@ -1,0 +1,406 @@
+{
+  "version": 1,
+  "manifest": "dev_100",
+  "facts": {
+    "gold-001": {
+      "url": "https://registrar.gatech.edu/current-students/transcripts",
+      "span": "Transcript Orders\nGeorgia Tech has authorized Parchment Exchange to act as its agent for all student and alumni transcript requests.\nThird party requestors must contact the Registrar's Office directly at comments@registrar.gatech.edu."
+    },
+    "gold-002": {
+      "url": "https://registrar.gatech.edu/current-students/transcripts",
+      "span": "- Transcripts will not be released for students who have a financial obligation to the institute.\n- A transcript hold prohibits the release of a student's official transcripts.\nGeorgia Tech does not issue “unofficial” transcripts."
+    },
+    "gold-003": {
+      "url": "https://registrar.gatech.edu/current-students/degree-information",
+      "span": "All OAG students can check their graduation status in DegreeWorks, under the section entitled Student View.\nNotwithstanding any language to the contrary, nothing contained herein constitutes nor is intended to constitute an offer, inducement, promise, or contract of any kind.\nThe data contained herein is for informational purposes only and is not represented to be error free."
+    },
+    "gold-004": {
+      "url": "https://registrar.gatech.edu/current-students/degree-information",
+      "span": "Participation in Commencement does not equate into the awarding of degrees.\nIf a student passes through the final audit, their degree will officially be awarded on the Thursday following Commencement.\nAll OAG students can check their graduation status in DegreeWorks, under the section entitled Student View."
+    },
+    "gold-005": {
+      "url": "https://catalog.gatech.edu/academics/graduate/graduate-minors/",
+      "span": "- A Graduate Minor program of study must include at least 6 credit hours of courses completed at the 6000-level or above.\n- A maximum of 3 credit hours of Special Topics courses may be included in a Graduate Minor program of study.\n- Transfer credit will not be allowed to be used to complete a Graduate Minor program of study."
+    },
+    "gold-006": {
+      "url": "https://catalog.gatech.edu/academics/graduate/graduate-minors/",
+      "span": "- Transfer credit will not be allowed to be used to complete a Graduate Minor program of study.\n- Graduate students may pursue more than one Graduate Minor.\nThese minors would be awarded at the same time as the graduate degree."
+    },
+    "gold-007": {
+      "url": "https://catalog.gatech.edu/academics/minors/",
+      "span": "- A minor program of study must contain 15 to 18 credit hours of coursework.\n- A minor program of study must include at least 9 credit hours of courses numbered 3000 or above.\n- All minors by default have no restrictions on courses satisfying both minor requirements and major degree requirements."
+    },
+    "gold-008": {
+      "url": "https://catalog.gatech.edu/academics/minors/",
+      "span": "- A minor program of study must include at least 9 credit hours of courses numbered 3000 or above.\n- All minors by default have no restrictions on courses satisfying both minor requirements and major degree requirements.\nHowever, some minors have specific breadth requirements that may limit double-counting of credits between the minor and the major program(s)."
+    },
+    "gold-009": {
+      "url": "https://catalog.gatech.edu/academics/undergraduate/bs-ms-degree-programs/",
+      "span": "BS/MS Options\nThe BSMS Options are formalized Graduate Course Option agreements between an undergraduate program and graduate program.\nThese options allow a maximum of 6 hours that can be applied toward the bachelor’s degree program and the master’s program."
+    },
+    "gold-010": {
+      "url": "https://catalog.gatech.edu/academics/undergraduate/bs-ms-degree-programs/",
+      "span": "The master’s degree must be completed within a two-year period following the award date of the bachelor’s degree.\nSee below for specific BS/MS Option information regarding specific admission requirements, GPA requirements and which courses may be eligible to share between a bachelor’s degree and master’s degree."
+    },
+    "gold-011": {
+      "url": "https://catalog.gatech.edu/rules/6/",
+      "span": "- The minimum satisfactory grade-point average (GPA) is 2.00 for all undergraduate students; 2.70 for master's and special graduate students; and, 3.00 for doctoral students.\n- Students not on academic probation are in good academic standing."
+    },
+    "gold-012": {
+      "url": "https://catalog.gatech.edu/rules/6/",
+      "span": "Schedule Load | Maximum Schedule Load — Good: 21 credit hours\nSchedule Load | Maximum Schedule Load — Warning: 16 credit hours\nSchedule Load | Maximum Schedule Load — Probation: 14 credit hours"
+    },
+    "gold-013": {
+      "url": "https://catalog.gatech.edu/rules/13/",
+      "span": "Residency Rule\n- All students must complete a minimum of 45 hours required for their degree in residence at Georgia Tech.\n- Once a student has completed undergraduate degree requirements to the point where they have their final 45 credit hours required for their degree remaining, they will be allowed to complete a maximum of 7 credit hours of transfer credit and have them applied to their degree requirements."
+    },
+    "gold-014": {
+      "url": "https://catalog.gatech.edu/rules/13/",
+      "span": "- Once a student has completed undergraduate degree requirements to the point where they have their final 45 credit hours required for their degree remaining, they will be allowed to complete a maximum of 7 credit hours of transfer credit and have them applied to their degree requirements.\nThis means that 38 of the final 45 credit hours required for an undergraduate degree must be completed in residence at Georgia Tech."
+    },
+    "gold-015": {
+      "url": "https://catalog.gatech.edu/rules/14/",
+      "span": "The rules relative to and the process for obtaining transfer of credit for graduate-level courses are as follows:\n- Student's in a master's degree program requiring fewer than 33 semester credit hours may receive up to six hours of transfer credit for graduate-level courses taken at an institution accredited by a Canadian or U.S.\nregional accrediting board, or at a foreign school or university that has a signed partner agreement with Georgia Tech, and not used for credit toward another degree."
+    },
+    "gold-016": {
+      "url": "https://catalog.gatech.edu/rules/14/",
+      "span": "Double Counting Credit between Master’s Degrees\nStudents who are pursuing two master’s degrees at Georgia Tech may double count a maximum of 6 hours of credit for both degrees.\nThis ensures that each degree involves a minimum of 24 hours of coursework completed at Tech that is not double counted."
+    },
+    "gold-017": {
+      "url": "https://admission.gatech.edu/first-year/deadlines",
+      "span": "-\nGeorgia Tech exclusively uses the Common Application for all first-year applicants."
+    },
+    "gold-018": {
+      "url": "https://admission.gatech.edu/first-year/deadlines",
+      "span": "Early Action 1 — Application Deadline: October 15\nEarly Action 2 — Application Deadline: November 2\nRegular Decision — Application Deadline: January 6"
+    },
+    "gold-019": {
+      "url": "https://admission.gatech.edu/first-year/standardized-tests",
+      "span": "All first-year applicants must submit results from at least one SAT and/or ACT in order to be considered for admission.\nKeep in mind that in our holistic review process, tests are only one of many factors used to make admission decisions."
+    },
+    "gold-020": {
+      "url": "https://admission.gatech.edu/first-year/standardized-tests",
+      "span": "Students who are admitted and choose to enroll at Georgia Tech, will need to submit official test scores before attending orientation."
+    },
+    "gold-021": {
+      "url": "https://admission.gatech.edu/first-year/decision-outcomes",
+      "span": "Deferred students should submit a fall term transcript with grades and the Deferred Supplemental Form.\nDeferred students receive a decision with Regular Decision applicants in March.\nA limited number of students will be offered a place on Tech's first-year waitlist."
+    },
+    "gold-022": {
+      "url": "https://admission.gatech.edu/first-year/decision-outcomes",
+      "span": "If a student who applied for Early Action is denied, they may not reapply during our Regular Decision round.\nStudents who are not offered first-year admission may consider whether or not applying as a transfer student in the future is the best option for them."
+    },
+    "gold-023": {
+      "url": "https://admission.gatech.edu/first-year/recommendations",
+      "span": "A recommendation is a letter of support from someone who knows you well and has seen your achievements in high school.\nWhile recommenders provide helpful context to us, ultimately, your admission decision will be based on the holistic factors we consider in our review.\nWe can only accept up to three recommendations per applicant."
+    },
+    "gold-024": {
+      "url": "https://admission.gatech.edu/first-year/recommendations",
+      "span": "If your counselor is unable to provide a formal recommendation, please be assured that it will not negatively impact your application review.\nTeacher Recommendation\nWe can accept up to two teacher recommendations."
+    },
+    "gold-025": {
+      "url": "https://admission.gatech.edu/first-year/defer-enrollment-gap-year",
+      "span": "-\nStudents may request to defer their enrollment for up to one year from their original term of entry.\nTwo-year deferals are permissible, if they are mandated by government, military or religious service."
+    },
+    "gold-026": {
+      "url": "https://admission.gatech.edu/first-year/defer-enrollment-gap-year",
+      "span": "If eligible for financial aid, Georgia Tech students must reapply for financial aid each year; therefore, any current financial aid package will not be deferred to a future enrollment term.\nOur ability to award financial aid varies from year to year, so there is no guarantee that your future offer will match the current one.\nThe deferral of academic/departmental scholarships is at the discretion of the awarding department."
+    },
+    "gold-027": {
+      "url": "https://admission.gatech.edu/first-year/waitlist",
+      "span": "No.\nGeorgia Tech does not use a ranking system to make offers from the waitlist.\nWe will offer admission to students from the waitlist in an effort to complete our class to meet institutional needs and priorities."
+    },
+    "gold-028": {
+      "url": "https://admission.gatech.edu/first-year/waitlist",
+      "span": "No.\nAccepting your spot on the waitlist does not commit you to Georgia Tech in any way.\nIf we offer you admission, you will have the option to decide if you would like to accept your place in the first-year class and enroll at Georgia Tech."
+    },
+    "gold-029": {
+      "url": "https://admission.gatech.edu/transfer/deadlines-fees",
+      "span": "Application Available — Fall Semester: January 18 – March 1\nDocument Deadline — Fall Semester: March 16"
+    },
+    "gold-030": {
+      "url": "https://admission.gatech.edu/transfer/deadlines-fees",
+      "span": "Document Deadline — Fall Semester: March 16\nCourse Requirements Deadline* — Fall Semester: May 30\nDecision Release* — Fall Semester: April 16 – Dual Degree May 14 – Regular Transfer, REPP, and Veterans Pathways June 11 – APS, Arts & Sciences, Conditional, and Talent Initiative Pathways"
+    },
+    "gold-031": {
+      "url": "https://admission.gatech.edu/transfer/application-requirements",
+      "span": "A transfer applicant is a degree-seeking student who has completed a minimum of 30 semester or 45 quarter credit hours.\nThis includes students who have earned college credit through dual enrollment or credit by exam (AP or IB).\nStudents applying as part of a transfer pathway program are required to complete 30 semester or 45 quarter credit hours after high school graduation."
+    },
+    "gold-032": {
+      "url": "https://admission.gatech.edu/transfer/application-requirements",
+      "span": "Proof of English Proficiency is required of all transfer applicants.\nStudents satisfy this requirement by providing an official transcript showing completion of two English Composition courses (totaling six semester credit hours).\nEnglish composition courses must be equivalent to English 1101 and English 1102 courses at Georgia Tech."
+    },
+    "gold-033": {
+      "url": "https://grad.gatech.edu/admissions/international/before-you-apply",
+      "span": "If your institution does not issue official academic documents in English, you must submit the original native-language document(s) and a certified word-for-word English translation prepared by a professional translation service.\nProof of English Language Proficiency"
+    },
+    "gold-034": {
+      "url": "https://grad.gatech.edu/admissions/international/before-you-apply",
+      "span": "Proof of English Language Proficiency\nGeorgia Tech requires that all applicants provide proof of English language proficiency at the time of application.\nLearn more about the ways this requirement can be satisfied on the English Proficiency page."
+    },
+    "gold-035": {
+      "url": "https://grad.gatech.edu/admissions/domestic/before-you-apply",
+      "span": "Deadlines vary by program.\nBe sure to confirm the deadline of your intended program of study to ensure that you apply on time.\nWhile Tech has Institute-level requirements, many graduate programs require additional qualifications and materials for the application."
+    },
+    "gold-036": {
+      "url": "https://grad.gatech.edu/admissions/domestic/before-you-apply",
+      "span": "While Tech has Institute-level requirements, many graduate programs require additional qualifications and materials for the application.\nBefore you begin the application process, visit your intended graduate program of study webpage for program-specific admission requirements such as application deadlines, early deadlines for assistantships, fellowships and awards, test score minimums, statement of purpose, and portfolio.\nQuestions about application requirements should be directed to your program of interest."
+    },
+    "gold-037": {
+      "url": "https://omscs.gatech.edu/current-courses",
+      "span": "To be able to continue in the program after the first 12 months from your date of matriculation, you must complete a foundational coursework requirement of 2 foundational courses with a grade of B or better.\n* : Foundational course\nA : Course administered by OMS-Analytics program (still open to OMSCS students)"
+    },
+    "gold-038": {
+      "url": "https://omscs.gatech.edu/current-courses",
+      "span": "Most of these courses are offered in Fall and Spring semesters, while Summer semesters offer a subset of the courses on this list.\nA history of course offerings in OMSCS over the past four years is available here.\nCourses denoted with an asterisk (*) are considered foundational and will count toward the graduation requirements detailed on our Degree Requirements page; any course not listed on this page is not foundational."
+    },
+    "gold-039": {
+      "url": "https://omscs.gatech.edu/cost-and-payment-schedule",
+      "span": "- Financial aid: OMSCS students can qualify for financial aid just as any other graduate student.\nPlease contact the Office of Scholarships and Financial Aid with further questions or for more information."
+    },
+    "gold-040": {
+      "url": "https://omscs.gatech.edu/cost-and-payment-schedule",
+      "status": "CORPUS_EVIDENCE_MISSING"
+    },
+    "gold-041": {
+      "url": "https://omscs.gatech.edu/degree-requirements",
+      "span": "- The OMSCS degree requires students to complete 30 total credit hours (10 courses).\nA grade of C or above is required for a course to count toward this 30 credit-hour requirement.\nStudents may take any free elective courses offered through the OMSCS program to complete the 30 credit-hour requirement beyond the requirements of their specialization."
+    },
+    "gold-042": {
+      "url": "https://omscs.gatech.edu/degree-requirements",
+      "span": "Students may take any free elective courses offered through the OMSCS program to complete the 30 credit-hour requirement beyond the requirements of their specialization.\nA maximum of 6 credit hours may be taken with a subject code other than CS or CSE.\nSee the Current Courses page for more information on the courses offered in the program."
+    },
+    "gold-043": {
+      "url": "https://omscs.gatech.edu/prospective-student-faqs",
+      "span": "All applicants to OMSCS or other graduate degree programs must meet the Georgia Tech minimum admission criteria (see above).\nHowever, admission is not guaranteed for those who meet the minimum criteria.\nIf I meet the admission criteria, am I automatically admitted?"
+    },
+    "gold-044": {
+      "url": "https://omscs.gatech.edu/prospective-student-faqs",
+      "span": "Applicants who are selected for admission will be conditionally admitted into the degree program and must pass two OMSCS foundational courses with a grade of B or better within a year from when they matriculate to be fully admitted.\nWhat are the foundational courses?\nThey are indicated by asterisks in the course listings on the Current Courses page of this website."
+    },
+    "gold-045": {
+      "url": "https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines",
+      "span": "The OMSCS program accepts applications year-round for both Fall and Spring matriculations (there are no Summer admissions)."
+    },
+    "gold-046": {
+      "url": "https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines",
+      "span": "- Application deadline for Fall matriculation: March 1\n- Application deadline for Spring matriculation: August 15\nWe cannot guarantee that applications that do not have all the required application materials submitted by these dates will be reviewed in time for the applied semester."
+    },
+    "gold-047": {
+      "url": "https://omscs.gatech.edu/admission-criteria",
+      "span": "Preferred qualifications for admitted OMSCS students are an undergraduate degree in computer science or related field (typically mathematics, computer engineering or electrical engineering) with a cumulative GPA of 3.0 or higher.\nApplicants who do not meet these criteria will be evaluated on a case-by-case basis."
+    },
+    "gold-048": {
+      "url": "https://omscs.gatech.edu/admission-criteria",
+      "span": "- In no case can work experience substitute for having earned an academic degree.\nFor international applicants, satisfactory scores on the Test of English as a Foreign Language (TOEFL) or IELTS-Academic are required.\nPlease visit the OMSCS Summary page for further information regarding our TOEFL and IELTS requirements."
+    },
+    "gold-049": {
+      "url": "https://bursar.gatech.edu/tuition-fees",
+      "status": "CORPUS_EVIDENCE_MISSING"
+    },
+    "gold-050": {
+      "url": "https://bursar.gatech.edu/tuition-fees",
+      "span": "View Tuition Costs by Semester\nSelect the appropriate tuition chart from the links below to view a summary page.\nFrom that page, click on the Tuition Type to view costs by semester hour."
+    },
+    "gold-051": {
+      "url": "https://bursar.gatech.edu/payment-options",
+      "span": "- Electronic Check/WebCheck (FREE)\n- International Payments (Fees Apply)"
+    },
+    "gold-052": {
+      "url": "https://bursar.gatech.edu/payment-options",
+      "span": "The credit card service fee is automatically added to the amount of the payment at the time it is made.\nA service fee may be avoided by paying via an electronic check or by mailing a check to the Bursar's Office."
+    },
+    "gold-053": {
+      "url": "https://bursar.gatech.edu/student-payment-instructions",
+      "span": "- View your online payment history\n- Store your payment methods for quick and easy future payments\n- Sign up for eRefunds to obtain your refunds via ACH"
+    },
+    "gold-054": {
+      "url": "https://bursar.gatech.edu/student-payment-instructions",
+      "span": "- As a student, provide permission to others (parents, employers, etc) to view your bill and make payments\nThis is an Easy, Secure, Convenient, and Fast way to pay your bills.\nEasy - Gain immediate access to your current account balance and detail."
+    },
+    "gold-055": {
+      "url": "https://bursar.gatech.edu/georgia-tech-payment-plan",
+      "span": "The GT Payment Plan allows a student to defer payment for up to 50% of the current term's tuition and mandatory fee charges OR the account balance, whichever is less.\nThe deferrable balance is calculated after all actual and expected financial aid is applied to the student account."
+    },
+    "gold-056": {
+      "url": "https://bursar.gatech.edu/georgia-tech-payment-plan",
+      "span": "When the payment plan option is elected, a $75 enrollment fee is assessed each term to offset administrative costs.\nStudents may also be required to make a down payment at the time of enrollment (if your account balance after aid is greater than 50% of the tuition and fee charges for the term) and must agree to make both scheduled deferred payments via automatic deduction from their bank accounts during the enrollment process.\nFailure to make the installments as agreed will result in withdrawal from Georgia Tech."
+    },
+    "gold-057": {
+      "url": "https://finaid.gatech.edu/costs/cost-of-attendance",
+      "span": "The cost of attendance (COA) is the estimated amount it will cost you to attend college each year.\nCOA includes tuition and fees; housing and food; books, course materials, supplies, and equipment; transportation; loan fees; and, if applicable, dependent care."
+    },
+    "gold-058": {
+      "url": "https://finaid.gatech.edu/costs/cost-of-attendance",
+      "span": "For each academic year, the standard cost of attendance at Georgia Tech depends on your program, year in school, residency, and housing selection.\nThe Standard Cost of Attendance (COA) is established and published each award year by the Office of Scholarships and Financial Aid in accordance with Federal regulations and is utilized to determine eligibility for any/all programs or funds managed by and/or thru the Office of Scholarships and Financial Aid.\nOther specific costs may be considered as an adjustment to Cost of Attendance."
+    },
+    "gold-059": {
+      "url": "https://finaid.gatech.edu/apply/graduates",
+      "span": "To be considered for any Federal aid (such as Direct Loans or Federal Work Study) you must complete both of the following applications each year by the posted deadlines.\n- Georgia Tech Application for Scholarships and Financial Aid (GT App)\nBe sure to indicate on your GT App that you want to be considered for loans."
+    },
+    "gold-060": {
+      "url": "https://finaid.gatech.edu/apply/graduates",
+      "span": "To receive federal education loan disbursements, students must be enrolled in at least 6 credit hours per term that count toward their degree.\nLoan amounts are prorated for students enrolled in fewer than 12 credit hours."
+    },
+    "gold-061": {
+      "url": "https://finaid.gatech.edu/manage-aid/appeal-procedures",
+      "span": "Professional Judgment (PJ) decisions are made by the Georgia Tech Office of Scholarships & Financial Aid (OSFA) on a case-by-case basis as the result of examining documentation of a particular student’s unique circumstances.\nThe Professional Judgment Committee will have the authority to recommend professional judgment approvals/denials.\nA PJ will only be exercised after all required documentation has been submitted and any/all conflicting/consistent information has been resolved."
+    },
+    "gold-062": {
+      "url": "https://finaid.gatech.edu/manage-aid/appeal-procedures",
+      "span": "The OSFA appeals committee decisions will be sent via email to the GT Email address when the review has been finalized.\nYou should anticipate that the review/evaluation timeframe for properly submitted appeals will typically take a minimum of 30 calendar days, however this time can be extended during financial aid peak periods, please see peak period review schedule below:"
+    },
+    "gold-063": {
+      "url": "https://finaid.gatech.edu/updates",
+      "span": "Updates — Student Loan Limits: Graduate students are now limited to $20,500 per academic year/$100,000 lifetime\nUpdates — Student Loan Proration: Borrowers enrolled less than full-time (12 hours) will only be able to borrow a prorated maximum loan offer based on enrolled hours."
+    },
+    "gold-064": {
+      "url": "https://finaid.gatech.edu/updates",
+      "span": "Updates — Graduate PLUS Loans: Eliminated if you begin your academic program on or after July 1, 2026*\nUpdates — Borrowing Cap: $257,000 borrowing cap on all federal loans\nUpdates — Loan Repayment Plans: Implemented new and simplified Repayment Assistance Plan (RAP) with rates 1% to 10% of discretionary income Eliminated SAVE plan Extended forgiveness periods to 30 years Introduced minimum monthly payments All loans must be repaid on the same plan, so if you borrow before and after July 1, 2026 you will be limited to the standard or RAP plans If you do not borrow new loans after July 1, 2026 you will be eligible to enroll in the current Standard, Graduated, Extended, or current Income Based (IBR) repayment plans, and may also opt in to the new RAP"
+    },
+    "gold-065": {
+      "url": "https://housing.gatech.edu/first-time-residents/applying",
+      "span": "My HousingRoommate and Room Selection\nRoom selection is not first-come, first-served.\nTo be eligible for a random room selection time ticket, you must apply by the posted deadline."
+    },
+    "gold-066": {
+      "url": "https://housing.gatech.edu/first-time-residents/applying",
+      "span": "My HousingRoommate and Room Selection\nRoom selection is not first-come, first-served.\nTo be eligible for a random room selection time ticket, you must apply by the posted deadline."
+    },
+    "gold-067": {
+      "url": "https://housing.gatech.edu/returning-residents/applying",
+      "span": "The housing application process and timeline for returning students are different than they are for incoming students.\nPlease be sure to check dates and deadlines for the most up to date information on the housing lottery.\nPlease remember that housing is not required and not guaranteed for any student."
+    },
+    "gold-068": {
+      "url": "https://housing.gatech.edu/returning-residents/applying",
+      "span": "To be eligible for a room selection time ticket, you must apply by the posted deadline and be selected from the lottery."
+    },
+    "gold-069": {
+      "url": "https://housing.gatech.edu/contracts-and-rates",
+      "span": "To cancel your housing contract/application, log into My Housing and click the Resources tab on the gold navigation bar.\nSelect ‘Cancel My Housing’ from the drop down menu.\nUpon completion of cancellation, you will receive a confirmation e-mail which should be retained as proof of cancellation."
+    },
+    "gold-070": {
+      "url": "https://housing.gatech.edu/contracts-and-rates",
+      "span": "Cancellation penalties are assessed regardless of the time you are accepted to Georgia Tech and regardless of when you apply for housing.\nNotifying other Georgia Institute of Technology offices (i.e., Admission’s Office, Registrar’s Office, Bursar’s Office, etc.) DOES NOT cancel your housing contract.\nThe information provided below is an excerpt from the Housing Contract."
+    },
+    "gold-071": {
+      "url": "https://dining.gatech.edu/meal-plans/meal-plan-options",
+      "span": "College Status — Greek 100 Meal Plan (First-Year Greek Students Only) | Fall 2026 - Spring 2027: First-Year Student\nPrice Per Meal — Greek 100 Meal Plan (First-Year Greek Students Only) | Fall 2026 - Spring 2027: $12.85\nBuzzCard Funds — Greek 100 Meal Plan (First-Year Greek Students Only) | Fall 2026 - Spring 2027: 0"
+    },
+    "gold-072": {
+      "url": "https://dining.gatech.edu/meal-plans/meal-plan-options",
+      "status": "CORPUS_EVIDENCE_MISSING"
+    },
+    "gold-073": {
+      "url": "https://dining.gatech.edu/meal-plans/meal-plan-101",
+      "span": "Meal Swipes\nMeal Swipes give you access to any of our all-you-care-to-eat dining halls, including North Ave., Brittain, and West Village."
+    },
+    "gold-074": {
+      "url": "https://dining.gatech.edu/meal-plans/meal-plan-101",
+      "span": "Dining Dollars are sales tax exempt funds that can be used at all Tech Dining locations, including when ordering through Grubhub.\nDining Dollars are included in some meal plans and may also be purchased in increments of $50, $200, $400, and $600.\nCustomers who deposit $400 or $600 Dining Dollars receive an additional 10% bonus Dining Dollars."
+    },
+    "gold-075": {
+      "url": "https://health.gatech.edu/immunization-requirements/",
+      "span": "- Last names beginning with A – H: June 8, 2026\n- Last names beginning with I – P: June 22, 2026\n- Last names beginning with Q – Z: July 6, 2026"
+    },
+    "gold-076": {
+      "url": "https://health.gatech.edu/immunization-requirements/",
+      "span": "- If receiving live vaccines at the same time as IGRA testing, IGRA test must be performed prior to, or on the same day as the live vaccines, or 28 days later.\nDeadlines\nCompleted immunization documentation should be submitted on or before the deadlines below."
+    },
+    "gold-077": {
+      "url": "https://disabilityservices.gatech.edu/students/housing-accommodations",
+      "span": "Students need to be as thorough and specific as possible when detailing needed housing accommodations.\nAfter submitting the Housing Application, students will register with our Office of Disability Services by completing the New Student Application Request Form.\nIf you are a currently registered ODS student requesting Housing Accommodations, please submit a Supplemental Request through your AIM log in."
+    },
+    "gold-078": {
+      "url": "https://disabilityservices.gatech.edu/students/housing-accommodations",
+      "span": "- Review the Emotional Animal Policy provided by Housing and Residence Life.\n- Students requesting approval for Emotional Support Animal please contact Housing and Residential Life @ https://housing.gatech.edu/ and complete the “Accommodation Request due to a Disability” step in the online Housing application.\n- Submit the Form through your AIM log in."
+    },
+    "gold-079": {
+      "url": "https://disabilityservices.gatech.edu/students/temporary-accommodations",
+      "span": "Disability Services recognizes that individuals with temporarily disabling conditions resulting from injuries, surgery, or short-term medical conditions may need access to services and resources similar to individuals with permanent disabilities.\nExamples of temporary disabilities may include but are not limited to broken limbs, hand injuries, or short-term impairments following surgery or medical treatments."
+    },
+    "gold-080": {
+      "url": "https://disabilityservices.gatech.edu/students/temporary-accommodations",
+      "span": "- Functional limitations affecting academic\n- Prognosis\n- Estimated duration of the disabling condition"
+    },
+    "gold-081": {
+      "url": "https://disabilityservices.gatech.edu/students/getting-started",
+      "span": "Requesting Accommodations\nTo receive accommodations and services, students must identify themselves to the Office of Disability Services and present official documentation of their disability.\nPlease review the ODS Intake Process document to learn more."
+    },
+    "gold-082": {
+      "url": "https://disabilityservices.gatech.edu/students/getting-started",
+      "span": "- Describes the impact of the disability in the academic environment.\n- Describes the functional limitations of the disability and the specifics it has in the academic environment.\n- A description of the expected duration, frequency, severity, and progression of the condition (if applicable)."
+    },
+    "gold-083": {
+      "url": "https://isss.oie.gatech.edu/content/enrollment-requirements",
+      "span": "Full-time enrollment at Georgia Tech is considered 12 credit hours for both Graduate and Undergraduate students.\nStudents must be registered for all 12 credits at Georgia Tech and cannot utilize credits/enrollment at other institutions to count towards the full-time enrollment.\nUnless approved for CPT and working elsewhere or engaged in Study Abroad or GRIP, F-1 and J-1 student visa holders are expected be inside the U.S."
+    },
+    "gold-084": {
+      "url": "https://isss.oie.gatech.edu/content/enrollment-requirements",
+      "span": "Only 3 credit hours of fully at a distance or online coursework can count towards full-time enrollment."
+    },
+    "gold-085": {
+      "url": "https://isss.oie.gatech.edu/content/international-student-scholar-services-advising",
+      "span": "An E-Form is an electronic application accessed through iStart to request a benefit, such as an I-20 or DS-2019 update, work authorization, travel authorization, etc.\nThe E-forms in iStart will provide you with all the information necessary.\nYou will log into iStart and use your regular GT user name."
+    },
+    "gold-086": {
+      "url": "https://isss.oie.gatech.edu/content/international-student-scholar-services-advising",
+      "span": "You will log into iStart and use your regular GT user name.\nOnce all steps are completed in the application or request process, including the academic department authorization (if required), OIE-ISSS will conduct its review and approve or deny your request.\nIf APPROVED, you will receive an e-mail to pick up the final document, such as a letter or an I-20/DS-2019."
+    },
+    "gold-087": {
+      "url": "https://isss.oie.gatech.edu/isss/travel",
+      "span": "- Enrolled F-1 and J-1 student visa holders in Active SEVIS status have the ability to travel to and from the U.S.\nat any time while maintaining status and possessing the required documentation (please see guidance in FAQ below).\nIf traveling while classes are in session, students must coordinate with their academic faculty to ensure their full-time enrollment in courses that meet F-1 and J-1 enrollment requirements is not impacted."
+    },
+    "gold-088": {
+      "url": "https://isss.oie.gatech.edu/isss/travel",
+      "span": "If traveling while classes are in session, students must coordinate with their academic faculty to ensure their full-time enrollment in courses that meet F-1 and J-1 enrollment requirements is not impacted.\nIf a F-1 or J-1 visa holder will be outside the U.S.\nfor an extended period of time, they must contact OIE to further discuss their plans."
+    },
+    "gold-089": {
+      "url": "https://isss.oie.gatech.edu/isss-check-in",
+      "span": "- As a new international student, you are permitted to enter the U.S.\nno earlier than 30 days prior to the program start date.\nThe program start date is located on your most up-to-date I-20 or DS-2019 form."
+    },
+    "gold-090": {
+      "url": "https://isss.oie.gatech.edu/isss-check-in",
+      "span": "- As a new international student, you are permitted to enter the U.S.\nno earlier than 30 days prior to the program start date.\nThe program start date is located on your most up-to-date I-20 or DS-2019 form."
+    },
+    "gold-091": {
+      "url": "https://isss.oie.gatech.edu/content/curricular-practical-training-cpt-georgia-tech",
+      "span": "Curricular Practical Training (CPT) is an authorization issued by the International Student & Scholar Office (ISSS) within OIE that permits F-1 students to participate in off-campus experiential learning opportunities.\nDuring the CPT authorization, the student must be enrolled in an academic course that guides their experience and measures their learning outcomes."
+    },
+    "gold-092": {
+      "url": "https://isss.oie.gatech.edu/content/curricular-practical-training-cpt-georgia-tech",
+      "span": "During the CPT authorization, the student must be enrolled in an academic course that guides their experience and measures their learning outcomes.\nCPT is not available after a student completes degree program requirements."
+    },
+    "gold-093": {
+      "url": "https://studentlife.gatech.edu/request-assistance",
+      "span": "Any student displaying behaviors that may interfere with their ability to be successful or disrupts the learning of others.\nClass Absence Verification\nStudents Only"
+    },
+    "gold-094": {
+      "url": "https://studentlife.gatech.edu/request-assistance",
+      "span": "Emergency?\nIf you or someone you know is experiencing an emergency, please contact the Georgia Tech Police Department (GTPD) at 404-894-2500.\nAssistance is available 24/7."
+    },
+    "gold-095": {
+      "url": "https://studentlife.gatech.edu/services/mental-health-well-being",
+      "span": "The Office maintains a 24/7 emergency on-call system to respond to student emergencies – including medical and personal.\nSo if you or someone you know could benefit from getting some help - whether that be involvement in a student organization, letting some steam out at the CRC, or getting professional counseling services – check out the resources below."
+    },
+    "gold-096": {
+      "url": "https://studentlife.gatech.edu/services/mental-health-well-being",
+      "span": "The Vice President for Student Engagement & Well-Being and the Associate Vice President for Student Life and Brandt-Fritz Dean of Students Chair, promotes development and involvement, and also provides advocacy, information, resources and referrals to help resolve concerns and address emergencies.\nThe Office maintains a 24/7 emergency on-call system to respond to student emergencies – including medical and personal.\nSo if you or someone you know could benefit from getting some help - whether that be involvement in a student organization, letting some steam out at the CRC, or getting professional counseling services – check out the resources below."
+    },
+    "gold-097": {
+      "url": "https://www.pts.gatech.edu/shuttles/stinger/",
+      "span": "The Stinger is Georgia Tech’s transit system and is open to students, employees, and the public.\nBoarding fees and IDs are not required.\nDuring the summer semester, the Stinger Shuttle Service will operate reduced service on campus."
+    },
+    "gold-098": {
+      "url": "https://www.pts.gatech.edu/shuttles/stinger/",
+      "span": "Real-time Bus Tracking\nVisit bus.gatech.edu or get the Transloc app:\nThe official app for tracking the Stinger is the TransLoc app!"
+    },
+    "gold-099": {
+      "url": "https://www.success.gatech.edu/tutoring/1-to-1-tutoring/",
+      "span": "Knack is a free, peer-to-peer tutoring platform that is overseen by Academic Success and Advising and connects currently enrolled Georgia Tech undergraduate students with Georgia Tech tutors who have excelled in their courses.\nAll Knack tutors are current Georgia Tech undergraduate students who have earned an A in the class they support and are in good academic standing.\nThrough Knack, students can book 1-to-1 tutoring sessions, which can be scheduled either virtually or in-person for added flexibility."
+    },
+    "gold-100": {
+      "url": "https://www.success.gatech.edu/tutoring/1-to-1-tutoring/",
+      "span": "Any current Georgia Tech undergraduate student who has earned an A in the course at Georgia Tech and is in good academic standing is eligible to apply to be a Knack tutor.\nHowever, J1/F1 visa holders are not permitted to tutor on the Knack platform, as it violates the terms of their visa.\nStudents on J1/F1 visas are encouraged to visit Student Employment Opportunities to explore alternative employment within Academic Success and Advising."
+    }
+  }
+}

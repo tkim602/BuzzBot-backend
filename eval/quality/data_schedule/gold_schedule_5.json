@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "name": "buzzbot_fall_2026_schedule_5",
+  "items": [
+    {
+      "id": "schedule-001-v1",
+      "variant_group": "schedule-001",
+      "question": "Is CS 7650 offered in Fall 2026? List its sections, instructors, and meeting times.",
+      "gold_answer": "Yes. Fall 2026 has sections O01, A, and O3. Section A is taught by Kartik Goyal on Monday and Wednesday from 3:30 PM to 4:45 PM. O01 and O3 are taught by Mark Riedl and have TBA meeting times.",
+      "gold_urls": ["https://oscar.gatech.edu/bprod/bwckctlg.p_disp_listcrse?term_in=202608&subj_in=CS&crse_in=%25&schd_in=%25"],
+      "gold_sources": ["oscar"],
+      "gold_vertical": "academics",
+      "gold_locator": "Fall 2026 CS 7650 schedule",
+      "question_type": "course_schedule",
+      "time_sensitive": true,
+      "difficulty": "natural",
+      "style": "direct"
+    },
+    {
+      "id": "schedule-002-v1",
+      "variant_group": "schedule-002",
+      "question": "Who teaches CS 7641 in Fall 2026, and when do its sections meet?",
+      "gold_answer": "Fall 2026 has sections A, O01, O3, R2, and B. Max Roozbahani teaches A on Tuesday and Thursday from 3:30 PM to 4:45 PM and B from 12:30 PM to 1:45 PM. Theodore LaGrow teaches O01, O3, and R2, whose meeting times are TBA.",
+      "gold_urls": ["https://oscar.gatech.edu/bprod/bwckctlg.p_disp_listcrse?term_in=202608&subj_in=CS&crse_in=%25&schd_in=%25"],
+      "gold_sources": ["oscar"],
+      "gold_vertical": "academics",
+      "gold_locator": "Fall 2026 CS 7641 schedule",
+      "question_type": "course_schedule",
+      "time_sensitive": true,
+      "difficulty": "natural",
+      "style": "direct"
+    },
+    {
+      "id": "schedule-003-v1",
+      "variant_group": "schedule-003",
+      "question": "What Fall 2026 sections, instructors, and meeting times are offered for CSE 6242?",
+      "gold_answer": "Fall 2026 has sections A, O01, and OAN. Duenhorng Chau teaches A on Tuesday and Thursday from 3:30 PM to 4:45 PM. O01 and OAN list Duenhorng Chau and Max Roozbahani with TBA meeting times.",
+      "gold_urls": ["https://oscar.gatech.edu/bprod/bwckctlg.p_disp_listcrse?term_in=202608&subj_in=CSE&crse_in=%25&schd_in=%25"],
+      "gold_sources": ["oscar"],
+      "gold_vertical": "academics",
+      "gold_locator": "Fall 2026 CSE 6242 schedule",
+      "question_type": "course_schedule",
+      "time_sensitive": true,
+      "difficulty": "natural",
+      "style": "direct"
+    },
+    {
+      "id": "schedule-004-v1",
+      "variant_group": "schedule-004",
+      "question": "When and where does CS 7652 meet in Fall 2026, and who teaches it?",
+      "gold_answer": "CS 7652 section A is taught by Alan Ritter on Monday and Wednesday from 3:30 PM to 4:45 PM in Mason 3133.",
+      "gold_urls": ["https://oscar.gatech.edu/bprod/bwckctlg.p_disp_listcrse?term_in=202608&subj_in=CS&crse_in=%25&schd_in=%25"],
+      "gold_sources": ["oscar"],
+      "gold_vertical": "academics",
+      "gold_locator": "Fall 2026 CS 7652 schedule",
+      "question_type": "course_schedule",
+      "time_sensitive": true,
+      "difficulty": "natural",
+      "style": "direct"
+    },
+    {
+      "id": "schedule-005-v1",
+      "variant_group": "schedule-005",
+      "question": "What are the Fall 2026 CS 4400 sections, instructor, locations, and meeting times?",
+      "gold_answer": "Melinda McDaniel teaches both Fall 2026 sections. Section B meets Wednesday from 3:30 PM to 4:45 PM in Clough 144, and section A meets Monday from 3:30 PM to 4:45 PM in Howey Physics L1.",
+      "gold_urls": ["https://oscar.gatech.edu/bprod/bwckctlg.p_disp_listcrse?term_in=202608&subj_in=CS&crse_in=%25&schd_in=%25"],
+      "gold_sources": ["oscar"],
+      "gold_vertical": "academics",
+      "gold_locator": "Fall 2026 CS 4400 schedule",
+      "question_type": "course_schedule",
+      "time_sensitive": true,
+      "difficulty": "natural",
+      "style": "direct"
+    }
+  ]
+}

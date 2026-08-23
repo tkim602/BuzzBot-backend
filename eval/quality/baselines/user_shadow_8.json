@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "manifest": "eval/quality/manifests/user_shadow_8.json",
+  "manifest_sha256": "0ba741596f97534f1258a1b0d3d269ad14a956c7f41e10130e9a2095e8158f70",
+  "evaluated_at": "2026-08-23",
+  "status": "ACCEPTED",
+  "blind_run": {
+    "answer_correctness": 0.25,
+    "evidence_support_rate": 0.25,
+    "citation_gold_url_hit_rate": 0.25,
+    "abstention_rate": 0.625,
+    "latency_ms": {
+      "p50": 6484.45,
+      "p95": 22619.8
+    },
+    "cost_usd": 0.00498146
+  },
+  "final_run": {
+    "code_point": "e4c687e",
+    "answer_correctness": 0.875,
+    "evidence_support_rate": 1.0,
+    "citation_gold_url_hit_rate": 1.0,
+    "abstention_rate": 0.0,
+    "latency_ms": {
+      "p50": 6540.5,
+      "p95": 7925.6
+    },
+    "cost_usd": 0.00538122
+  },
+  "client_reuse": {
+    "code_point": "9ce4aab",
+    "answer_correctness": 0.875,
+    "evidence_support_rate": 1.0,
+    "citation_gold_url_hit_rate": 1.0,
+    "abstention_rate": 0.0,
+    "latency_ms": {
+      "p50": 5527.6,
+      "p95": 7313.8
+    },
+    "cost_usd": 0.00537942
+  },
+  "cold_start": {
+    "code_point": "3f77123",
+    "change": "Preload the existing cross-encoder before application readiness.",
+    "first_request_ms_before": 19788,
+    "first_request_ms_after": 5231
+  },
+  "judge_false_negative": {
+    "case_id": "shadow-005-v1",
+    "answer_supported": true,
+    "gold_citation_present": true,
+    "reason": "The answer says No and cites the senior-classification requirement, but the automated judge marked that same requirement as contradictory."
+  },
+  "limitations": [
+    "The frozen shadow is disjoint from the development manifests but contains only eight official-corpus facts.",
+    "These are user-style end-to-end HTTP requests, not anonymized production traffic.",
+    "The automated correctness score remains 7/8; the evidence and citation checks pass 8/8."
+  ]
+}

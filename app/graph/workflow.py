@@ -24,6 +24,7 @@ from app.retrieval import (
     lookup_registration_calendar,
     search_policy_docs,
 )
+from app.retrieval.documents import policy_source_types as _policy_source_types
 
 EmbedQuery = Callable[[str], Awaitable[list[float]]]
 DocumentAnswerer = Callable[[str, list[EvidenceItem], GraphIntent], Awaitable[dict[str, object]]]
@@ -134,29 +135,6 @@ async def _default_document_answer(
         dict[str, object],
         await generate_answer(query, _as_chunks(evidence), intent=answer_intent),
     )
-
-
-def _policy_source_types(query: str) -> tuple[str, ...]:
-    lowered = query.lower()
-    if "omscs" in lowered:
-        return ("omscs_policy",)
-    if any(
-        cue in lowered
-        for cue in (
-            "admission",
-            "apply",
-            "application",
-            "first-year",
-            "first year",
-            "early action",
-            "common app",
-            "recommendation",
-            "intended major",
-            "major selection",
-        )
-    ):
-        return ("admissions",)
-    return ()
 
 
 def build_workflow(

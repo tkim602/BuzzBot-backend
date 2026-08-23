@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "parent_baseline": "eval/quality/baselines/dev_100_retrieval.json",
+  "current_hit_at_5_baseline": 0.57,
+  "retrieval_report_generated_at": "2026-08-22T18:14:47.066074+00:00",
+  "scope": {
+    "failure_tag": "GOLD_NOT_RETURNED",
+    "cases": 37
+  },
+  "method": {
+    "url_matching": "normalized canonical URL",
+    "database_checks": [
+      "gold document exists",
+      "chunks and embeddings exist",
+      "exact gold evidence is present in a stored chunk",
+      "production source routing includes the gold source type"
+    ],
+    "retrieval_probes": [
+      "unrestricted vector top 50 at the production similarity threshold",
+      "unrestricted vector top 200 with threshold zero",
+      "OR lexical FTS top 50",
+      "OR lexical FTS top 200"
+    ],
+    "classification": "mutually exclusive in the bucket order stored below"
+  },
+  "buckets": {
+    "WRONG_SOURCE_ROUTING": {
+      "count": 3,
+      "case_ids": [
+        "gold-059-v10",
+        "gold-069-v2",
+        "gold-071-v10"
+      ]
+    },
+    "CORPUS_EVIDENCE_MISSING": {
+      "count": 1,
+      "case_ids": [
+        "gold-049-v10"
+      ]
+    },
+    "EVIDENCE_NOT_IN_SINGLE_CHUNK": {
+      "count": 1,
+      "case_ids": [
+        "gold-030-v10"
+      ]
+    },
+    "PRODUCTION_PIPELINE_LOSS": {
+      "count": 1,
+      "case_ids": [
+        "gold-075-v10"
+      ]
+    },
+    "VECTOR_RECOVERABLE_DEEP": {
+      "count": 5,
+      "case_ids": [
+        "gold-009-v10",
+        "gold-011-v10",
+        "gold-073-v10",
+        "gold-079-v7",
+        "gold-084-v10"
+      ]
+    },
+    "LEXICAL_OR_RECOVERABLE_DEEP": {
+      "count": 20,
+      "case_ids": [
+        "gold-008-v10",
+        "gold-013-v8",
+        "gold-029-v3",
+        "gold-034-v7",
+        "gold-054-v10",
+        "gold-057-v10",
+        "gold-058-v10",
+        "gold-061-v10",
+        "gold-062-v9",
+        "gold-066-v7",
+        "gold-067-v10",
+        "gold-068-v10",
+        "gold-070-v10",
+        "gold-077-v10",
+        "gold-078-v10",
+        "gold-083-v7",
+        "gold-086-v10",
+        "gold-093-v10",
+        "gold-095-v10",
+        "gold-096-v10"
+      ],
+      "observed_rank_bands": {
+        "or_fts_top_50": 10,
+        "or_fts_rank_51_to_200": 10
+      }
+    },
+    "UNRECOVERABLE_TOP_200": {
+      "count": 6,
+      "case_ids": [
+        "gold-010-v10",
+        "gold-014-v8",
+        "gold-050-v10",
+        "gold-060-v3",
+        "gold-085-v10",
+        "gold-094-v10"
+      ]
+    }
+  },
+  "largest_bucket": {
+    "name": "LEXICAL_OR_RECOVERABLE_DEEP",
+    "count": 20
+  },
+  "next_single_hypothesis": "Production lexical retrieval truncates the candidate space before enough document-diverse lexical evidence can reach fusion. Fetching a bounded deeper OR-lexical pool, diversifying by canonical URL, and only then truncating back to the existing fusion budget will recover relevant URLs without increasing final answer-time top_k.",
+  "fix_applied": false,
+  "experiment": {
+    "status": "REJECTED",
+    "evaluated_at": "2026-08-23T05:00:24.924926+00:00",
+    "report": "eval/quality/reports_retrieval_100_lexical_r2_comparable/latest_summary.json",
+    "change": "Fetch up to 200 OR-lexical chunks, cap one chunk per canonical URL, then preserve the existing 15-candidate fusion budget.",
+    "acceptance_gate": {
+      "hit_at_5_min": 0.62,
+      "mrr_at_5_min": 0.40016666666666667,
+      "wins_must_exceed_regressions": true
+    },
+    "result": {
+      "hit_at_5": 0.57,
+      "mrr_at_5": 0.4018333333333333,
+      "wins": 0,
+      "regressions": 0,
+      "target_bucket_new_hits": 0
+    },
+    "conclusion": "A deeper document-diverse OR-lexical pool alone did not recover any additional gold URL, so the production change was reverted and the 57% baseline remains current."
+  },
+  "limitations": [
+    "The diagnosis identifies the largest observed boundary; it does not claim causal attribution between the prior calendar and diversification changes.",
+    "Individual PostgreSQL FTS ranks can move among equal-score chunks, so the stable signal is bucket membership within the observed top-200 window rather than an exact tied rank."
+  ]
+}

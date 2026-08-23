@@ -38,18 +38,10 @@ sleep 3
 echo "Running Alembic migrations..."
 alembic upgrade head
 
-# 7. Frontend deps
-if command -v npm &> /dev/null; then
-    echo "Installing frontend dependencies..."
-    cd frontend && npm install && cd ..
-else
-    echo "WARNING: npm not found. Skip frontend install. Install Node.js to use the UI."
-fi
-
 echo ""
 echo "=== Bootstrap complete! ==="
 echo "Next steps:"
 echo "  1. Edit .env with your API keys"
-echo "  2. make ingest       # ingest seed data"
-echo "  3. make run-backend  # start API server"
-echo "  4. make run-frontend # start UI"
+echo "  2. make probe-doc source=gt-registrar"
+echo "  3. make sync-doc source=gt-registrar"
+echo "  4. make run-backend"

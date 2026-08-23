@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "manifest": "eval/quality/manifests/user_20.json",
+  "manifest_sha256": "b566cfe61a7913a1a5eeb2e58613421d2e717db99fef87b5c30686c61a1e26e1",
+  "evaluated_at": "2026-08-23",
+  "status": "ACCEPTED",
+  "change": "Route operational registration, disability paratransit, and first-year housing cues to their existing source types before document retrieval.",
+  "before": {
+    "correct_and_supported": 11,
+    "answer_correctness": 0.55,
+    "evidence_support_rate": 0.6,
+    "abstention_rate": 0.3,
+    "document_correct_and_supported": 7,
+    "schedule_correct_and_supported": 4,
+    "latency_ms": {
+      "p50": 6030.3,
+      "p95": 9305.4
+    },
+    "cost_usd": 0.01029842
+  },
+  "after": {
+    "correct_and_supported": 16,
+    "answer_correctness": 0.8,
+    "evidence_support_rate": 0.85,
+    "abstention_rate": 0.15,
+    "document_correct_and_supported": 12,
+    "schedule_correct_and_supported": 4,
+    "latency_ms": {
+      "p50": 5707.45,
+      "p95": 6447.7
+    },
+    "cost_usd": 0.01084062
+  },
+  "case_delta": {
+    "wins": 5,
+    "regressions": 0,
+    "net": 5
+  },
+  "remaining_failures": {
+    "safe_abstentions": [
+      "user-003-v1",
+      "user-008-v1",
+      "user-013-v1"
+    ],
+    "wrong_supported_answer": [
+      "user-014-v1"
+    ]
+  },
+  "follow_up": {
+    "user-014-v1": {
+      "status": "PASSED",
+      "verified_at": "2026-08-23",
+      "answer_polarity": "No",
+      "supported": true,
+      "notes_empty": true
+    }
+  },
+  "limitations": [
+    "These are fixed unseen corpus facts and user-style phrasings, not anonymized production traffic.",
+    "The first run was blind; after diagnosis this manifest becomes a change-development set and must not be treated as an untouched final holdout."
+  ]
+}

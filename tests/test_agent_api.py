@@ -17,6 +17,18 @@ def test_pdf_citation_accepts_one_based_page_number():
     assert citation.page == 4
 
 
+def test_only_v2_chat_route_is_registered():
+    from app.main import app
+
+    chat_paths = {
+        path
+        for path, operations in app.openapi()["paths"].items()
+        if "post" in operations and path.endswith("/chat")
+    }
+
+    assert chat_paths == {"/v2/chat"}
+
+
 @pytest.mark.asyncio
 async def test_v2_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
     graph = SimpleNamespace(
@@ -99,3 +111,18 @@ async def test_v2_chat_rejects_unbounded_or_unsafe_thread_id():
         )
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_application_lifespan_preloads_reranker(monkeypatch):
+    import app.main as main_module
+
+    preload = MagicMock()
+    monkeypatch.setattr(main_module, "preload_cross_encoder", preload)
+    monkeypatch.setattr(main_module.settings, "rag_enable_reranking", True)
+    monkeypatch.setattr(main_module.settings, "langgraph_checkpoint_enabled", False)
+
+    async with main_module.lifespan(FastAPI()):
+        pass
+
+    preload.assert_called_once_with()

@@ -3,19 +3,20 @@ from __future__ import annotations
 import re
 
 from app.graph.state import GraphIntent
-from app.rag.router import classify_query
+from app.rag.router import classify_query, extract_course_code
+from app.retrieval.documents import policy_source_types
 
-COURSE_RE = re.compile(r"\b([a-z]{2,4})\s*-?\s*(\d{4}[a-z]?)\b", re.IGNORECASE)
 TERM_RE = re.compile(r"\b(spring|summer|fall)\s*(20\d{2})\b", re.IGNORECASE)
 REVERSED_TERM_RE = re.compile(r"\b(20\d{2})\s*(spring|summer|fall)\b", re.IGNORECASE)
 TERM_SUFFIX = {"spring": "02", "summer": "05", "fall": "08"}
 
 
 def _course(query: str) -> tuple[str, str] | None:
-    match = COURSE_RE.search(query)
-    if match is None:
+    course_code = extract_course_code(query)
+    if course_code is None:
         return None
-    return match.group(1).upper(), match.group(2).upper()
+    subject, number = course_code.split()
+    return subject, number
 
 
 def _term_code(text: str) -> str | None:
@@ -36,13 +37,14 @@ def understand_query(query: str, user_term: str | None = None) -> dict[str, obje
         raise ValueError("query is required")
 
     route = classify_query(text)
+    domain_policy = policy_source_types(text)
     course = _course(text)
     term_code = _term_code(text) or (_term_code(user_term) if user_term else None)
 
     intent: GraphIntent
     if route.intent == "course_schedule_sections":
         intent = "course_schedule"
-    elif route.intent == "registrar_calendar":
+    elif route.intent == "registrar_calendar" and not domain_policy:
         intent = "registration_calendar"
     elif route.intent == "catalog_course" and course is not None:
         intent = "course_details"

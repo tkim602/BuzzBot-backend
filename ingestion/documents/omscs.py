@@ -10,6 +10,7 @@ _POLICY_PATHS = {
     "/prospective-student-faqs",
     "/specializations",
     "/cost-and-payment-schedule",
+    "/deadlines-decisions-requirements-and-guidelines",
 }
 
 

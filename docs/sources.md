@@ -39,7 +39,7 @@ OSCAR authentication redirects stop the run. BuzzBot never signs in or submits r
 
 ## Blocked and unsupported sources
 
-- RateMyProfessors: never crawled; legacy user-provided excerpt mode only.
+- RateMyProfessors: unsupported and never crawled.
 - Common Crawl: not a v2 fallback.
 - BuzzPort/SSO/student records: out of scope.
 - Arbitrary URLs supplied by a user or model: never fetched by the v2 graph.
