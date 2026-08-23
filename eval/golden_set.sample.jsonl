@@ -1,4 +1,0 @@
-{"id":"cal-001","query":"When is the add/drop deadline for Spring 2026?","expected_intent":"academic_calendar","freshness_sensitive":true,"must_cite_domains":["registrar.gatech.edu"],"notes":"Should live_fetch unless cache is very fresh."}
-{"id":"cat-001","query":"What is the course description for CS 6250?","expected_intent":"course_description","freshness_sensitive":false,"must_cite_domains":["catalog.gatech.edu"],"notes":"Catalog-based answer with citation."}
-{"id":"reg-001","query":"How do Phase I and Phase II registration differ?","expected_intent":"registration_process","freshness_sensitive":true,"must_cite_domains":["registrar.gatech.edu"],"notes":"Prefer official definitions; avoid guessing term-specific dates."}
-{"id":"prof-001","query":"How is CS 7641 with Professor X?","expected_intent":"professor_reviews","freshness_sensitive":false,"must_cite_domains":[],"notes":"Must not scrape RMP. If no user-provided reviews, ask for link/text."}

@@ -1,7 +1,7 @@
 # BuzzBot v2
 
 BuzzBot is a citation-first, controlled Agentic RAG assistant for Georgia Tech students. It combines
-validated OSCAR schedule data with a small registry of official GT documents, then orchestrates the
+validated OSCAR schedule data with a controlled registry of official GT documents, then orchestrates the
 retrieval paths through an explicit LangGraph workflow.
 
 The project is designed to answer questions such as:
@@ -45,8 +45,9 @@ See [docs/architecture.md](docs/architecture.md) for the detailed flow and failu
 
 ## Safety and cost boundaries
 
-- Probe one representative URL before any source sync.
-- Initial document sync fetches at most one configured seed per source.
+- Probe a representative URL before a bounded source sync.
+- Source-specific discovery creates an immutable URL manifest and fails closed above its configured
+  safety ceiling.
 - No wildcard Georgia Tech crawl, Common Crawl fallback, or authenticated OSCAR flow in v2.
 - Auth redirects, 429 responses, external redirects, and incompatible bodies stop that source.
 - Identical document hashes skip re-embedding; authority changes update metadata only.
@@ -146,7 +147,7 @@ LangSmith is deliberately not a readiness dependency.
 
 ## Evaluation
 
-The default v2 evaluation is deterministic and budget-free:
+The small routing gate is deterministic and budget-free:
 
 ```bash
 make eval-v2
@@ -156,36 +157,28 @@ It measures routing accuracy and required-field extraction across schedule, Cata
 policy questions. Citation grounding, bounded retry, abstention, persistence state reset, atomic
 publication, and retrieval source pinning are covered by unit and PostgreSQL integration tests.
 
-Current verified baseline:
+The current frozen retrieval baseline uses the fixed `dev_100` manifest:
 
-- 12 offline cases
-- routing accuracy: 1.00
-- required-field accuracy: 1.00
+- Hit@5: 0.57
+- MRR@5: 0.40017
 
-These are pipeline-gate metrics, not a claim of end-user answer correctness. A live golden-answer
-evaluation should be run only after representative schedule data has been published.
+Run `make quality-retrieval-dev` for the budget-free retrieval benchmark. `make quality-chat-dev`
+calls the real `/v2/chat` contract and the configured judge model, so run it intentionally under the
+shared `$3` application budget.
 
 ## Project layout
 
 ```text
 app/graph/                 LangGraph state, understanding, workflow, checkpoint adapter
 app/retrieval/             Typed schedule and official-document retrieval tools
-app/api/                   Legacy API, v2 agent API, live/ready/usage endpoints
+app/api/                   v2 agent API and live/ready/usage endpoints
 ingestion/schedule/        OSCAR probe, normalization, validation, atomic publication
 ingestion/documents/       Controlled registry, probe, changed-only document sync
 db/                        SQLAlchemy models and Alembic migrations
 eval/                      Offline v2 golden set and evaluation runner
 tests/                     Unit and PostgreSQL integration tests
-docs/superpowers/          Implementation plans, reviews, and bounded smoke reports
+docs/superpowers/          Final architecture designs and verification reports
 ```
-
-## Current data limitation
-
-The first bounded Fall 2026 OSCAR subject sync returned no sections because the initial public Banner
-request omitted its course wildcard. That request-shape bug is fixed and regression-tested, but the
-source was not retried in the same bounded run. Therefore `/ready` correctly remains `503` until a
-representative subject is successfully collected and published. The document retrieval plane and
-PostgreSQL checkpointing are available independently.
 
 ## Verification
 
@@ -197,4 +190,4 @@ mypy --follow-imports=skip app/graph app/retrieval/tools.py app/api/agent.py
 git diff --check
 ```
 
-Implementation decisions and smoke evidence are recorded under `docs/superpowers/`.
+Final implementation decisions and verification evidence are recorded under `docs/superpowers/`.

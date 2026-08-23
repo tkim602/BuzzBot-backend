@@ -27,7 +27,6 @@ dependencies = [
     "pyyaml>=6.0,<7",
     "python-dotenv>=1.0,<2",
     "structlog>=24.1,<26",
-    "psycopg2-binary>=2.9,<3",
     "pdfplumber>=0.10,<1",
 ]
 
@@ -59,7 +58,6 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "app/core/guardrails.py" = ["N818"]
-"ingestion/commoncrawl/pipeline.py" = ["E402"]
 "scripts/seed_sources.py" = ["E402"]
 
 [tool.mypy]

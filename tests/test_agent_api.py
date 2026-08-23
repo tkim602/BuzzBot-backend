@@ -17,6 +17,18 @@ def test_pdf_citation_accepts_one_based_page_number():
     assert citation.page == 4
 
 
+def test_only_v2_chat_route_is_registered():
+    from app.main import app
+
+    chat_paths = {
+        route.path
+        for route in app.routes
+        if "POST" in getattr(route, "methods", set()) and route.path.endswith("/chat")
+    }
+
+    assert chat_paths == {"/v2/chat"}
+
+
 @pytest.mark.asyncio
 async def test_v2_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
     graph = SimpleNamespace(

@@ -62,14 +62,18 @@ versions; different units are not globally serialized.
 
 ## Official document ingestion
 
-The registry has exact HTTPS roots, seed URLs, source type, authority, and a hard cap no greater than
-25. The initial run synchronizes only one seed per READY source.
+The registry has exact HTTPS roots, seed URLs, source type, authority, accepted content types, and a
+source-specific URL safety ceiling. Discovery adapters allowlist, canonicalize, and deduplicate URLs
+before storing an immutable run manifest. Exceeding a ceiling fails planning rather than truncating
+the source.
 
 ```mermaid
 flowchart LR
-    Registry --> Probe[Exactly one request; no redirect following]
-    Probe -->|READY| Seed[Exactly one seed fetch]
-    Seed --> Extract
+    Registry --> Discover[Source-specific discovery]
+    Discover --> Gate[Allowlist + canonicalize + ceiling]
+    Gate --> Manifest[Immutable URL manifest]
+    Manifest --> Fetch[Bounded fetch + safe redirect]
+    Fetch --> Extract
     Extract --> Hash{Content changed?}
     Hash -->|no| Metadata[Refresh authority metadata only]
     Hash -->|yes| Chunk --> Embed[text-embedding-3-small] --> Index[(Postgres + pgvector)]
@@ -84,12 +88,12 @@ Document search reuses one retrieval implementation:
 
 1. pgvector cosine similarity
 2. PostgreSQL FTS for exact terms
-3. reciprocal rank fusion
-4. stable deduplication
-5. typed evidence with canonical citations
+3. reciprocal rank fusion and canonical-URL diversification
+4. cross-encoder reranking
+5. stable deduplication and typed evidence with canonical citations
 
 Exact date queries are pinned to `academic_calendar`; explicit source types take priority over query
-keywords. There is no second reranker or general web-search fallback in v2.
+keywords. There is no general web-search fallback in v2.
 
 ## Persistence and API lifecycle
 
@@ -131,5 +135,5 @@ LangSmith tracing is optional observability and is not part of readiness.
 
 - Public, unauthenticated GT pages only.
 - No registration/drop actions, student records, BuzzPort session, or SSO credential handling.
-- RateMyProfessors is user-provided text only; it is never crawled.
+- RateMyProfessors is unsupported and never crawled.
 - `.env`, safe snapshots, and usage artifacts are ignored and never included in checkpoints.

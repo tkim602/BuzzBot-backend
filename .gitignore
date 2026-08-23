@@ -23,14 +23,9 @@ build/
 .pytest_cache/
 .ruff_cache/
 
-# Node
-node_modules/
-.npm
-frontend/.next/
-frontend/out/
-
 # Artifacts
 artifacts/
+eval/quality/reports_*/
 
 # OS
 .DS_Store

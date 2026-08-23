@@ -197,7 +197,6 @@ async def generate_answer(
     query: str,
     chunks: list[RetrievedChunk],
     intent: str = "general",
-    rmp_excerpt: str | None = None,
     user_context: dict | None = None,
     current_date: str | None = None,
     current_term: str | None = None,
@@ -211,13 +210,6 @@ async def generate_answer(
     user_template = _load_prompt("chat_user_template.txt")
 
     context_str = _build_context(chunks, max_tokens=settings.rag_max_context_tokens)
-
-    # Add RMP excerpt if provided
-    if rmp_excerpt:
-        context_str += (
-            "\n\n---\n\n[Source: user-provided:rmp] [Type: User-provided RateMyProfessors excerpt — unofficial]\n"
-            + rmp_excerpt
-        )
 
     binary_verdict: str | None = None
     polarity: str | None = None

@@ -80,14 +80,9 @@ def test_course_code_without_schedule_routes_to_catalog():
     assert result.source_filter == ["gt-catalog", "gt-scheduler"]
 
 
-def test_rmp_with_excerpt():
-    result = classify_query("What do students think of this professor?", has_rmp_excerpt=True)
-    assert result.intent == "rmp_user_provided"
-
-
-def test_rmp_keyword():
+def test_unsupported_rmp_query_does_not_use_a_legacy_intent():
     result = classify_query("rate my professor for Dr. Smith")
-    assert result.intent == "rmp_user_provided"
+    assert result.intent == "general"
 
 
 def test_general_intent():

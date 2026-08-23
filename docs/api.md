@@ -36,7 +36,6 @@ a GT user identity.
   "notes": [],
   "debug": {
     "intent": "course_schedule",
-    "live_fetch_used": false,
     "retrieval_top_k": 1,
     "top_sources": ["oscar"]
   }
@@ -45,11 +44,6 @@ a GT user identity.
 
 Factual output without a grounded official citation is replaced by an abstention. The endpoint may
 return `429` for request guardrails or the tracked API cost limit, and `422` for invalid input.
-
-## Legacy `POST /chat`
-
-The original endpoint remains temporarily available for comparison and rollback. New development
-should target `/v2/chat`.
 
 ## Health and operations
 

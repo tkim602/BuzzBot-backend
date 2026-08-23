@@ -44,14 +44,6 @@ CATALOG_KEYWORDS = [
     "department",
     "school",
 ]
-RMP_KEYWORDS = [
-    "rate my professor",
-    "ratemyprofessor",
-    "rmp",
-    "professor rating",
-    "professor review",
-    "teaching quality",
-]
 FRESHNESS_KEYWORDS = [
     "deadline",
     "when",
@@ -170,22 +162,14 @@ def extract_course_code(query: str) -> str | None:
 
 @dataclass
 class RouterResult:
-    intent: str  # registrar_calendar | admissions_deadline | catalog_course | course_schedule_sections | rmp_user_provided | general | unknown
+    intent: str
     freshness_strategy: str  # indexed | live_fetch | hybrid
     source_filter: str | list[str] | None = None  # source name filter for retrieval
 
 
-def classify_query(query: str, has_rmp_excerpt: bool = False) -> RouterResult:
+def classify_query(query: str) -> RouterResult:
     """Classify query intent and decide freshness strategy using rules."""
     q = query.lower().strip()
-
-    # RMP user-provided mode
-    if has_rmp_excerpt or any(kw in q for kw in RMP_KEYWORDS):
-        return RouterResult(
-            intent="rmp_user_provided",
-            freshness_strategy="indexed",
-            source_filter=None,
-        )
 
     # Explicit course schedule intent (prefer gt-scheduler over registrar pages)
     has_course_code = bool(extract_course_code(q))

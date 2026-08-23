@@ -17,13 +17,6 @@ class ChatTurn(BaseModel):
     content: str = Field(..., min_length=1, max_length=4000)
 
 
-class ChatRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=2000)
-    user_context: UserContext | None = None
-    rmp_excerpt: str | None = Field(None, max_length=5000)
-    history: list[ChatTurn] = Field(default_factory=list)
-
-
 class AgentChatRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000)
     user_context: UserContext | None = None
@@ -45,14 +38,13 @@ class Citation(BaseModel):
 
 
 class FreshnessInfo(BaseModel):
-    strategy: str = "indexed"  # indexed | live_fetch | hybrid
+    strategy: str = "langgraph_controlled"
     as_of: str | None = None
 
 
 class DebugInfo(BaseModel):
     intent: str | None = None
     source_filter: str | list[str] | None = None
-    live_fetch_used: bool = False
     retrieval_top_k: int = 0
     top_sources: list[str] = []
     rewritten_query: str | None = None
