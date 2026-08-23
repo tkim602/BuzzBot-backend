@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from contextlib import AsyncExitStack, asynccontextmanager
 
@@ -17,6 +18,7 @@ from app.api.chat import router as chat_router  # noqa: E402
 from app.api.health import router as health_router  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.graph.persistence import postgres_checkpointer  # noqa: E402
+from app.rag.retrieval import preload_cross_encoder  # noqa: E402
 
 structlog.configure(
     processors=[
@@ -33,6 +35,8 @@ logger = structlog.get_logger(__name__)
 async def lifespan(application: FastAPI):
     application.state.checkpointer = None
     async with AsyncExitStack() as stack:
+        if settings.rag_enable_reranking:
+            await asyncio.to_thread(preload_cross_encoder)
         if settings.langgraph_checkpoint_enabled:
             try:
                 application.state.checkpointer = await stack.enter_async_context(

@@ -17,6 +17,7 @@ from app.rag.retrieval import (
     _signal_match_count,
     get_text_embeddings,
     hybrid_retrieve,
+    preload_cross_encoder,
 )
 
 
@@ -38,6 +39,30 @@ def _chunk(chunk_id: str, score: float, method: str) -> RetrievedChunk:
         score=score,
         method=method,
     )
+
+
+def test_preloaded_cross_encoder_is_reused(monkeypatch):
+    import sentence_transformers
+
+    import app.rag.retrieval as retrieval
+
+    created = []
+
+    class Model:
+        def __init__(self, name):
+            created.append(name)
+
+        def predict(self, pairs):
+            return [1.0] * len(pairs)
+
+    monkeypatch.setattr(sentence_transformers, "CrossEncoder", Model)
+    monkeypatch.setattr(retrieval, "_cross_encoder_model", None)
+    monkeypatch.setattr(retrieval, "_cross_encoder_model_name", None)
+
+    assert preload_cross_encoder() is preload_cross_encoder()
+    retrieval.rerank_with_cross_encoder("query", [_chunk("one", 0.1, "vector")])
+
+    assert created == [settings.rag_rerank_model]
 
 
 def test_extract_query_hints_for_course_and_term():

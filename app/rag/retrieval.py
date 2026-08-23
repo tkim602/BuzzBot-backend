@@ -265,24 +265,28 @@ async def get_text_embeddings(texts: list[str]) -> list[list[float]]:
     return [emb if emb is not None else [] for emb in resolved]
 
 
+def preload_cross_encoder():
+    global _cross_encoder_model, _cross_encoder_model_name
+    if _cross_encoder_model is None or _cross_encoder_model_name != settings.rag_rerank_model:
+        from sentence_transformers import CrossEncoder
+
+        _cross_encoder_model = CrossEncoder(settings.rag_rerank_model)
+        _cross_encoder_model_name = settings.rag_rerank_model
+        logger.info("cross-encoder loaded", model=settings.rag_rerank_model)
+    return _cross_encoder_model
+
+
 def rerank_with_cross_encoder(
     query: str,
     chunks: list[RetrievedChunk],
     top_k: int | None = None,
 ) -> list[RetrievedChunk]:
     """Rerank chunks using a cross-encoder model for more accurate relevance scoring."""
-    global _cross_encoder_model, _cross_encoder_model_name
     if not chunks:
         return chunks
     try:
-        from sentence_transformers import CrossEncoder
+        model = preload_cross_encoder()
 
-        if _cross_encoder_model is None or _cross_encoder_model_name != settings.rag_rerank_model:
-            _cross_encoder_model = CrossEncoder(settings.rag_rerank_model)
-            _cross_encoder_model_name = settings.rag_rerank_model
-            logger.info("cross-encoder loaded", model=settings.rag_rerank_model)
-
-        model = _cross_encoder_model
         pairs = [[query, _ranking_text(c)] for c in chunks]
         scores = model.predict(pairs)
         for chunk, score in zip(chunks, scores, strict=True):
