@@ -23,13 +23,13 @@ FACTUAL_INTENTS = {
     "policy",
 }
 _BINARY_QUESTION_RE = re.compile(
-    r"(?:^\s*(?:am|are|can|could|did|do|does|has|have|is|must|should|was|were|will|would)\b|\bwhether\b)",
+    r"(?:(?:^\s*|(?<=[.!?])\s+)(?:am|are|can|could|did|do|does|has|have|is|must|should|was|were|will|would)\b|\bwhether\b)",
     re.I,
 )
 _LEADING_ANSWER_RE = re.compile(r"^\s*(?:yes|no)\b\s*[,.;:—–-]?\s*", re.I)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 _NEGATION_RE = re.compile(r"\b(?:no|not|never)\b", re.I)
-_EXPLICIT_NEGATION_RE = re.compile(r"\b(?:no|not|never|without)\b|n['’]t\b", re.I)
+_EXPLICIT_NEGATION_RE = re.compile(r"\b(?:cannot|no|not|never|without)\b|n['’]t\b", re.I)
 _INVENTED_NEGATION_RE = re.compile(r"\b(?:not|never)\b\s*|\bno\b\s+|n['’]t\b\s*", re.I)
 
 
@@ -110,12 +110,12 @@ def _ground_citation_quotes(
     for claim in split_factual_claims(answer):
         claim_words = _lexical_terms(claim)
         claim_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", claim))
-        candidates: list[tuple[tuple[int, int, int, float, float], RetrievedChunk, str]] = []
+        candidates: list[tuple[tuple[int, int, int, int, float, float], RetrievedChunk, str]] = []
         for chunk in chunks:
             sentences = [
                 part.strip() for part in _SENTENCE_SPLIT_RE.split(chunk.chunk_text) if part.strip()
             ]
-            spans = [*sentences]
+            spans = [*sentences, *split_factual_claims(chunk.chunk_text)]
             spans.extend(
                 f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
             )
@@ -132,6 +132,7 @@ def _ground_citation_quotes(
                             int(
                                 bool(_NEGATION_RE.search(claim)) == bool(_NEGATION_RE.search(span))
                             ),
+                            sum(len(term) for term in overlap),
                             len(overlap),
                             len(overlap) / max(len(claim_words), 1),
                             _lexical_match_score(claim, chunk),
@@ -236,6 +237,12 @@ async def generate_answer(
             f"explain why the proposition is {proposition_truth}. You must not restate the "
             "proposition with the opposite truth value. Do not choose or write a leading Yes or No."
         )
+        if binary_verdict == "FALSE":
+            system_prompt += (
+                " For a false proposition, state the decisive positive evidence or controlling "
+                "requirement instead. "
+                "Do not repeat the proposition as a negated sentence."
+            )
 
     user_msg = user_template.replace("{{QUERY}}", query).replace("{{CONTEXT}}", context_str)
     if user_context:
@@ -268,7 +275,12 @@ async def generate_answer(
     )
     if binary_verdict and polarity:
         body = _LEADING_ANSWER_RE.sub("", str(parsed.get("answer", "")), count=1)
-        parsed["answer"] = f"{polarity}, {body}" if body else f"{polarity}."
+        cited_body = False
+        if binary_verdict == "FALSE" and _EXPLICIT_NEGATION_RE.search(body) and parsed["citations"]:
+            body = str(parsed["citations"][0].get("quote") or body)
+            cited_body = True
+        separator = ". " if cited_body else ", "
+        parsed["answer"] = f"{polarity}{separator}{body}" if body else f"{polarity}."
         parsed["_binary_verdict"] = binary_verdict
 
     return parsed

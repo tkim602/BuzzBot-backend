@@ -133,6 +133,39 @@ async def test_policy_reselection_keeps_high_confidence_lexical_evidence(monkeyp
 
 
 @pytest.mark.asyncio
+async def test_duration_question_preserves_top_reranked_evidence(monkeypatch):
+    def chunk(chunk_id, text, score):
+        return RetrievedChunk(
+            chunk_id,
+            "https://example.gatech.edu/privacy",
+            "Privacy Rights",
+            text,
+            score,
+            source_name="gt-registrar-lifecycle",
+            metadata_json={"source_type": "academic_lifecycle", "authority": "registrar"},
+        )
+
+    decisive = chunk("forty-five-days", "Records may be inspected within forty-five days.", 4.9)
+    children = [
+        chunk("generic-1", "Education records may be disclosed in some circumstances.", 0.9),
+        chunk("generic-2", "Directory information is defined by FERPA.", 0.8),
+        chunk("forty-five-days", decisive.chunk_text, 0.5),
+    ]
+    monkeypatch.setattr(
+        "app.retrieval.documents.hybrid_retrieve", AsyncMock(return_value=[decisive])
+    )
+    monkeypatch.setattr(
+        "app.retrieval.documents.vector_search", AsyncMock(return_value=children), raising=False
+    )
+
+    evidence = await search_policy_docs(
+        object(), PolicyQuery("How long can record inspection take?", top_k=2), [0.1] * 1536
+    )
+
+    assert evidence[0].chunk_id == decisive.chunk_id
+
+
+@pytest.mark.asyncio
 async def test_exact_deadline_uses_calendar_authority_and_preserves_citation(monkeypatch):
     captured: dict[str, object] = {}
 

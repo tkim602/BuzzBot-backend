@@ -29,6 +29,11 @@ SOURCE_TYPES_BY_VERTICAL = {
 OFFICIAL_SOURCE_NAMES = [source.name for source in _SOURCES]
 _SLASH_COMPOUND_RE = re.compile(r"\b([a-z0-9]+)/([a-z0-9]+)\b", re.I)
 _TITLE_COMPOUND_RE = re.compile(r"\b([a-z0-9]+)[/-]([a-z0-9]+)\b", re.I)
+_DURATION_QUESTION_RE = re.compile(
+    r"\bhow long\b|\bhow many\s+(?:calendar\s+|business\s+)?"
+    r"(?:days?|weeks?|months?|years?)\b|\bwithin how many\b",
+    re.I,
+)
 
 
 def _is_strong_lexical_anchor(query: str, chunk: RetrievedChunk) -> bool:
@@ -84,6 +89,21 @@ def policy_source_types(query: str) -> tuple[str, ...]:
         return ("official_policy",)
     if "time ticket" in lowered and not any(
         cue in lowered for cue in ("room selection", "room-selection", "housing")
+    ):
+        return ("official_policy",)
+    if "refund" in lowered and any(cue in lowered for cue in ("student account", "bursar")):
+        return ("finance",)
+    if (
+        any(cue in lowered for cue in ("full-time", "part-time", "enrollment status"))
+        and "credit" in lowered
+        and not any(cue in lowered for cue in ("f-1", "j-1", "international student"))
+    ):
+        return ("official_policy",)
+    if re.search(r"\b(?:ap|ib)\b", lowered) and any(cue in lowered for cue in ("exam", "credit")):
+        return ("academic_lifecycle",)
+    if any(cue in lowered for cue in ("junior", "senior", "undergraduate")) and any(
+        cue in lowered
+        for cue in ("graduate course", "graduate-level course", "graduate level course")
     ):
         return ("official_policy",)
     if (
@@ -163,7 +183,15 @@ def policy_source_types(query: str) -> tuple[str, ...]:
         ),
         (
             "campus_operations",
-            ("stinger", "parking", "transportation", "transit", "shuttle"),
+            (
+                "stinger",
+                "parking",
+                "transportation",
+                "transit",
+                "shuttle",
+                "charter",
+                "campus bus",
+            ),
         ),
         (
             "student_life",
@@ -272,6 +300,7 @@ async def search_policy_docs(
     lexical_anchor = max(
         chunks, key=lambda chunk: _lexical_match_score(query.text, chunk), default=None
     )
+    duration_anchor = chunks[0] if chunks and _DURATION_QUESTION_RE.search(query.text) else None
     urls = list(dict.fromkeys(chunk.url for chunk in chunks if chunk.url))
     if urls and query_embedding:
         url_rank = {url: rank for rank, url in enumerate(urls)}
@@ -301,6 +330,15 @@ async def search_policy_docs(
             if lexical_anchor is not None and _is_strong_lexical_anchor(query.text, lexical_anchor):
                 chunks = _cap_chunks_per_url(
                     [lexical_anchor, *(c for c in chunks if c.chunk_id != lexical_anchor.chunk_id)],
+                    max_chunks_per_url=2,
+                    top_k=query.top_k,
+                )
+            if duration_anchor is not None:
+                chunks = _cap_chunks_per_url(
+                    [
+                        duration_anchor,
+                        *(c for c in chunks if c.chunk_id != duration_anchor.chunk_id),
+                    ],
                     max_chunks_per_url=2,
                     top_k=query.top_k,
                 )

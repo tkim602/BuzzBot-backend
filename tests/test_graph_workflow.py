@@ -66,6 +66,17 @@ from ingestion.schedule.validate import FreshnessState
         ("Does registering a graduate internship charge tuition?", ("career",)),
         ("Can financial aid pay for my internship?", ("finance",)),
         ("What are the CPT internship rules for F-1 students?", ("international",)),
+        ("Where does a refund from my student account go?", ("finance",)),
+        ("Can a student organization charter a campus bus?", ("campus_operations",)),
+        (
+            "How many credits count as full-time, part-time, and less-than-part-time?",
+            ("official_policy",),
+        ),
+        ("Can I take an AP or IB exam for credit after enrolling?", ("academic_lifecycle",)),
+        (
+            "I'm a junior with a 3.0 GPA. Can I take a graduate-level course?",
+            ("official_policy",),
+        ),
     ],
 )
 def test_policy_source_routing_uses_domain_verticals(query, expected):

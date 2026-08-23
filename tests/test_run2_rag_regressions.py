@@ -273,6 +273,36 @@ def test_citation_span_selection_prefers_exact_numeric_evidence_across_chunks():
     assert "Q – Z: July 6, 2026" in evidence
 
 
+def test_citation_span_selection_prefers_specific_claim_evidence_over_generic_bus_text():
+    decisive = _chunk(
+        "charter",
+        "Charter Service",
+        "Parking and Transportation allows Georgia Tech student organizations to charter buses. "
+        "Charter reservations must be made at least one week in advance and are not available "
+        "during weekday service hours.",
+    )
+    distractor = _chunk(
+        "stinger",
+        "Campus Bus – Stinger",
+        "The Stinger is Georgia Tech's campus bus and is open to students and the public.",
+    )
+    answer = (
+        "A Georgia Tech student organization can charter a campus bus. "
+        "It must reserve the bus at least one week in advance."
+    )
+
+    selected = _ground_citation_quotes(
+        [{"url": distractor.url, "quote": distractor.chunk_text}],
+        [decisive, distractor],
+        answer,
+    )
+    evidence = "\n".join(str(citation["quote"]) for citation in selected)
+
+    assert "student organizations to charter buses" in evidence
+    assert "at least one week in advance" in evidence
+    assert distractor.chunk_text not in evidence
+
+
 @pytest.mark.asyncio
 async def test_claim_validation_receives_decisive_recommendation_evidence(monkeypatch):
     claim = "Recommendations are optional."
@@ -409,6 +439,14 @@ def test_cross_encoder_receives_title_headings_and_chunk_text(monkeypatch):
             "TRUE",
             "Yes, November 2 is the Early Action 2 deadline.",
         ),
+        (
+            "I'm a junior with a 3.0 GPA. Can I take a graduate course with department approval?",
+            "A senior with a GPA of at least 2.7 may enroll with department permission.",
+            "A junior with a 3.0 GPA may take a graduate course with department approval.",
+            "CONTRADICTED",
+            "FALSE",
+            "No, senior classification is also required.",
+        ),
     ],
 )
 async def test_factual_yes_no_verdict_constrains_generation(
@@ -437,6 +475,9 @@ async def test_factual_yes_no_verdict_constrains_generation(
     assert f"proposition is {expected_truth}" in answer_system
     assert "must not restate the proposition with the opposite truth value" in answer_system
     assert "explanation body only" in answer_system
+    if binary_verdict == "FALSE":
+        assert "state the decisive positive evidence" in answer_system
+        assert "Do not repeat the proposition as a negated sentence" in answer_system
     assert query in answer_user
 
 
@@ -491,6 +532,38 @@ async def test_binary_answer_uses_exact_retrieved_citation_quote(monkeypatch):
     assert answer["answer"] == "No, recommendation letters are optional."
     assert answer["citations"][0]["quote"] == evidence
     assert answer["citations"][0]["quote"] in evidence
+
+
+@pytest.mark.asyncio
+async def test_false_binary_negative_restatement_uses_positive_cited_requirement(monkeypatch):
+    evidence = (
+        "An undergraduate student may take a graduate level course with department permission, "
+        "a minimum GPA of 2.7, and be classified as a senior."
+    )
+    response = (
+        '{"answer":"you cannot take a graduate-level course as a junior.","citations":['
+        '{"url":"https://example.gatech.edu/level-restrictions","title":"Level Restrictions",'
+        '"fetched_at":null,"quote":"placeholder"}],"confidence":1.0,"notes":[]}'
+    )
+    monkeypatch.setattr(
+        "app.rag.answerer._call_llm",
+        AsyncMock(
+            side_effect=[
+                "A junior may take a graduate-level course.",
+                "CONTRADICTED",
+                response,
+            ]
+        ),
+    )
+
+    answer = await generate_answer(
+        "I'm a junior. Can I take a graduate-level course?",
+        [_chunk("level-restrictions", "Level Restrictions", evidence)],
+        intent="policy",
+    )
+
+    assert answer["answer"] == f"No. {evidence}"
+    assert answer["citations"][0]["quote"] == evidence
 
 
 @pytest.mark.asyncio
