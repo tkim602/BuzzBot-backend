@@ -286,7 +286,9 @@ def test_tba_meeting_rejects_a_partial_time_range():
 def test_future_fetched_at_is_invalid():
     plan, courses, sections = _collection()
 
-    report = validate_collection(plan, courses, sections, [], NOW + timedelta(minutes=1))
+    report = validate_collection(
+        plan, courses, sections, [], datetime.now(UTC) + timedelta(minutes=1)
+    )
 
     assert "FETCHED_AT_FUTURE" in _codes(report)
 

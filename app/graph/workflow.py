@@ -9,7 +9,15 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.graph.state import AgentState, CitationItem, EvidenceItem, GraphIntent
+from app.graph.schedule_rendering import render_schedule_answer, validate_schedule_answer
+from app.graph.state import (
+    AgentState,
+    CitationItem,
+    EvidenceItem,
+    EvidenceValidationReason,
+    GraphIntent,
+    ScheduleQueryType,
+)
 from app.graph.understanding import understand_query
 from app.rag.answerer import generate_answer
 from app.rag.grounding import check_binary_polarity, check_claim_support, check_grounding
@@ -50,6 +58,7 @@ def _document_item(evidence: Any) -> EvidenceItem:
         fetched_at=evidence.fetched_at,
         source=evidence.source_name,
         metadata={
+            "chunk_id": evidence.chunk_id,
             "source_type": evidence.source_type,
             "authority": evidence.authority,
             "edition": evidence.edition,
@@ -64,7 +73,21 @@ def _document_item(evidence: Any) -> EvidenceItem:
 
 def _schedule_item(offering: Any) -> EvidenceItem:
     meeting_parts = []
+    meeting_metadata = []
     for meeting in offering.meetings:
+        meeting_metadata.append(
+            {
+                "meeting_type": meeting.meeting_type,
+                "days": meeting.days,
+                "start_time": meeting.start_time.strftime("%H:%M") if meeting.start_time else None,
+                "end_time": meeting.end_time.strftime("%H:%M") if meeting.end_time else None,
+                "start_date": meeting.start_date.isoformat(),
+                "end_date": meeting.end_date.isoformat(),
+                "building": meeting.building,
+                "room": meeting.room,
+                "is_tba": meeting.is_tba,
+            }
+        )
         if meeting.is_tba:
             meeting_parts.append("TBA")
         else:
@@ -97,9 +120,21 @@ def _schedule_item(offering: Any) -> EvidenceItem:
         source="oscar",
         metadata={
             "term_code": offering.term_code,
+            "subject": offering.subject,
+            "course_number": offering.course_number,
+            "title": offering.title,
+            "section_code": offering.section_code,
             "crn": offering.crn,
+            "campus": offering.campus,
+            "schedule_type": offering.schedule_type,
+            "instructional_method": offering.instructional_method,
+            "instructors": list(offering.instructors),
+            "notes": offering.notes,
+            "meetings": meeting_metadata,
+            "source_url": offering.source_url,
             "data_version_id": str(offering.data_version_id),
             "freshness": str(offering.freshness),
+            "data_as_of": offering.data_as_of.isoformat(),
         },
     )
 
@@ -142,7 +177,9 @@ def build_workflow(
     checkpointer: BaseCheckpointSaver[Any] | None = None,
 ) -> CompiledStateGraph:
     async def understand_node(state: AgentState) -> dict[str, object]:
-        return understand_query(state["query"], state.get("user_term"))
+        return understand_query(
+            state["query"], state.get("user_term"), cast(dict[str, object], state)
+        )
 
     async def retrieve_node(state: AgentState) -> dict[str, object]:
         intent = cast(GraphIntent, state["intent"])
@@ -187,18 +224,36 @@ def build_workflow(
                     embedding,
                 )
             evidence = [_document_item(document) for document in documents]
-        return {"evidence": evidence}
+        return {
+            "evidence": evidence,
+            "retrieval_top_k": top_k,
+            "returned_evidence_count": len(evidence),
+            "returned_urls": [item["url"] for item in evidence],
+            "retrieval_scores": [_numeric(item["metadata"].get("score"), 1.0) for item in evidence],
+            "retrieval_methods": [
+                str(item["metadata"].get("retrieval_method", item["kind"])) for item in evidence
+            ],
+        }
 
     async def validate_evidence_node(state: AgentState) -> dict[str, object]:
         evidence = state.get("evidence", [])
-        valid = bool(evidence)
+        reason: EvidenceValidationReason = "VALID"
+        if not evidence:
+            reason = "NO_EVIDENCE"
         for item in evidence:
-            valid = valid and bool(item["text"].strip() and item["url"].startswith("https://"))
-            if item["kind"] == "schedule":
-                valid = valid and item["metadata"].get("freshness") != "EXPIRED"
-            else:
-                valid = valid and bool(item["metadata"].get("authority"))
-        return {"evidence_valid": valid}
+            if not item["text"].strip():
+                reason = "MISSING_TEXT"
+                break
+            if not item["url"].startswith("https://"):
+                reason = "INVALID_URL"
+                break
+            if item["kind"] == "schedule" and item["metadata"].get("freshness") == "EXPIRED":
+                reason = "EXPIRED_SCHEDULE"
+                break
+            if item["kind"] == "document" and not item["metadata"].get("authority"):
+                reason = "MISSING_AUTHORITY"
+                break
+        return {"evidence_valid": reason == "VALID", "evidence_validation_reason": reason}
 
     async def prepare_retry_node(state: AgentState) -> dict[str, object]:
         return {
@@ -209,17 +264,11 @@ def build_workflow(
     async def answer_node(state: AgentState) -> dict[str, object]:
         evidence = state.get("evidence", [])
         if state["intent"] == "course_schedule":
-            citations = [
-                CitationItem(
-                    url=item["url"],
-                    title=item["title"],
-                    fetched_at=item["fetched_at"],
-                    quote=item["text"],
-                )
-                for item in evidence
-            ]
+            answer, citations = render_schedule_answer(
+                cast(ScheduleQueryType, state["schedule_query_type"]), evidence
+            )
             return {
-                "answer": "\n".join(item["text"] for item in evidence),
+                "answer": answer,
                 "citations": citations,
                 "confidence": 0.95,
             }
@@ -236,6 +285,22 @@ def build_workflow(
 
     async def validate_answer_node(state: AgentState) -> dict[str, object]:
         citations = cast(list[dict[str, object]], state.get("citations", []))
+        if state["intent"] == "course_schedule":
+            valid = validate_schedule_answer(
+                cast(ScheduleQueryType, state["schedule_query_type"]),
+                state.get("evidence", []),
+                state.get("answer", ""),
+                cast(list[CitationItem], citations),
+            )
+            return {
+                "citations": citations if valid else [],
+                "grounding_valid": valid,
+                "claims_supported": valid,
+                "polarity_consistent": True,
+                "answer_nonempty": bool(state.get("answer", "").strip()),
+                "answer_valid": valid and bool(state.get("answer", "").strip()),
+                "notes": state.get("notes", []),
+            }
         chunks = _as_chunks(state.get("evidence", []))
         valid, grounding_notes = check_grounding(citations, chunks)
         claims_supported, claim_notes = await check_claim_support(
@@ -244,13 +309,15 @@ def build_workflow(
         polarity_consistent, polarity_notes = check_binary_polarity(
             state.get("answer", ""), state.get("binary_verdict")
         )
+        answer_nonempty = bool(state.get("answer", "").strip())
         return {
             "citations": cast(list[CitationItem], valid),
+            "grounding_valid": bool(valid),
+            "claims_supported": claims_supported,
+            "polarity_consistent": polarity_consistent,
+            "answer_nonempty": answer_nonempty,
             "answer_valid": bool(
-                valid
-                and claims_supported
-                and polarity_consistent
-                and state.get("answer", "").strip()
+                valid and claims_supported and polarity_consistent and answer_nonempty
             ),
             "notes": [
                 *state.get("notes", []),
@@ -262,6 +329,12 @@ def build_workflow(
 
     async def abstain_node(state: AgentState) -> dict[str, object]:
         clarification = state.get("clarification")
+        if clarification:
+            reason = "CLARIFICATION_REQUIRED"
+        elif not state.get("evidence_valid"):
+            reason = "NO_VALID_EVIDENCE"
+        else:
+            reason = "ANSWER_VALIDATION_FAILED"
         return {
             "answer": clarification
             or (
@@ -272,6 +345,7 @@ def build_workflow(
             "confidence": 0.2,
             "notes": [*state.get("notes", []), "Strict cite-or-abstain policy applied."],
             "answer_valid": False,
+            "abstain_reason": reason,
         }
 
     def after_understand(state: AgentState) -> Literal["retrieve", "abstain"]:

@@ -115,18 +115,48 @@ async def test_schedule_path_is_deterministic_and_cited(monkeypatch):
     )
     lookup = AsyncMock(return_value=[offering])
     monkeypatch.setattr("app.graph.workflow.lookup_course_offerings", lookup)
+    semantic_validation = AsyncMock(
+        side_effect=AssertionError("schedule answer must not call semantic validation")
+    )
+    monkeypatch.setattr("app.graph.workflow.check_claim_support", semantic_validation)
     embed = AsyncMock(side_effect=AssertionError("schedule SQL must not embed"))
     answer = AsyncMock(side_effect=AssertionError("schedule answer must not call an LLM"))
     graph = build_workflow(WorkflowServices(object(), embed, answer))
 
     result = await graph.ainvoke({"query": "Is CS 7650 offered in Fall 2026?"})
 
-    assert "CRN 12345" in result["answer"]
+    assert result["answer"] == (
+        "Yes. CS 7650 (Natural Language) is offered in Fall 2026 with 1 section: A (Atlanta)."
+    )
+    assert "CRN" not in result["answer"]
+    assert ";" not in result["answer"]
     assert result["citations"][0]["url"].startswith("https://oscar.gatech.edu/")
     assert result["answer_valid"] is True
+    assert result["schedule_query_type"] == "offering"
+    assert result["grounding_valid"] is True
+    assert result["claims_supported"] is True
     assert result["retry_count"] == 0
+    assert result["evidence"][0]["metadata"] == {
+        "term_code": "202608",
+        "subject": "CS",
+        "course_number": "7650",
+        "title": "Natural Language",
+        "section_code": "A",
+        "crn": "12345",
+        "campus": "Atlanta",
+        "schedule_type": "Lecture",
+        "instructional_method": "In Person",
+        "instructors": ["Ada Lovelace"],
+        "notes": None,
+        "meetings": [],
+        "source_url": offering.source_url,
+        "data_version_id": str(offering.data_version_id),
+        "freshness": "CURRENT",
+        "data_as_of": "2026-08-20T00:00:00+00:00",
+    }
     embed.assert_not_awaited()
     answer.assert_not_awaited()
+    semantic_validation.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -157,6 +187,8 @@ async def test_missing_document_evidence_retries_once_then_abstains(monkeypatch)
     assert result["citations"] == []
     assert result["confidence"] == 0.2
     assert "enough official evidence" in result["answer"].lower()
+    assert result["evidence_validation_reason"] == "NO_EVIDENCE"
+    assert result["abstain_reason"] == "NO_VALID_EVIDENCE"
 
 
 @pytest.mark.asyncio
@@ -206,6 +238,11 @@ async def test_grounded_document_answer_keeps_official_citation(monkeypatch):
     assert result["answer_valid"] is True
     assert result["citations"][0]["url"] == evidence.canonical_url
     assert result["confidence"] == 0.8
+    assert result["grounding_valid"] is True
+    assert result["claims_supported"] is True
+    assert result["polarity_consistent"] is True
+    assert result["answer_nonempty"] is True
+    assert result["evidence"][0]["metadata"]["chunk_id"] == evidence.chunk_id
 
 
 @pytest.mark.asyncio
@@ -331,3 +368,42 @@ async def test_checkpointed_thread_clears_optional_fields_between_queries(monkey
     assert second["subject"] is None
     assert second["course_number"] is None
     assert second["term_code"] is None
+
+
+@pytest.mark.asyncio
+async def test_checkpointed_schedule_follow_up_reuses_resolved_course_and_term(monkeypatch):
+    offering = SimpleNamespace(
+        term_code="202608",
+        subject="CS",
+        course_number="7650",
+        title="Natural Language",
+        credits=3.0,
+        crn="12345",
+        section_code="A",
+        campus="Atlanta",
+        schedule_type="Lecture",
+        instructional_method="In Person",
+        instructors=("Ada Lovelace",),
+        notes=None,
+        meetings=(),
+        source_url="https://oscar.gatech.edu/schedule",
+        data_as_of=datetime(2026, 8, 20, tzinfo=UTC),
+        data_version_id=uuid.uuid4(),
+        freshness=FreshnessState.CURRENT,
+    )
+    lookup = AsyncMock(return_value=[offering])
+    monkeypatch.setattr("app.graph.workflow.lookup_course_offerings", lookup)
+    graph = build_workflow(
+        WorkflowServices(object(), AsyncMock(), AsyncMock()), checkpointer=InMemorySaver()
+    )
+    config = {"configurable": {"thread_id": "schedule-thread"}}
+
+    await graph.ainvoke({"query": "Is CS 7650 offered in Fall 2026?"}, config)
+    follow_up = await graph.ainvoke({"query": "Who teaches it?"}, config)
+
+    assert follow_up["intent"] == "course_schedule"
+    assert follow_up["subject"] == "CS"
+    assert follow_up["course_number"] == "7650"
+    assert follow_up["term_code"] == "202608"
+    assert follow_up["schedule_query_type"] == "instructors"
+    assert "Ada Lovelace" in follow_up["answer"]

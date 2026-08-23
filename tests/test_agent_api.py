@@ -93,7 +93,9 @@ async def test_v2_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
         "configurable": {
             "thread_id": "portfolio-demo-1",
             "checkpoint_ns": "client:client-a",
-        }
+        },
+        "metadata": {"app": "buzzbot", "environment": "local", "thread_id": "portfolio-demo-1"},
+        "tags": ["buzzbot", "v2-chat"],
     }
     assert build.call_args.kwargs["checkpointer"] is app.state.checkpointer
 
