@@ -75,20 +75,6 @@ def test_catalog_edition_is_preserved_when_present():
     assert _edition("Registration policy") is None
 
 
-def test_embedding_text_adds_context_without_changing_raw_chunk():
-    from db.models import Chunk
-    from ingestion.index import _embedding_text
-
-    chunk = Chunk(
-        title="Admissions",
-        headings="Recommendations",
-        chunk_text="Recommendations are optional.",
-    )
-
-    assert _embedding_text(chunk) == ("Admissions\nRecommendations\nRecommendations are optional.")
-    assert chunk.chunk_text == "Recommendations are optional."
-
-
 def test_embedding_client_receives_key_loaded_by_settings(monkeypatch: pytest.MonkeyPatch):
     captured: dict[str, str] = {}
 

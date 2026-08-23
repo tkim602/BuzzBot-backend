@@ -32,7 +32,7 @@ from ingestion.documents.registrar import accepts_path as accepts_registrar_path
 from ingestion.documents.registry import DocumentSource
 from ingestion.extract import extract_content
 from ingestion.index import index_chunks, update_fetch_state, upsert_document, upsert_source
-from ingestion.normalize import content_hash, normalize_url
+from ingestion.normalize import content_hash, extract_headings, normalize_url
 from ingestion.probes.cli import USER_AGENT
 
 
@@ -50,7 +50,7 @@ class DocumentQualityError(ValueError):
     pass
 
 
-CHUNKING_VERSION = 3
+CHUNKING_VERSION = 2
 
 
 _REDIRECT_SCOPES = {
@@ -522,7 +522,9 @@ def _store_document(
         chunks,
         fetched.canonical_url,
         fetched.title,
-        None,
+        None
+        if fetched.content_type == "application/pdf"
+        else "\n".join(extract_headings(fetched.text)) or None,
         fetched.fetched_at,
         embed_fn,
     )

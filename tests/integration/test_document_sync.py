@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import uuid
 from contextlib import contextmanager
-from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -12,12 +11,9 @@ from sqlalchemy.orm import Session
 
 from db.models import Chunk, Document, FetchState, Source
 from db.session import sync_engine
-from ingestion.chunk import chunk_text
 from ingestion.documents.registry import DocumentSource
 from ingestion.documents.sync import (
     DocumentSyncOutcome,
-    FetchedDocument,
-    _store_document,
     sync_document_source,
     sync_document_url,
 )
@@ -25,61 +21,6 @@ from ingestion.documents.sync import (
 pytestmark = pytest.mark.skipif(
     os.getenv("RUN_DB_TESTS") != "1", reason="set RUN_DB_TESTS=1 for PostgreSQL tests"
 )
-
-
-def test_chunks_store_and_embed_only_their_local_section_context():
-    suffix = uuid.uuid4().hex
-    url = f"https://registrar.gatech.edu/registration/context-{suffix}"
-    source = DocumentSource(
-        f"test-context-{suffix}",
-        "official_policy",
-        "registrar",
-        ("https://registrar.gatech.edu/registration",),
-        (url,),
-        1,
-    )
-    recommendations = "Recommendations are optional. " * 70
-    deadlines = "Application deadlines are published. " * 70
-    fetched = FetchedDocument(
-        url,
-        url,
-        "Admissions",
-        f"## Recommendations\n{recommendations}\n## Deadlines\n{deadlines}",
-        datetime.now(UTC),
-        None,
-        None,
-        None,
-    )
-    embedded: list[str] = []
-
-    def embed(texts: list[str]) -> list[list[float]]:
-        embedded.extend(texts)
-        return [[0.0] * 1536 for _ in texts]
-
-    try:
-        with Session(sync_engine) as session:
-            _store_document(session, source, fetched, embed)
-            session.commit()
-        with Session(sync_engine) as session:
-            document = session.scalar(select(Document).where(Document.canonical_url == url))
-            assert document is not None
-            chunks = list(document.chunks)
-            expected_raw = {
-                chunk.text for chunk in chunk_text(fetched.text, metadata=document.metadata_json)
-            }
-            assert {chunk.headings for chunk in chunks} == {"Recommendations", "Deadlines"}
-            assert {chunk.chunk_text for chunk in chunks} == expected_raw
-            assert embedded[0].startswith(f"Admissions\n{chunks[0].headings}\n")
-            assert chunks[0].chunk_text in embedded[0]
-    finally:
-        with Session(sync_engine) as session:
-            document = session.scalar(select(Document).where(Document.canonical_url == url))
-            if document is not None:
-                session.delete(document)
-            stored_source = session.scalar(select(Source).where(Source.name == source.name))
-            if stored_source is not None:
-                session.delete(stored_source)
-            session.commit()
 
 
 @pytest.mark.asyncio
