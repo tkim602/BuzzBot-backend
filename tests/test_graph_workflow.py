@@ -35,6 +35,27 @@ from ingestion.schedule.validate import FreshnessState
             ),
         ),
         ("What are first-year recommendation requirements?", ("admissions",)),
+        (
+            "I got a course waitlist notification. How long do I have to register?",
+            ("official_policy",),
+        ),
+        ("What are the first-year admission waitlist rules?", ("admissions",)),
+        ("Does accepting a waitlist spot commit me to enroll?", ("admissions",)),
+        (
+            "What determines Georgia Tech registration time tickets?",
+            ("official_policy",),
+        ),
+        ("When is my housing room-selection time ticket?", ("housing", "dining")),
+        (
+            "Can I take more than 16 total credits over summer?",
+            ("official_policy",),
+        ),
+        (
+            "Do I receive academic credit when auditing a class?",
+            ("academic_policy",),
+        ),
+        ("Can I use paratransit for personal trips?", ("health_support",)),
+        ("Do first-year students have to live on campus?", ("housing", "dining")),
     ],
 )
 def test_policy_source_routing_uses_domain_verticals(query, expected):

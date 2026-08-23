@@ -358,6 +358,19 @@ def test_dev_100_retrieval_baseline_freezes_the_explained_delta():
     }
 
 
+def test_user_20_routing_baseline_is_bound_to_frozen_manifest():
+    baseline = json.loads(
+        Path("eval/quality/baselines/user_20_routing.json").read_text(encoding="utf-8")
+    )
+
+    assert baseline["manifest_sha256"] == (
+        "b566cfe61a7913a1a5eeb2e58613421d2e717db99fef87b5c30686c61a1e26e1"
+    )
+    assert baseline["before"]["correct_and_supported"] == 11
+    assert baseline["after"]["correct_and_supported"] == 16
+    assert baseline["case_delta"] == {"wins": 5, "regressions": 0, "net": 5}
+
+
 def test_gold_not_returned_diagnosis_selects_one_largest_bucket():
     diagnosis = json.loads(
         Path("eval/quality/baselines/dev_100_gold_not_returned_diagnosis.json").read_text(

@@ -42,6 +42,32 @@ def policy_source_types(query: str) -> tuple[str, ...]:
         return ("admissions",)
     if re.search(r"\b(?:sat|act)\b", lowered):
         return ("admissions",)
+    if "waitlist" in lowered:
+        if any(
+            cue in lowered
+            for cue in (
+                "admission",
+                "application",
+                "first-year",
+                "first year",
+                "waitlist spot",
+                "commit",
+            )
+        ):
+            return ("admissions",)
+        return ("official_policy",)
+    if "time ticket" in lowered and not any(cue in lowered for cue in ("room", "housing")):
+        return ("official_policy",)
+    if (
+        "summer" in lowered
+        and "credit" in lowered
+        and any(cue in lowered for cue in ("maximum", "more than", "exceed", "limit"))
+    ):
+        return ("official_policy",)
+    if re.search(r"\baudit(?:ing)?\b", lowered) and any(
+        cue in lowered for cue in ("class", "course", "academic credit")
+    ):
+        return ("academic_policy",)
     vertical_cues = (
         (
             "health_support",
@@ -59,6 +85,7 @@ def policy_source_types(query: str) -> tuple[str, ...]:
                 "mental health",
                 "well-being",
                 "wellbeing",
+                "paratransit",
             ),
         ),
         (
@@ -72,6 +99,7 @@ def policy_source_types(query: str) -> tuple[str, ...]:
                 "dining dollar",
                 "meal swipe",
                 "grubhub",
+                "live on campus",
             ),
         ),
         (
@@ -122,7 +150,6 @@ def policy_source_types(query: str) -> tuple[str, ...]:
                 "regular decision",
                 "common app",
                 "recommendation",
-                "waitlist",
                 "transfer applicant",
                 "transfer application",
                 "transfer document",
@@ -149,6 +176,8 @@ def policy_source_types(query: str) -> tuple[str, ...]:
                 "credits shared",
                 "bs/ms",
                 "master's completion",
+                "total credits",
+                "academic credit",
             ),
         ),
     )
