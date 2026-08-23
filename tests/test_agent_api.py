@@ -21,9 +21,9 @@ def test_only_v2_chat_route_is_registered():
     from app.main import app
 
     chat_paths = {
-        route.path
-        for route in app.routes
-        if "POST" in getattr(route, "methods", set()) and route.path.endswith("/chat")
+        path
+        for path, operations in app.openapi()["paths"].items()
+        if "post" in operations and path.endswith("/chat")
     }
 
     assert chat_paths == {"/v2/chat"}
