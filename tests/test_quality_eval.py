@@ -386,6 +386,13 @@ def test_user_20_routing_baseline_is_bound_to_frozen_manifest():
     assert baseline["before"]["correct_and_supported"] == 11
     assert baseline["after"]["correct_and_supported"] == 16
     assert baseline["case_delta"] == {"wins": 5, "regressions": 0, "net": 5}
+    assert baseline["follow_up"]["user-014-v1"] == {
+        "status": "PASSED",
+        "verified_at": "2026-08-23",
+        "answer_polarity": "No",
+        "supported": True,
+        "notes_empty": True,
+    }
 
 
 def test_user_holdout_baseline_preserves_blind_result_and_scoped_follow_up():

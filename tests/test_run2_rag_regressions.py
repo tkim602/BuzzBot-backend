@@ -441,6 +441,33 @@ async def test_factual_yes_no_verdict_constrains_generation(
 
 
 @pytest.mark.asyncio
+async def test_binary_precheck_removes_negation_invented_by_proposition_extraction(monkeypatch):
+    query = "Do unused meal swipes carry over into the next semester?"
+    evidence = "Unused Fall Meal Pass Plan Swipes will not roll over to the Spring."
+
+    async def call(system, user, **kwargs):
+        if "atomic factual proposition" in system:
+            return "Unused meal swipes do not carry over into the next semester."
+        if "Judge whether the evidence entails" in system:
+            assert "do not carry over" not in user
+            assert "do carry over" in user
+            return "CONTRADICTED"
+        return (
+            '{"answer":"unused meal swipes do not carry over.","citations":[],'
+            '"confidence":1.0,"notes":[]}'
+        )
+
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    answer = await generate_answer(
+        query, [_chunk("meal-swipes", "Meal Plans", evidence)], intent="policy"
+    )
+
+    assert answer["_binary_verdict"] == "FALSE"
+    assert answer["answer"].startswith("No,")
+
+
+@pytest.mark.asyncio
 async def test_binary_answer_uses_exact_retrieved_citation_quote(monkeypatch):
     evidence = (
         "Students have the option to send recommendations to Georgia Tech. "

@@ -29,6 +29,8 @@ _BINARY_QUESTION_RE = re.compile(
 _LEADING_ANSWER_RE = re.compile(r"^\s*(?:yes|no)\b\s*[,.;:—–-]?\s*", re.I)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 _NEGATION_RE = re.compile(r"\b(?:no|not|never)\b", re.I)
+_EXPLICIT_NEGATION_RE = re.compile(r"\b(?:no|not|never|without)\b|n['’]t\b", re.I)
+_INVENTED_NEGATION_RE = re.compile(r"\b(?:not|never)\b\s*|\bno\b\s+|n['’]t\b\s*", re.I)
 
 
 def _load_prompt(name: str) -> str:
@@ -175,6 +177,8 @@ async def _binary_proposition_verdict(query: str, evidence: str) -> str:
     proposition = proposition.strip()
     if not proposition:
         return "UNKNOWN"
+    if not _EXPLICIT_NEGATION_RE.search(query):
+        proposition = _INVENTED_NEGATION_RE.sub("", proposition, count=1)
 
     from app.rag.grounding import semantic_claim_verdict
 
