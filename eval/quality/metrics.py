@@ -23,6 +23,7 @@ class RankedItem:
     source_name: str | None
     vertical: str | None
     method: str | None = None
+    text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class CaseResult:
     latency_ms: float
     items: tuple[RankedItem, ...]
     failure_tags: tuple[str, ...] = ()
+    evidence_rank: int | None = None
 
     def hit_at(self, k: int) -> bool:
         return self.rank is not None and self.rank <= k
@@ -111,6 +113,19 @@ def summarize(results: list[CaseResult]) -> dict[str, object]:
             "p50": percentile(latencies, 0.50),
             "p95": percentile(latencies, 0.95),
         },
+    }
+
+
+def summarize_evidence(results: list[CaseResult]) -> dict[str, float]:
+    return {
+        "evidence_hit_at_1": mean(float(r.evidence_rank == 1) for r in results),
+        "evidence_hit_at_3": mean(
+            float(r.evidence_rank is not None and r.evidence_rank <= 3) for r in results
+        ),
+        "evidence_hit_at_5": mean(
+            float(r.evidence_rank is not None and r.evidence_rank <= 5) for r in results
+        ),
+        "evidence_mrr_at_5": mean(reciprocal_rank(r.evidence_rank, 5) for r in results),
     }
 
 

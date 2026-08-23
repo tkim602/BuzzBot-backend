@@ -32,6 +32,7 @@ from app.retrieval import (
 )
 from db.models import Chunk, Document, Embedding, Source
 from db.session import AsyncSessionLocal
+from eval.quality.evidence import evidence_rank, load_gold_evidence
 from eval.quality.metrics import (
     CaseResult,
     RankedItem,
@@ -41,6 +42,7 @@ from eval.quality.metrics import (
     grouped_summary,
     normalize_url,
     summarize,
+    summarize_evidence,
 )
 from eval.quality.schema import GoldCase, load_cases, load_manifest_cases
 from ingestion.documents.registry import load_document_sources
@@ -65,6 +67,7 @@ def _ranked_from_chunks(chunks: list[RetrievedChunk]) -> list[RankedItem]:
                     else _SOURCE_VERTICAL.get(chunk.source_name or "")
                 ),
                 method=chunk.method,
+                text=chunk.chunk_text,
             )
         )
     return rows
@@ -77,6 +80,7 @@ def _ranked_from_documents(documents: list[Any]) -> list[RankedItem]:
             source_name=document.source_name,
             vertical=document.vertical or _SOURCE_VERTICAL.get(document.source_name),
             method=document.retrieval_method,
+            text=document.text,
         )
         for document in documents
     ]
@@ -255,8 +259,10 @@ async def run(
     report_dir: Path,
     top_k: int = 10,
     manifest: Path | None = None,
+    evidence_file: Path | None = None,
 ) -> dict[str, object]:
     cases = _evaluation_cases(dataset, manifest)
+    gold_evidence = load_gold_evidence(evidence_file, cases) if evidence_file else {}
     report_dir.mkdir(parents=True, exist_ok=True)
 
     async with AsyncSessionLocal() as session:
@@ -288,6 +294,11 @@ async def run(
                         returned=len(items),
                         latency_ms=latency_ms,
                         items=tuple(items),
+                        evidence_rank=(
+                            evidence_rank(gold_evidence[case.variant_group], items)
+                            if gold_evidence
+                            else None
+                        ),
                     )
                 )
             results_by_mode[mode] = mode_results
@@ -325,6 +336,11 @@ async def run(
         },
         "failure_counts": dict(Counter(tag for row in production for tag in row.failure_tags)),
     }
+    if gold_evidence:
+        report["evidence"] = summarize_evidence(production)
+        report["evidence"]["artifact_coverage"] = sum(
+            row.span is not None for row in gold_evidence.values()
+        ) / len(gold_evidence)
 
     summary_path = report_dir / "latest_summary.json"
     cases_path = report_dir / "latest_cases.jsonl"
@@ -374,6 +390,7 @@ def _case_payload(result: CaseResult) -> dict[str, object]:
         "returned": result.returned,
         "latency_ms": result.latency_ms,
         "failure_tags": list(result.failure_tags),
+        "evidence_rank": result.evidence_rank,
         "retrieved": [asdict(item) for item in result.items],
     }
 
@@ -424,13 +441,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--report-dir", type=Path, default=DEFAULT_REPORT_DIR)
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--evidence-file", type=Path)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     report = asyncio.run(
-        run(args.dataset, args.report_dir, top_k=args.top_k, manifest=args.manifest)
+        run(
+            args.dataset,
+            args.report_dir,
+            top_k=args.top_k,
+            manifest=args.manifest,
+            evidence_file=args.evidence_file,
+        )
     )
     production = report["modes"]["production"]
     raw = report["modes"]["raw"]

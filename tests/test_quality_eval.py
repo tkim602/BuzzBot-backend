@@ -5,6 +5,12 @@ from pathlib import Path
 import pytest
 
 from eval.quality import runner
+from eval.quality.evidence import (
+    GoldEvidence,
+    evidence_rank,
+    load_gold_evidence,
+    validate_evidence_texts,
+)
 from eval.quality.metrics import (
     CaseResult,
     RankedItem,
@@ -12,6 +18,7 @@ from eval.quality.metrics import (
     normalize_url,
     reciprocal_rank,
     summarize,
+    summarize_evidence,
 )
 from eval.quality.schema import GoldCase, load_cases, load_manifest_cases
 
@@ -131,6 +138,14 @@ def test_change_manifest_contains_all_dev_cases():
     assert {case.id for case in dev} <= {case.id for case in change}
 
 
+def test_dev_evidence_artifact_covers_every_fixed_fact():
+    cases = load_manifest_cases(Path("eval/quality/manifests/dev_100.json"))
+    evidence = load_gold_evidence(Path("eval/quality/gold_evidence/dev_100.json"), cases)
+
+    assert len(evidence) == 100
+    assert set(evidence) == {case.variant_group for case in cases}
+
+
 def test_manifest_fails_when_a_case_id_is_unknown(tmp_path):
     dataset = tmp_path / "dataset"
     dataset.mkdir()
@@ -221,3 +236,70 @@ def test_diagnose_marks_only_actual_production_misses():
     runner._diagnose(results)
 
     assert "PRODUCTION_MISS" in production.failure_tags
+
+
+def test_gold_evidence_requires_complete_manifest_and_gold_url(tmp_path):
+    path = tmp_path / "evidence.json"
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "facts": {"gold-001": {"url": "https://example.edu", "span": "policy"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="outside gold URLs"):
+        load_gold_evidence(path, [_case()])
+
+    path.write_text(json.dumps({"version": 1, "facts": {}}), encoding="utf-8")
+    with pytest.raises(ValueError, match="fact ids"):
+        load_gold_evidence(path, [_case()])
+
+
+def test_gold_evidence_must_exist_in_indexed_document():
+    evidence = {
+        "gold-001": GoldEvidence(
+            "gold-001",
+            "https://registrar.gatech.edu/current-students/transcripts",
+            "official transcript service",
+        )
+    }
+    with pytest.raises(ValueError, match="not present"):
+        validate_evidence_texts(evidence, {evidence["gold-001"].url: "unrelated text"})
+
+
+def test_gold_evidence_allows_explicit_missing_corpus_fact(tmp_path):
+    path = tmp_path / "evidence.json"
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "facts": {
+                    "gold-001": {
+                        "url": _case().gold_urls[0],
+                        "status": "CORPUS_EVIDENCE_MISSING",
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = load_gold_evidence(path, [_case()])
+
+    assert loaded["gold-001"].span is None
+    assert evidence_rank(loaded["gold-001"], ()) is None
+
+
+def test_evidence_rank_matches_exact_normalized_span_and_reports_metrics():
+    gold = GoldEvidence("gold-001", _case().gold_urls[0], "official transcript service")
+    items = (
+        RankedItem("https://example.edu", "other", "academics", text="official transcript service"),
+        RankedItem(gold.url + "/", "source", "academics", text="Official\n transcript service"),
+    )
+    result = CaseResult(_case(), "production", 2, 2, 2, 2, 1.0, items, evidence_rank=2)
+
+    assert evidence_rank(gold, items) == 2
+    assert summarize_evidence([result])["evidence_hit_at_3"] == 1.0
