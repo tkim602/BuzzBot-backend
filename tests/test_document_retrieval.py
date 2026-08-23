@@ -133,6 +133,47 @@ async def test_policy_reselection_keeps_high_confidence_lexical_evidence(monkeyp
 
 
 @pytest.mark.asyncio
+async def test_course_code_anchor_survives_same_url_child_reselection(monkeypatch):
+    def chunk(chunk_id, text, score):
+        return RetrievedChunk(
+            chunk_id,
+            "https://catalog.gatech.edu/coursesaz/cs/",
+            "Computer Science (CS)",
+            text,
+            score,
+            source_name="gt-catalog",
+            metadata_json={"source_type": "course_catalog", "authority": "catalog"},
+        )
+
+    target = chunk(
+        "cs-6300",
+        "CS 6300. Software Development Process. 3 Credit Hours.",
+        0.4,
+    )
+    children = [
+        chunk("cs-2316", "CS 2316. Data Input and Manipulation.", 0.99),
+        chunk("cs-2340", "CS 2340. Objects and Design.", 0.98),
+        target,
+    ]
+    monkeypatch.setattr("app.retrieval.documents.hybrid_retrieve", AsyncMock(return_value=[target]))
+    monkeypatch.setattr(
+        "app.retrieval.documents.vector_search", AsyncMock(return_value=children), raising=False
+    )
+
+    evidence = await search_policy_docs(
+        object(),
+        PolicyQuery(
+            "CS 6300 course description credits prerequisites",
+            source_types=("course_catalog",),
+            top_k=2,
+        ),
+        [0.1] * 1536,
+    )
+
+    assert evidence[0].chunk_id == target.chunk_id
+
+
+@pytest.mark.asyncio
 async def test_duration_question_preserves_top_reranked_evidence(monkeypatch):
     def chunk(chunk_id, text, score):
         return RetrievedChunk(

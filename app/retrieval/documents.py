@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.rag.retrieval import (
+    COURSE_CODE_RE,
     RetrievedChunk,
     _cap_chunks_per_url,
     _lexical_match_score,
@@ -38,6 +39,13 @@ _DURATION_QUESTION_RE = re.compile(
 
 def _is_strong_lexical_anchor(query: str, chunk: RetrievedChunk) -> bool:
     title_path = f"{chunk.title or ''} {urlsplit(chunk.url or '').path}"
+    course = COURSE_CODE_RE.search(query)
+    if course and re.search(
+        rf"\b{re.escape(course.group(1))}\s*-?\s*{re.escape(course.group(2))}\b",
+        f"{chunk.title or ''}\n{chunk.chunk_text}",
+        re.I,
+    ):
+        return True
     compounds = {
         tuple(part.lower() for part in match) for match in _SLASH_COMPOUND_RE.findall(query)
     }
