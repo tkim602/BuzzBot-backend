@@ -176,7 +176,12 @@ async def test_hybrid_document_retrieval_returns_official_citation(monkeypatch):
         assert evidence[0].source_type == "academic_calendar"
         assert evidence[0].authority == "academic_calendar"
         assert evidence[0].edition == "2026-2027"
-        assert evidence[0].retrieval_method in {"vector", "fts", "hybrid_rrf"}
+        assert evidence[0].retrieval_method in {
+            "vector",
+            "fts",
+            "hybrid_rrf",
+            "parent_child_vector",
+        }
     finally:
         await async_engine.dispose()
         with Session(sync_engine) as session:

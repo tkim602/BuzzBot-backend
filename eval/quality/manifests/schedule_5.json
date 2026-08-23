@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "buzzbot_fall_2026_schedule_5",
+  "master_dataset": "../data_schedule",
+  "expected_fact_count": 5,
+  "cases_per_fact": 1,
+  "case_ids": [
+    "schedule-001-v1",
+    "schedule-002-v1",
+    "schedule-003-v1",
+    "schedule-004-v1",
+    "schedule-005-v1"
+  ]
+}

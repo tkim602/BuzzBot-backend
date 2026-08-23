@@ -21,6 +21,12 @@ def test_course_schedule_intent_from_course_code_and_term():
     assert result.source_filter == ["gt-scheduler", "gt-catalog"]
 
 
+def test_course_schedule_intent_when_term_precedes_course_code():
+    result = classify_query("What Fall 2026 sections and meeting times are offered for CSE 6242?")
+
+    assert result.intent == "course_schedule_sections"
+
+
 def test_course_schedule_intent_korean_mixed_query():
     result = classify_query("CS 4400 수업이 2025 Spring에 개설되나요?")
     assert result.intent == "course_schedule_sections"

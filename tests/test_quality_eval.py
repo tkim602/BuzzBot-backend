@@ -138,6 +138,15 @@ def test_change_manifest_contains_all_dev_cases():
     assert {case.id for case in dev} <= {case.id for case in change}
 
 
+def test_schedule_manifest_covers_five_distinct_structured_sql_cases():
+    cases = load_manifest_cases(Path("eval/quality/manifests/schedule_5.json"))
+
+    assert len(cases) == 5
+    assert len({case.variant_group for case in cases}) == 5
+    assert {case.question_type for case in cases} == {"course_schedule"}
+    assert all(case.time_sensitive for case in cases)
+
+
 def test_dev_evidence_artifact_covers_every_fixed_fact():
     cases = load_manifest_cases(Path("eval/quality/manifests/dev_100.json"))
     evidence = load_gold_evidence(Path("eval/quality/gold_evidence/dev_100.json"), cases)

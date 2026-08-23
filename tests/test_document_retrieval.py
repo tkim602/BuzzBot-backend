@@ -1,7 +1,16 @@
+from unittest.mock import AsyncMock
+
 import pytest
 
 from app.rag.retrieval import RetrievedChunk
 from app.retrieval.documents import OFFICIAL_SOURCE_NAMES, PolicyQuery, search_policy_docs
+
+
+@pytest.fixture(autouse=True)
+def disable_child_reselection(monkeypatch):
+    monkeypatch.setattr(
+        "app.retrieval.documents.vector_search", AsyncMock(return_value=[]), raising=False
+    )
 
 
 def test_policy_query_validates_text_types_and_limit():
@@ -11,6 +20,66 @@ def test_policy_query_validates_text_types_and_limit():
         PolicyQuery("registration", source_types=("unknown",))
     with pytest.raises(ValueError, match="top_k"):
         PolicyQuery("registration", top_k=0)
+
+
+@pytest.mark.asyncio
+async def test_policy_reselects_children_within_discovered_urls(monkeypatch):
+    root = RetrievedChunk(
+        "root",
+        "https://example.gatech.edu/policy",
+        "Policy",
+        "General policy overview.",
+        0.9,
+        source_name="gt-registrar",
+        metadata_json={"source_type": "official_policy", "authority": "registrar"},
+    )
+    children = [
+        RetrievedChunk(
+            chunk_id,
+            url,
+            "Policy",
+            text,
+            score,
+            source_name="gt-registrar",
+            metadata_json={"source_type": "official_policy", "authority": "registrar"},
+        )
+        for chunk_id, url, text, score in (
+            ("answer-1", root.url, "The direct answer.", 0.95),
+            ("answer-2", root.url, "A supporting condition.", 0.9),
+            ("duplicate-3", root.url, "A third section from the same page.", 0.85),
+            ("other", "https://example.gatech.edu/other", "Another page.", 0.8),
+        )
+    ]
+    captured: dict[str, object] = {}
+
+    async def fake_hybrid(*args, **kwargs):
+        return [
+            root,
+            RetrievedChunk(
+                "other-root",
+                "https://example.gatech.edu/other",
+                "Other",
+                "Other overview.",
+                0.8,
+                source_name="gt-registrar",
+                metadata_json={"source_type": "official_policy", "authority": "registrar"},
+            ),
+        ]
+
+    async def fake_vector(*args, **kwargs):
+        captured.update(kwargs)
+        return children
+
+    monkeypatch.setattr("app.retrieval.documents.hybrid_retrieve", fake_hybrid)
+    monkeypatch.setattr("app.retrieval.documents.vector_search", fake_vector, raising=False)
+
+    evidence = await search_policy_docs(
+        object(), PolicyQuery("What is the direct policy?", top_k=3), [0.1] * 1536
+    )
+
+    assert captured["url_filter"] == [root.url, "https://example.gatech.edu/other"]
+    assert captured["similarity_threshold"] == -1.0
+    assert [item.chunk_id for item in evidence] == ["answer-1", "answer-2", "other"]
 
 
 @pytest.mark.asyncio

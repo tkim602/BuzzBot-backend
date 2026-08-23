@@ -23,7 +23,7 @@ FACTUAL_INTENTS = {
     "policy",
 }
 _BINARY_QUESTION_RE = re.compile(
-    r"^\s*(?:am|are|can|could|did|do|does|has|have|is|must|should|was|were|will|would)\b",
+    r"(?:^\s*(?:am|are|can|could|did|do|does|has|have|is|must|should|was|were|will|would)\b|\bwhether\b)",
     re.I,
 )
 _LEADING_ANSWER_RE = re.compile(r"^\s*(?:yes|no)\b\s*[,.;:—–-]?\s*", re.I)
@@ -97,13 +97,46 @@ def _format_history(history: list[dict] | None) -> str:
 def _ground_citation_quotes(
     citations: object, chunks: list[RetrievedChunk], answer: str
 ) -> list[dict]:
+    if not isinstance(citations, list) or not citations or not chunks:
+        return []
+
+    from app.rag.grounding import split_factual_claims
+
     grounded: list[dict] = []
-    for citation in citations if isinstance(citations, list) else []:
-        if not isinstance(citation, dict) or not chunks:
+    seen: set[tuple[str | None, str]] = set()
+    for claim in split_factual_claims(answer):
+        claim_words = _lexical_terms(claim)
+        claim_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", claim))
+        candidates: list[tuple[tuple[int, int, float, float], RetrievedChunk, str]] = []
+        for chunk in chunks:
+            sentences = [
+                part.strip() for part in _SENTENCE_SPLIT_RE.split(chunk.chunk_text) if part.strip()
+            ]
+            spans = [*sentences]
+            spans.extend(
+                f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
+            )
+            for span in spans:
+                span_words = _lexical_terms(span)
+                overlap = claim_words & span_words
+                if not overlap:
+                    continue
+                span_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", span))
+                candidates.append(
+                    (
+                        (
+                            len(claim_numbers & span_numbers),
+                            len(overlap),
+                            len(overlap) / max(len(claim_words), 1),
+                            _lexical_match_score(claim, chunk),
+                        ),
+                        chunk,
+                        span,
+                    )
+                )
+        if not candidates:
             continue
-        chunk = max(chunks, key=lambda item: _lexical_match_score(answer, item))
-        if _lexical_match_score(answer, chunk) <= 0:
-            continue
+        _, chunk, best = max(candidates, key=lambda candidate: candidate[0])
         grounded_citation: dict[str, object] = {
             "url": chunk.url,
             "title": chunk.title,
@@ -112,20 +145,9 @@ def _ground_citation_quotes(
         page = (chunk.metadata_json or {}).get("page_start")
         if isinstance(page, int):
             grounded_citation["page"] = page
-        claim_words = _lexical_terms(answer)
-        sentences = [
-            part.strip() for part in _SENTENCE_SPLIT_RE.split(chunk.chunk_text) if part.strip()
-        ]
-        candidates = [*sentences]
-        candidates.extend(
-            f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
-        )
-        best = max(
-            candidates,
-            key=lambda candidate: len(claim_words & _lexical_terms(candidate)),
-            default="",
-        )
-        if best and claim_words & _lexical_terms(best):
+        key = (chunk.url, best)
+        if key not in seen:
+            seen.add(key)
             grounded.append({**grounded_citation, "quote": best})
     return grounded
 

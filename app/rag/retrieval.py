@@ -321,6 +321,7 @@ async def vector_search(
     query_embedding: list[float],
     top_k: int = 8,
     source_filter: SourceFilter = None,
+    url_filter: list[str] | None = None,
     similarity_threshold: float = 0.3,
     metadata_course_code: str | None = None,
     metadata_term_name: str | None = None,
@@ -347,6 +348,10 @@ async def vector_search(
     )
 
     stmt = _apply_source_filter(stmt, source_filter)
+    if url_filter is not None:
+        if not url_filter:
+            return []
+        stmt = stmt.where(Chunk.url.in_(url_filter))
 
     if metadata_course_code:
         stmt = stmt.where(

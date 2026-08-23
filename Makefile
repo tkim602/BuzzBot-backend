@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-gt-all resume-gt-all sync-oscar sync-oscar-all run-backend run-frontend test test-db lint fmt usage eval-v2 quality-retrieval-dev quality-retrieval-change quality-retrieval-full quality-chat-dev quality-chat-change quality-diagnose-dev
+.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-gt-all resume-gt-all sync-oscar sync-oscar-all run-backend run-frontend test test-db lint fmt usage eval-v2 quality-retrieval-dev quality-retrieval-change quality-retrieval-full quality-chat-dev quality-chat-change quality-chat-schedule quality-diagnose-dev
 
 setup:
 	pip install -e ".[dev]"
@@ -111,6 +111,11 @@ quality-chat-change:
 	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.chat_runner \
 		--manifest eval/quality/manifests/change_200.json \
 		--report-dir eval/quality/reports_chat_200
+
+quality-chat-schedule:
+	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.chat_runner \
+		--manifest eval/quality/manifests/schedule_5.json \
+		--report-dir eval/quality/reports_chat_schedule_5
 
 quality-diagnose-dev:
 	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.diagnose_failures \

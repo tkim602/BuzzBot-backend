@@ -13,25 +13,14 @@ import structlog
 
 from app.core.config import settings
 from app.core.usage import check_limit_or_raise, record_usage
+from app.rag.router import extract_course_code
 
 logger = structlog.get_logger(__name__)
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
 
-COURSE_CODE_RE = re.compile(r"\b([a-z]{2,4})\s*-?\s*(\d{4}[a-z]?)\b", re.IGNORECASE)
 TERM_RE_1 = re.compile(r"\b(spring|summer|fall)\s*(20\d{2})\b", re.IGNORECASE)
 TERM_RE_2 = re.compile(r"\b(20\d{2})\s*(spring|summer|fall)\b", re.IGNORECASE)
-COURSE_CODE_STOPWORDS = {
-    "spring",
-    "summer",
-    "fall",
-    "term",
-    "year",
-    "this",
-    "next",
-    "last",
-    "the",
-}
 PRONOUN_RE = re.compile(
     r"\b(it|that class|this class|that course|this course|그거|그 과목|이 과목)\b", re.IGNORECASE
 )
@@ -113,13 +102,7 @@ def _normalize_space(text: str) -> str:
 
 
 def _extract_course_code(query: str) -> str | None:
-    m = COURSE_CODE_RE.search(query)
-    if not m:
-        return None
-    dept = m.group(1).lower()
-    if dept in COURSE_CODE_STOPWORDS:
-        return None
-    return f"{m.group(1).upper()} {m.group(2).upper()}"
+    return extract_course_code(query)
 
 
 def _extract_term_name(query: str) -> str | None:

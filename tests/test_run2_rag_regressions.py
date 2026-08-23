@@ -186,6 +186,68 @@ def test_claim_span_selection_ignores_unrelated_text_from_same_source():
     assert unrelated.chunk_text not in selected[0]["quote"]
 
 
+def test_multi_claim_answer_selects_support_for_each_claim():
+    ordering = _chunk(
+        "ordering",
+        "Ordering Transcripts",
+        "Current or former Georgia Tech students may order transcripts via the web. "
+        "Students may request a transcript as a downloadable PDF, mailed, or picked up.",
+    )
+    policies = _chunk(
+        "policies",
+        "Transcript Policies",
+        "The transcript fee is $10.00. The institute is not responsible for delivery. "
+        "Transcript requests should be made at least one week in advance. "
+        "Transcripts will not be released for students who have a financial obligation.",
+    )
+    answer = (
+        "Students may order transcripts through the web. "
+        "Requests may be downloaded, mailed, or picked up. "
+        "The fee is $10.00, and requests should be made at least one week in advance. "
+        "Transcripts are not released for students with a financial obligation."
+    )
+    citations = [{"url": ordering.url, "quote": ordering.chunk_text}] * 3
+
+    selected = _ground_citation_quotes(citations, [ordering, policies], answer)
+    evidence = "\n".join(str(citation["quote"]) for citation in selected)
+
+    assert "order transcripts via the web" in evidence
+    assert "downloadable PDF, mailed, or picked up" in evidence
+    assert "transcript fee is $10.00" in evidence
+    assert "at least one week in advance" in evidence
+    assert "financial obligation" in evidence
+
+
+def test_citation_span_selection_prefers_exact_numeric_evidence_across_chunks():
+    distractor = _chunk(
+        "immunization-form",
+        "Fall 2026 Immunization Deadlines",
+        "All students must submit an immunization form before registration.",
+        "Fall 2026 Deadlines",
+    )
+    decisive = _chunk(
+        "immunization-requirements",
+        "Immunization Requirements",
+        "Fall 2026 Deadlines: Last names beginning with A – H: June 8, 2026. "
+        "Last names beginning with I – P: June 22, 2026. "
+        "Last names beginning with Q – Z: July 6, 2026.",
+    )
+    answer = (
+        "For Fall 2026, A-H is due June 8, 2026; I-P is due June 22, 2026; Q-Z is due July 6, 2026."
+    )
+
+    selected = _ground_citation_quotes(
+        [{"url": distractor.url, "quote": distractor.chunk_text}],
+        [distractor, decisive],
+        answer,
+    )
+    evidence = "\n".join(str(citation["quote"]) for citation in selected)
+
+    assert "A – H: June 8, 2026" in evidence
+    assert "I – P: June 22, 2026" in evidence
+    assert "Q – Z: July 6, 2026" in evidence
+
+
 @pytest.mark.asyncio
 async def test_claim_validation_receives_decisive_recommendation_evidence(monkeypatch):
     claim = "Recommendations are optional."
@@ -405,6 +467,52 @@ async def test_binary_precheck_logs_exact_proposition_and_evidence(monkeypatch):
     logged = debug.call_args.kwargs
     assert logged["proposition"] == proposition
     assert evidence in logged["evidence"]
+
+
+@pytest.mark.asyncio
+async def test_indirect_whether_question_uses_binary_verdict(monkeypatch):
+    evidence = (
+        "Electronic Check/WebCheck (FREE). Georgia Tech offers the ability to pay "
+        "by electronic check from a U.S. bank account."
+    )
+    call = AsyncMock(
+        side_effect=[
+            "WebCheck carries a payment fee.",
+            "CONTRADICTED",
+            '{"answer":"WebCheck is free.","citations":[{"url":"x","quote":"x"}],'
+            '"confidence":1.0,"notes":[]}',
+        ]
+    )
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    answer = await generate_answer(
+        "I'm dealing with whether WebCheck carries a payment fee right now.",
+        [_chunk("payment-options", "Payment Options", evidence)],
+        intent="policy",
+    )
+
+    assert call.await_count == 3
+    assert answer["_binary_verdict"] == "FALSE"
+    assert answer["answer"].startswith("No,")
+
+
+@pytest.mark.asyncio
+async def test_factual_prompt_requires_every_requested_field_without_adjacent_rules(monkeypatch):
+    call = AsyncMock(
+        return_value='{"answer":"30 credits and 10 courses.","citations":[],'
+        '"confidence":1.0,"notes":[]}'
+    )
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    await generate_answer(
+        "What are the total degree hours and courses?",
+        [_chunk("degree", "Degree Requirements", "30 total credit hours (10 courses).")],
+        intent="policy",
+    )
+
+    system_prompt = call.await_args.args[0]
+    assert "every requested field" in system_prompt
+    assert "unrequested adjacent rules" in system_prompt
 
 
 @pytest.mark.asyncio

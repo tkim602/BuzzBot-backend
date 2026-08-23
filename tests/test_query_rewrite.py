@@ -39,6 +39,15 @@ async def test_rewrite_keeps_explicit_term(monkeypatch):
     assert result.detected_term_name == "Fall 2026"
 
 
+async def test_rewrite_detects_course_code_after_explicit_term(monkeypatch):
+    monkeypatch.setattr(settings, "rag_enable_query_rewrite", True)
+    monkeypatch.setattr(settings, "rag_query_rewrite_mode", "rule")
+
+    result = await rewrite_query("What are the Fall 2026 CS 4400 sections?")
+
+    assert result.detected_course_code == "CS 4400"
+
+
 async def test_rewrite_does_not_treat_fall_year_as_course_code(monkeypatch):
     monkeypatch.setattr(settings, "rag_enable_query_rewrite", True)
     monkeypatch.setattr(settings, "rag_query_rewrite_mode", "rule")

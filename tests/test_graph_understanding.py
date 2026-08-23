@@ -58,3 +58,25 @@ def test_user_term_supplies_missing_schedule_term():
 
     assert result["term_code"] == "202705"
     assert result["needs_clarification"] is False
+
+
+def test_term_before_course_code_does_not_become_the_course():
+    result = understand_query(
+        "What are the Fall 2026 CS 4400 sections, instructor, locations, and meeting times?"
+    )
+
+    assert result["intent"] == "course_schedule"
+    assert result["subject"] == "CS"
+    assert result["course_number"] == "4400"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "GT Fall 2026 tuition and fee payment deadline",
+        "Fall 2026 immunization deadlines by last-name group at GT?",
+        "fall transfer document deadline at GT?",
+    ],
+)
+def test_domain_deadlines_do_not_route_to_academic_calendar(query):
+    assert understand_query(query)["intent"] == "policy"

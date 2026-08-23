@@ -8,9 +8,46 @@ from unittest.mock import AsyncMock
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
-from app.graph.workflow import WorkflowServices, build_workflow
+from app.graph.workflow import WorkflowServices, _policy_source_types, build_workflow
 from app.retrieval.documents import DocumentEvidence
 from ingestion.schedule.validate import FreshnessState
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("How do financial-aid appeals work?", ("finance",)),
+        ("How do I cancel my housing contract?", ("housing", "dining")),
+        ("How do I request disability accommodations?", ("health_support",)),
+        ("What counts as full-time enrollment for F-1 students?", ("international",)),
+        ("Does the Stinger bus require a fare?", ("campus_operations",)),
+        ("Who is eligible to become a Knack tutor?", ("student_support",)),
+        (
+            "What is the undergraduate minor credit-hour requirement?",
+            (
+                "official_policy",
+                "academic_calendar",
+                "course_catalog",
+                "omscs_policy",
+                "degree_programs",
+                "academic_policy",
+                "academic_lifecycle",
+            ),
+        ),
+        ("What are first-year recommendation requirements?", ("admissions",)),
+    ],
+)
+def test_policy_source_routing_uses_domain_verticals(query, expected):
+    assert _policy_source_types(query) == expected
+
+
+def test_policy_source_routing_preserves_cross_domain_precedence():
+    assert _policy_source_types("Does OMSCS offer financial aid?") == ("omscs_policy",)
+    assert _policy_source_types("Are first-year meal plans required?") == ("housing", "dining")
+    assert _policy_source_types("How do I request disability housing accommodations?") == (
+        "health_support",
+    )
+    assert _policy_source_types("What is the minimum satisfactory GPA?") != ("admissions",)
 
 
 @pytest.mark.asyncio
