@@ -17,7 +17,11 @@ def _schedule_query_type(text: str) -> ScheduleQueryType:
         return "online_availability"
     if re.search(r"\bcrns?\b", lowered):
         return "crns"
-    if re.search(r"\bwho\b|\binstructors?\b|\bprofessors?\b|\bteaches?\b", lowered):
+    if re.search(
+        r"\bwho(?:'s|s)?\b|\binstructors?\b|\bprofessors?\b|"
+        r"\bteach(?:es|ing|ers?)?\b|\btaught\b",
+        lowered,
+    ):
         return "instructors"
     if re.search(r"\bwhere\b|\blocations?\b|\bbuildings?\b|\brooms?\b", lowered):
         return "location"
@@ -78,6 +82,12 @@ def understand_query(
     previous_schedule = bool(context and context.get("intent") == "course_schedule")
     schedule_follow_up = _schedule_follow_up(text)
     what_about = text.lower().startswith("what about ") and previous_schedule
+    number_tokens = re.findall(r"\b\d{4}[a-z]?\b", text, re.I)
+    incomplete_schedule = bool(
+        course is None
+        and any(token != (term_code or "")[:4] for token in number_tokens)
+        and _schedule_query_type(text) != "general_schedule"
+    )
     if previous_schedule and (schedule_follow_up or what_about):
         if course is None and schedule_follow_up:
             previous_subject = context.get("subject")
@@ -88,7 +98,12 @@ def understand_query(
             term_code = str(context["term_code"])
 
     intent: GraphIntent
-    if route.intent == "course_schedule_sections" or schedule_follow_up or what_about:
+    if (
+        route.intent == "course_schedule_sections"
+        or schedule_follow_up
+        or what_about
+        or incomplete_schedule
+    ):
         intent = "course_schedule"
     elif route.intent == "registrar_calendar" and not domain_policy:
         intent = "registration_calendar"

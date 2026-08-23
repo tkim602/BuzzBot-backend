@@ -75,6 +75,10 @@ SCHEDULE_KEYWORDS = [
     "waitlist",
     "instructor",
     "professor",
+    "teach",
+    "taught",
+    "meet",
+    "run",
     "time",
     "times",
     "location",
@@ -100,6 +104,8 @@ TERM_KEYWORDS = [
 ]
 COURSE_CODE_RE = re.compile(r"\b([a-z]{2,4})\s*-?\s*(\d{4}[a-z]?)\b", re.IGNORECASE)
 COURSE_CODE_STOPWORDS = {
+    "does",
+    "for",
     "spring",
     "summer",
     "fall",
