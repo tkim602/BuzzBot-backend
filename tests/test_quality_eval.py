@@ -332,3 +332,20 @@ def test_dev_100_retrieval_baseline_freezes_the_explained_delta():
         "gold_not_returned": 37,
         "rank_gt_5": 6,
     }
+
+
+def test_gold_not_returned_diagnosis_selects_one_largest_bucket():
+    diagnosis = json.loads(
+        Path("eval/quality/baselines/dev_100_gold_not_returned_diagnosis.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    buckets = diagnosis["buckets"]
+
+    assert sum(bucket["count"] for bucket in buckets.values()) == 37
+    assert len({case_id for bucket in buckets.values() for case_id in bucket["case_ids"]}) == 37
+    assert diagnosis["largest_bucket"] == {
+        "name": "LEXICAL_OR_RECOVERABLE_DEEP",
+        "count": 20,
+    }
+    assert diagnosis["fix_applied"] is False
