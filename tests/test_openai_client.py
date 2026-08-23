@@ -32,3 +32,4 @@ def test_openai_client_is_wrapped_only_when_langsmith_tracing_is_enabled(monkeyp
     get_openai_client.cache_clear()
     monkeypatch.setenv("LANGSMITH_TRACING", "false")
     assert get_openai_client("test-key") is raw_client
+    get_openai_client.cache_clear()

@@ -8,6 +8,7 @@ import statistics
 import subprocess
 import time
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
@@ -136,12 +137,15 @@ def make_target(cases: list[CourseDetailsCase]):
 
 def _feedback(row: dict[str, object]) -> dict[str, object]:
     evaluation = cast(dict[str, object], row.get("evaluation_results", {}))
-    results = cast(list[dict[str, object]], evaluation.get("results", []))
-    return {
-        str(item["key"]): item.get("score", item.get("value"))
-        for item in results
-        if item.get("key")
-    }
+    results = cast(list[object], evaluation.get("results", []))
+    feedback = {}
+    for item in results:
+        key = item.get("key") if isinstance(item, dict) else getattr(item, "key", None)
+        if key:
+            score = item.get("score") if isinstance(item, dict) else getattr(item, "score", None)
+            value = item.get("value") if isinstance(item, dict) else getattr(item, "value", None)
+            feedback[str(key)] = score if score is not None else value
+    return feedback
 
 
 def summarize_rows(rows: list[dict[str, object]]) -> dict[str, object]:
@@ -153,11 +157,16 @@ def summarize_rows(rows: list[dict[str, object]]) -> dict[str, object]:
         reference = cast(dict[str, object], example.outputs or {})
         feedback = _feedback(row)
         stages = score_stages(outputs, reference)
+        combined = {
+            **stages,
+            **feedback,
+            "gold_in_corpus": bool(outputs.get("gold_in_corpus")),
+        }
         records.append(
             {
                 "case_id": example.inputs["case_id"],
-                **stages,
-                **feedback,
+                **combined,
+                "primary_failure_stage": classify_failure(combined),
                 "app_cost_usd": float(
                     cast(dict[str, object], outputs.get("app_usage", {})).get("cost_usd") or 0.0
                 ),
@@ -165,6 +174,7 @@ def summarize_rows(rows: list[dict[str, object]]) -> dict[str, object]:
                 "trace_url": run.url,
             }
         )
+    records.sort(key=lambda record: str(record["case_id"]))
 
     def rate(key: str) -> float:
         return sum(bool(record.get(key)) for record in records) / len(records) if records else 0.0
@@ -216,6 +226,7 @@ def write_report(path: Path, summary: dict[str, object], experiment_url: str | N
         "",
         "- Dataset: buzzbot-course-details-20-full-domain-v1",
         f"- Git SHA: `{_git_sha()}`",
+        f"- Generated: {datetime.now(UTC).isoformat()}",
         f"- Experiment: {experiment_url or 'unavailable'}",
         f"- Cases: {summary['cases']}",
         f"- Task success: {float(summary['task_success']):.1%}",
@@ -223,6 +234,7 @@ def write_report(path: Path, summary: dict[str, object], experiment_url: str | N
         f"- Slot accuracy: {float(summary['slot_accuracy']):.1%}",
         f"- Gold URL Hit@5: {float(summary['gold_url_hit_at_5']):.1%}",
         f"- Gold URL Hit@8: {float(summary['gold_url_hit_at_8']):.1%}",
+        f"- MRR@8: {float(summary['mrr_at_8']):.4f}",
         f"- Evidence valid: {float(summary['evidence_valid_rate']):.1%}",
         f"- Answer correctness: {float(summary['answer_correctness']):.1%}",
         f"- Support: {float(summary['support_rate']):.1%}",
@@ -230,7 +242,9 @@ def write_report(path: Path, summary: dict[str, object], experiment_url: str | N
         f"- Abstention: {float(summary['abstention_rate']):.1%}",
         f"- App cost: ${float(summary['app_cost_usd']):.6f}",
         f"- Judge cost: ${float(summary['judge_cost_usd']):.6f}",
+        f"- Latency p50/p95: {summary['latency_ms']['p50']:.1f} / {summary['latency_ms']['p95']:.1f} ms",
         f"- Failure stages: `{json.dumps(summary['failure_stages'], sort_keys=True)}`",
+        "- Interpretation: catalog chunks share one canonical subject URL, so URL Hit@5 does not prove that the requested course chunk was retrieved; inspect each linked retrieval span.",
         "",
         "| Case | Route | Gold rank | Evidence | Abstained | Correct | Supported | Stage | Trace |",
         "|---|---:|---:|---:|---:|---:|---:|---|---|",

@@ -38,6 +38,9 @@ def score_stages(outputs: dict[str, object], reference_outputs: dict[str, object
         "unnecessary_evidence_reject": bool(rank is not None and not outputs.get("evidence_valid")),
         "citation_gold_url_hit": _rank(citation_urls, gold_urls) is not None,
         "abstained": bool(outputs.get("abstain_reason")),
+        "answer_validation_rejected": (
+            outputs.get("abstain_reason") == "ANSWER_VALIDATION_FAILED"
+        ),
         "answer_valid": bool(outputs.get("answer_valid")),
     }
 

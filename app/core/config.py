@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+
+load_dotenv()
 
 
 def sync_database_url(database_url: str) -> str:

@@ -16,6 +16,8 @@ def classify_failure(result: dict[str, object]) -> FailureStage:
         return "RETRIEVAL_MISS"
     if not result.get("evidence_valid"):
         return "EVIDENCE_REJECT"
+    if result.get("answer_validation_rejected"):
+        return "ANSWER_VALIDATION_REJECT"
     if not result.get("answer_correct", True):
         return "SYNTHESIS_WRONG"
     if not result.get("answer_valid"):

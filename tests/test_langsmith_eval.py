@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from langsmith.evaluation import EvaluationResult
 
 from eval.langsmith.datasets import DATASET_NAME, ensure_dataset, load_course_details
 from eval.langsmith.evaluators import score_stages, stage_evaluator
@@ -132,6 +133,14 @@ def test_stage_scores_keep_route_slots_retrieval_and_citations_separate():
         ({"best_gold_rank": None, "pre_rerank_gold_rank": 2}, "RERANK_LOSS"),
         ({"best_gold_rank": None}, "RETRIEVAL_MISS"),
         ({"evidence_valid": False}, "EVIDENCE_REJECT"),
+        (
+            {
+                "answer_validation_rejected": True,
+                "answer_correct": False,
+                "answer_valid": False,
+            },
+            "ANSWER_VALIDATION_REJECT",
+        ),
         ({"answer_correct": False}, "SYNTHESIS_WRONG"),
         ({"answer_valid": False}, "ANSWER_VALIDATION_REJECT"),
         ({}, "PASS"),
@@ -219,7 +228,7 @@ def test_summary_uses_stage_and_semantic_feedback_without_one_aggregate():
         "example": SimpleNamespace(inputs={"case_id": "fd-course-001"}, outputs=reference),
         "evaluation_results": {
             "results": [
-                {"key": "answer_correct", "score": True},
+                EvaluationResult(key="answer_correct", score=True),
                 {"key": "supported", "score": False},
                 {"key": "judge_cost_usd", "score": 0.002},
                 {"key": "primary_failure_stage", "value": "SYNTHESIS_WRONG"},
