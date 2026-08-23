@@ -56,6 +56,7 @@ def _document_item(evidence: Any) -> EvidenceItem:
         fetched_at=evidence.fetched_at,
         source=evidence.source_name,
         metadata={
+            "chunk_id": evidence.chunk_id,
             "source_type": evidence.source_type,
             "authority": evidence.authority,
             "edition": evidence.edition,

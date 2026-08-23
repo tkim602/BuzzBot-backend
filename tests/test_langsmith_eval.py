@@ -124,6 +124,44 @@ def test_stage_scores_keep_route_slots_retrieval_and_citations_separate():
     assert by_key["best_gold_rank"] == 2
 
 
+def test_course_chunk_metrics_do_not_treat_shared_catalog_url_as_a_hit():
+    reference = {
+        "expected_route": "course_details",
+        "expected_subject": "CS",
+        "expected_course_number": "6300",
+        "gold_urls": ["https://catalog.gatech.edu/coursesaz/cs/"],
+    }
+    outputs = {
+        "intent": "course_details",
+        "subject": "CS",
+        "course_number": "6300",
+        "returned_urls": reference["gold_urls"] * 2,
+        "evidence": [
+            {
+                "text": "CS 6035. Introduction to Information Security.",
+                "title": "Computer Science (CS)",
+                "metadata": {"chunk_id": "wrong-course"},
+            },
+            {
+                "text": "CS 6300. Software Development Process. 3 Credit Hours.",
+                "title": "Computer Science (CS)",
+                "metadata": {"chunk_id": "target-course"},
+            },
+        ],
+        "citations": [],
+    }
+
+    scores = score_stages(outputs, reference)
+
+    assert scores["best_gold_rank"] == 1
+    assert scores["target_course_best_rank"] == 2
+    assert scores["target_course_chunk_hit_at_1"] is False
+    assert scores["target_course_chunk_hit_at_5"] is True
+    assert scores["target_course_chunk_hit_at_8"] is True
+    assert scores["target_course_mrr_at_8"] == 0.5
+    assert scores["target_course_chunk_ids"] == ["target-course"]
+
+
 @pytest.mark.parametrize(
     ("overrides", "expected"),
     [
@@ -214,6 +252,9 @@ def test_summary_uses_stage_and_semantic_feedback_without_one_aggregate():
         "evidence_valid": True,
         "answer_valid": True,
         "citations": [{"url": "https://catalog.gatech.edu/coursesaz/cs/"}],
+        "evidence": [
+            {"text": "CS 6035. Official catalog description.", "metadata": {"chunk_id": "c1"}}
+        ],
         "latency_ms": 20.0,
         "app_usage": {"cost_usd": 0.01},
     }
@@ -243,3 +284,5 @@ def test_summary_uses_stage_and_semantic_feedback_without_one_aggregate():
     assert summary["task_success"] == 0.0
     assert summary["app_cost_usd"] == 0.01
     assert summary["judge_cost_usd"] == 0.002
+    assert summary["target_course_chunk_hit_at_5"] == 1.0
+    assert summary["target_course_mrr_at_8"] == 1.0

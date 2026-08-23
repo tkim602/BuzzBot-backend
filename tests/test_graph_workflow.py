@@ -212,6 +212,7 @@ async def test_grounded_document_answer_keeps_official_citation(monkeypatch):
     assert result["claims_supported"] is True
     assert result["polarity_consistent"] is True
     assert result["answer_nonempty"] is True
+    assert result["evidence"][0]["metadata"]["chunk_id"] == evidence.chunk_id
 
 
 @pytest.mark.asyncio

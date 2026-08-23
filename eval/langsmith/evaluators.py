@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from eval.quality.metrics import normalize_url
 
 
@@ -9,6 +11,35 @@ def _rank(urls: list[object], gold_urls: list[object]) -> int | None:
         if normalize_url(str(url)) in gold:
             return index
     return None
+
+
+def _target_course_metrics(
+    outputs: dict[str, object], reference_outputs: dict[str, object]
+) -> dict[str, object]:
+    subject = re.escape(str(reference_outputs.get("expected_subject", "")))
+    number = re.escape(str(reference_outputs.get("expected_course_number", "")))
+    marker = re.compile(rf"(?<![A-Z0-9]){subject}\s*{number}(?![A-Z0-9])", re.I)
+    matches: list[tuple[int, str]] = []
+    evidence = outputs.get("evidence", [])
+    if isinstance(evidence, list):
+        for rank, item in enumerate(evidence, start=1):
+            if not isinstance(item, dict):
+                continue
+            if marker.search(f"{item.get('title') or ''}\n{item.get('text') or ''}"):
+                metadata = item.get("metadata", {})
+                chunk_id = metadata.get("chunk_id", "") if isinstance(metadata, dict) else ""
+                matches.append((rank, str(chunk_id)))
+    best_rank = matches[0][0] if matches else None
+    return {
+        "target_course_best_rank": best_rank,
+        "target_course_chunk_hit_at_1": best_rank == 1,
+        "target_course_chunk_hit_at_5": best_rank is not None and best_rank <= 5,
+        "target_course_chunk_hit_at_8": best_rank is not None and best_rank <= 8,
+        "target_course_mrr_at_8": 1 / best_rank
+        if best_rank is not None and best_rank <= 8
+        else 0.0,
+        "target_course_chunk_ids": [chunk_id for _, chunk_id in matches if chunk_id],
+    }
 
 
 def score_stages(
@@ -24,6 +55,7 @@ def score_stages(
         else []
     )
     return {
+        **_target_course_metrics(outputs, reference_outputs),
         "route_correct": outputs.get("intent") == reference_outputs.get("expected_route"),
         "subject_correct": outputs.get("subject") == reference_outputs.get("expected_subject"),
         "course_number_correct": (

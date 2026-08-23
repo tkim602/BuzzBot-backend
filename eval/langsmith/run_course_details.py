@@ -198,6 +198,14 @@ def summarize_rows(rows: list[dict[str, object]]) -> dict[str, object]:
         "gold_url_hit_at_5": rate("gold_url_hit_at_5"),
         "gold_url_hit_at_8": rate("gold_url_hit_at_8"),
         "mrr_at_8": sum(1 / rank for rank in ranks if rank <= 8) / len(records) if records else 0.0,
+        "target_course_chunk_hit_at_1": rate("target_course_chunk_hit_at_1"),
+        "target_course_chunk_hit_at_5": rate("target_course_chunk_hit_at_5"),
+        "target_course_chunk_hit_at_8": rate("target_course_chunk_hit_at_8"),
+        "target_course_mrr_at_8": (
+            sum(float(record["target_course_mrr_at_8"]) for record in records) / len(records)
+            if records
+            else 0.0
+        ),
         "evidence_valid_rate": rate("evidence_valid"),
         "answer_correctness": rate("answer_correct"),
         "support_rate": rate("supported"),
@@ -230,6 +238,10 @@ def write_report(path: Path, summary: dict[str, object], experiment_url: str | N
         f"- Gold URL Hit@5: {float(summary['gold_url_hit_at_5']):.1%}",
         f"- Gold URL Hit@8: {float(summary['gold_url_hit_at_8']):.1%}",
         f"- MRR@8: {float(summary['mrr_at_8']):.4f}",
+        f"- Target-course chunk Hit@1: {float(summary['target_course_chunk_hit_at_1']):.1%}",
+        f"- Target-course chunk Hit@5: {float(summary['target_course_chunk_hit_at_5']):.1%}",
+        f"- Target-course chunk Hit@8: {float(summary['target_course_chunk_hit_at_8']):.1%}",
+        f"- Target-course chunk MRR@8: {float(summary['target_course_mrr_at_8']):.4f}",
         f"- Evidence valid: {float(summary['evidence_valid_rate']):.1%}",
         f"- Answer correctness: {float(summary['answer_correctness']):.1%}",
         f"- Support: {float(summary['support_rate']):.1%}",
