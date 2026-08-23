@@ -426,6 +426,26 @@ def test_user_holdout_baseline_preserves_blind_result_and_scoped_follow_up():
     assert baseline["focused_verification"]["full_manifest_rerun"] is False
 
 
+def test_user_shadow_baseline_freezes_quality_and_latency_improvements():
+    baseline = json.loads(
+        Path("eval/quality/baselines/user_shadow_8.json").read_text(encoding="utf-8")
+    )
+
+    assert baseline["manifest_sha256"] == (
+        "0ba741596f97534f1258a1b0d3d269ad14a956c7f41e10130e9a2095e8158f70"
+    )
+    assert baseline["blind_run"]["answer_correctness"] == 0.25
+    assert baseline["final_run"]["answer_correctness"] == 0.875
+    assert baseline["final_run"]["evidence_support_rate"] == 1.0
+    assert (
+        baseline["client_reuse"]["latency_ms"]["p50"] < baseline["final_run"]["latency_ms"]["p50"]
+    )
+    assert (
+        baseline["cold_start"]["first_request_ms_after"]
+        < baseline["cold_start"]["first_request_ms_before"]
+    )
+
+
 def test_gold_not_returned_diagnosis_selects_one_largest_bucket():
     diagnosis = json.loads(
         Path("eval/quality/baselines/dev_100_gold_not_returned_diagnosis.json").read_text(
