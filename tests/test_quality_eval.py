@@ -186,3 +186,38 @@ def test_runner_uses_manifest_cases_when_requested(monkeypatch, tmp_path):
     monkeypatch.setattr(runner, "load_cases", lambda path: pytest.fail("master loader used"))
 
     assert runner._evaluation_cases(tmp_path / "master", tmp_path / "manifest.json") == selected
+
+
+def _result(mode: str, rank: int | None) -> CaseResult:
+    return CaseResult(_case(), mode, rank, rank, rank, 5, 1.0, ())
+
+
+def test_diagnose_distinguishes_production_from_ablation_failures():
+    production = _result("production", 1)
+    results = {
+        "production": [production],
+        "raw": [_result("raw", None)],
+        "vector": [_result("vector", None)],
+        "fts": [_result("fts", None)],
+    }
+
+    runner._diagnose(results)
+
+    assert "ALL_ABLATIONS_MISS" in production.failure_tags
+    assert "PRODUCTION_RECOVERS_ABLATIONS" in production.failure_tags
+    assert "PRODUCTION_MISS" not in production.failure_tags
+    assert "ALL_METHODS_FAIL" not in production.failure_tags
+
+
+def test_diagnose_marks_only_actual_production_misses():
+    production = _result("production", None)
+    results = {
+        "production": [production],
+        "raw": [_result("raw", None)],
+        "vector": [_result("vector", None)],
+        "fts": [_result("fts", None)],
+    }
+
+    runner._diagnose(results)
+
+    assert "PRODUCTION_MISS" in production.failure_tags

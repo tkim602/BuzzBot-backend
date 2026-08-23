@@ -222,21 +222,23 @@ def _diagnose(results_by_mode: dict[str, list[CaseResult]]) -> None:
         raw = indexed.get("raw", {}).get(case_id)
         vector = indexed.get("vector", {}).get(case_id)
         fts = indexed.get("fts", {}).get(case_id)
-        hybrid = raw
         if prod.returned == 0:
             tags.append("EMPTY_RETRIEVAL")
         if not prod.hit_at(5):
             tags.append("RANK_GT_5" if prod.rank else "GOLD_NOT_RETURNED")
+            tags.append("PRODUCTION_MISS")
         if raw and raw.hit_at(5) and not prod.hit_at(5):
             tags.append("RAW_RECOVERS")
-        if vector and vector.hit_at(5) and hybrid and not hybrid.hit_at(5):
+        if vector and vector.hit_at(5) and raw and not raw.hit_at(5):
             tags.append("VECTOR_ONLY_RECOVERS")
-        if fts and fts.hit_at(5) and hybrid and not hybrid.hit_at(5):
+        if fts and fts.hit_at(5) and raw and not raw.hit_at(5):
             tags.append("FTS_ONLY_RECOVERS")
-        if hybrid and hybrid.hit_at(5) and not prod.hit_at(5):
+        if raw and raw.hit_at(5) and not prod.hit_at(5):
             tags.append("PRODUCTION_FILTER_OR_ROUTING_LOSS")
-        if all(row is not None and not row.hit_at(5) for row in (raw, vector, fts, hybrid)):
-            tags.append("ALL_METHODS_FAIL")
+        if all(row is not None and not row.hit_at(5) for row in (raw, vector, fts)):
+            tags.append("ALL_ABLATIONS_MISS")
+            if prod.hit_at(5):
+                tags.append("PRODUCTION_RECOVERS_ABLATIONS")
         object.__setattr__(prod, "failure_tags", tuple(tags))
 
 
