@@ -303,3 +303,32 @@ def test_evidence_rank_matches_exact_normalized_span_and_reports_metrics():
 
     assert evidence_rank(gold, items) == 2
     assert summarize_evidence([result])["evidence_hit_at_3"] == 1.0
+
+
+def test_coverage_summary_separates_documents_from_evidence():
+    evidence = {
+        "gold-001": GoldEvidence("gold-001", _case().gold_urls[0], "official policy"),
+        "gold-002": GoldEvidence("gold-002", _case().gold_urls[0], None),
+    }
+
+    assert runner._coverage_summary({"document_coverage": 1.0}, evidence) == {
+        "document_coverage": 1.0,
+        "evidence_coverage": 0.5,
+    }
+
+
+def test_dev_100_retrieval_baseline_freezes_the_explained_delta():
+    baseline = json.loads(
+        Path("eval/quality/baselines/dev_100_retrieval.json").read_text(encoding="utf-8")
+    )
+
+    assert baseline["manifest_sha256"] == (
+        "58c343d37902a4bbbf4f281509413b701d55cca6cbeab8001404111de6c59562"
+    )
+    assert baseline["before"]["hit_at_5"] == 0.42
+    assert baseline["after"]["hit_at_5"] == 0.57
+    assert baseline["case_delta"] == {"wins": 17, "regressions": 2, "net": 15}
+    assert baseline["after_failure_boundary"] == {
+        "gold_not_returned": 37,
+        "rank_gt_5": 6,
+    }

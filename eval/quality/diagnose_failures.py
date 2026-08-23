@@ -344,8 +344,8 @@ def write_reports(
         "",
         "- No paid API or network calls were made by this diagnosis.",
         (
-            "- Existing `gold_corpus_coverage` meaning: at least one matching Document row; "
-            "chunk/embedding completeness did not reduce that percentage."
+            "- `document_coverage` means at least one matching Document row; "
+            "evidence coverage is reported separately by the retrieval evaluator."
         ),
         (
             "- Actual indexed gold corpus coverage: "

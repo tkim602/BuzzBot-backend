@@ -32,7 +32,7 @@ from app.retrieval import (
 )
 from db.models import Chunk, Document, Embedding, Source
 from db.session import AsyncSessionLocal
-from eval.quality.evidence import evidence_rank, load_gold_evidence
+from eval.quality.evidence import GoldEvidence, evidence_rank, load_gold_evidence
 from eval.quality.metrics import (
     CaseResult,
     RankedItem,
@@ -207,7 +207,7 @@ async def audit_corpus(session, cases: list[GoldCase]) -> dict[str, object]:
         "present_gold_urls": len(present_urls),
         "missing_gold_urls": missing_urls,
         "missing_or_incomplete_embedding_urls": missing_embedding_urls,
-        "gold_corpus_coverage": case_present / len(cases),
+        "document_coverage": case_present / len(cases),
         "gold_fact_coverage": sum(fact_presence.values()) / len(fact_presence),
         "metadata_consistency": 1.0 - (len(metadata_mismatches) / len(cases)),
         "metadata_mismatches": metadata_mismatches,
@@ -248,6 +248,19 @@ def _diagnose(results_by_mode: dict[str, list[CaseResult]]) -> None:
 
 def _production_lift_at_5(summaries: dict[str, dict[str, object]]) -> float:
     return float(summaries["production"]["hit_at_5"]) - float(summaries["raw"]["hit_at_5"])
+
+
+def _coverage_summary(
+    corpus_audit: dict[str, object], evidence: dict[str, GoldEvidence]
+) -> dict[str, float | None]:
+    return {
+        "document_coverage": float(corpus_audit["document_coverage"]),
+        "evidence_coverage": (
+            sum(row.span is not None for row in evidence.values()) / len(evidence)
+            if evidence
+            else None
+        ),
+    }
 
 
 def _evaluation_cases(dataset: Path, manifest: Path | None) -> list[GoldCase]:
@@ -319,6 +332,7 @@ async def run(
         "top_k": top_k,
         "embedding_batch_ms": embedding_batch_ms,
         "corpus_audit": corpus_audit,
+        "coverage": _coverage_summary(corpus_audit, gold_evidence),
         "modes": summaries,
         "ablation": {
             "vector": summaries["vector"],
@@ -338,9 +352,6 @@ async def run(
     }
     if gold_evidence:
         report["evidence"] = summarize_evidence(production)
-        report["evidence"]["artifact_coverage"] = sum(
-            row.span is not None for row in gold_evidence.values()
-        ) / len(gold_evidence)
 
     summary_path = report_dir / "latest_summary.json"
     cases_path = report_dir / "latest_cases.jsonl"
@@ -401,7 +412,8 @@ def _render_markdown(report: dict[str, object]) -> str:
         "",
         f"- Questions: {report['cases']}",
         f"- Underlying facts: {report['facts']}",
-        f"- Gold corpus coverage: {report['corpus_audit']['gold_corpus_coverage']:.2%}",
+        f"- Gold document coverage: {report['coverage']['document_coverage']:.2%}",
+        f"- Gold evidence coverage: {_percent_or_na(report['coverage']['evidence_coverage'])}",
         "",
         "## Headline metrics",
         "",
@@ -435,6 +447,10 @@ def _render_markdown(report: dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _percent_or_na(value: object) -> str:
+    return "n/a" if value is None else f"{float(value):.2%}"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run BuzzBot deterministic retrieval quality eval")
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
@@ -460,7 +476,8 @@ def main() -> None:
     raw = report["modes"]["raw"]
     print("\n=== BuzzBot deterministic retrieval quality ===")
     print(f"questions={report['cases']} facts={report['facts']}")
-    print(f"gold_corpus_coverage={report['corpus_audit']['gold_corpus_coverage']:.2%}")
+    print(f"document_coverage={report['coverage']['document_coverage']:.2%}")
+    print(f"evidence_coverage={_percent_or_na(report['coverage']['evidence_coverage'])}")
     print(
         f"production hit@1={production['hit_at_1']:.2%} hit@3={production['hit_at_3']:.2%} "
         f"hit@5={production['hit_at_5']:.2%} mrr@5={production['mrr_at_5']:.3f}"
