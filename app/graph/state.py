@@ -8,6 +8,16 @@ GraphIntent = Literal[
     "registration_calendar",
     "policy",
 ]
+ScheduleQueryType = Literal[
+    "offering",
+    "sections",
+    "crns",
+    "instructors",
+    "meeting",
+    "location",
+    "online_availability",
+    "general_schedule",
+]
 EvidenceValidationReason = Literal[
     "NO_EVIDENCE",
     "MISSING_TEXT",
@@ -44,6 +54,7 @@ class AgentState(TypedDict):
     subject: NotRequired[str | None]
     course_number: NotRequired[str | None]
     term_code: NotRequired[str | None]
+    schedule_query_type: NotRequired[ScheduleQueryType]
     needs_clarification: NotRequired[bool]
     clarification: NotRequired[str]
     retry_count: NotRequired[int]

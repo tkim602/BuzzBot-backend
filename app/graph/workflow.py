@@ -9,12 +9,14 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.graph.schedule_rendering import render_schedule_answer, validate_schedule_answer
 from app.graph.state import (
     AgentState,
     CitationItem,
     EvidenceItem,
     EvidenceValidationReason,
     GraphIntent,
+    ScheduleQueryType,
 )
 from app.graph.understanding import understand_query
 from app.rag.answerer import generate_answer
@@ -71,7 +73,21 @@ def _document_item(evidence: Any) -> EvidenceItem:
 
 def _schedule_item(offering: Any) -> EvidenceItem:
     meeting_parts = []
+    meeting_metadata = []
     for meeting in offering.meetings:
+        meeting_metadata.append(
+            {
+                "meeting_type": meeting.meeting_type,
+                "days": meeting.days,
+                "start_time": meeting.start_time.strftime("%H:%M") if meeting.start_time else None,
+                "end_time": meeting.end_time.strftime("%H:%M") if meeting.end_time else None,
+                "start_date": meeting.start_date.isoformat(),
+                "end_date": meeting.end_date.isoformat(),
+                "building": meeting.building,
+                "room": meeting.room,
+                "is_tba": meeting.is_tba,
+            }
+        )
         if meeting.is_tba:
             meeting_parts.append("TBA")
         else:
@@ -104,9 +120,21 @@ def _schedule_item(offering: Any) -> EvidenceItem:
         source="oscar",
         metadata={
             "term_code": offering.term_code,
+            "subject": offering.subject,
+            "course_number": offering.course_number,
+            "title": offering.title,
+            "section_code": offering.section_code,
             "crn": offering.crn,
+            "campus": offering.campus,
+            "schedule_type": offering.schedule_type,
+            "instructional_method": offering.instructional_method,
+            "instructors": list(offering.instructors),
+            "notes": offering.notes,
+            "meetings": meeting_metadata,
+            "source_url": offering.source_url,
             "data_version_id": str(offering.data_version_id),
             "freshness": str(offering.freshness),
+            "data_as_of": offering.data_as_of.isoformat(),
         },
     )
 
@@ -234,17 +262,11 @@ def build_workflow(
     async def answer_node(state: AgentState) -> dict[str, object]:
         evidence = state.get("evidence", [])
         if state["intent"] == "course_schedule":
-            citations = [
-                CitationItem(
-                    url=item["url"],
-                    title=item["title"],
-                    fetched_at=item["fetched_at"],
-                    quote=item["text"],
-                )
-                for item in evidence
-            ]
+            answer, citations = render_schedule_answer(
+                cast(ScheduleQueryType, state["schedule_query_type"]), evidence
+            )
             return {
-                "answer": "\n".join(item["text"] for item in evidence),
+                "answer": answer,
                 "citations": citations,
                 "confidence": 0.95,
             }
@@ -261,6 +283,22 @@ def build_workflow(
 
     async def validate_answer_node(state: AgentState) -> dict[str, object]:
         citations = cast(list[dict[str, object]], state.get("citations", []))
+        if state["intent"] == "course_schedule":
+            valid = validate_schedule_answer(
+                cast(ScheduleQueryType, state["schedule_query_type"]),
+                state.get("evidence", []),
+                state.get("answer", ""),
+                cast(list[CitationItem], citations),
+            )
+            return {
+                "citations": citations if valid else [],
+                "grounding_valid": valid,
+                "claims_supported": valid,
+                "polarity_consistent": True,
+                "answer_nonempty": bool(state.get("answer", "").strip()),
+                "answer_valid": valid and bool(state.get("answer", "").strip()),
+                "notes": state.get("notes", []),
+            }
         chunks = _as_chunks(state.get("evidence", []))
         valid, grounding_notes = check_grounding(citations, chunks)
         claims_supported, claim_notes = await check_claim_support(

@@ -2,13 +2,32 @@ from __future__ import annotations
 
 import re
 
-from app.graph.state import GraphIntent
+from app.graph.state import GraphIntent, ScheduleQueryType
 from app.rag.router import classify_query, extract_course_code
 from app.retrieval.documents import policy_source_types
 
 TERM_RE = re.compile(r"\b(spring|summer|fall)\s*(20\d{2})\b", re.IGNORECASE)
 REVERSED_TERM_RE = re.compile(r"\b(20\d{2})\s*(spring|summer|fall)\b", re.IGNORECASE)
 TERM_SUFFIX = {"spring": "02", "summer": "05", "fall": "08"}
+
+
+def _schedule_query_type(text: str) -> ScheduleQueryType:
+    lowered = text.lower()
+    if re.search(r"\bonline\b|\bremote\b", lowered):
+        return "online_availability"
+    if re.search(r"\bcrns?\b", lowered):
+        return "crns"
+    if re.search(r"\bwho\b|\binstructors?\b|\bprofessors?\b|\bteaches?\b", lowered):
+        return "instructors"
+    if re.search(r"\bwhere\b|\blocations?\b|\bbuildings?\b|\brooms?\b", lowered):
+        return "location"
+    if re.search(r"\bwhen\b|\btimes?\b|\bmeets?\b|\bdays?\b", lowered):
+        return "meeting"
+    if re.search(r"\bsections?\b", lowered):
+        return "sections"
+    if re.search(r"\boffer(?:ed|ing|s)?\b|\brun(?:s|ning)?\b", lowered):
+        return "offering"
+    return "general_schedule"
 
 
 def _course(query: str) -> tuple[str, str] | None:
@@ -68,6 +87,8 @@ def understand_query(query: str, user_term: str | None = None) -> dict[str, obje
         result["subject"], result["course_number"] = course
     if term_code is not None:
         result["term_code"] = term_code
+    if intent == "course_schedule":
+        result["schedule_query_type"] = _schedule_query_type(text)
 
     if intent == "course_schedule" and (course is None or term_code is None):
         missing = []

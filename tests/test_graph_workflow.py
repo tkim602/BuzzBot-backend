@@ -115,18 +115,48 @@ async def test_schedule_path_is_deterministic_and_cited(monkeypatch):
     )
     lookup = AsyncMock(return_value=[offering])
     monkeypatch.setattr("app.graph.workflow.lookup_course_offerings", lookup)
+    semantic_validation = AsyncMock(
+        side_effect=AssertionError("schedule answer must not call semantic validation")
+    )
+    monkeypatch.setattr("app.graph.workflow.check_claim_support", semantic_validation)
     embed = AsyncMock(side_effect=AssertionError("schedule SQL must not embed"))
     answer = AsyncMock(side_effect=AssertionError("schedule answer must not call an LLM"))
     graph = build_workflow(WorkflowServices(object(), embed, answer))
 
     result = await graph.ainvoke({"query": "Is CS 7650 offered in Fall 2026?"})
 
-    assert "CRN 12345" in result["answer"]
+    assert result["answer"] == (
+        "Yes. CS 7650 (Natural Language) is offered in Fall 2026 with 1 section: A (Atlanta)."
+    )
+    assert "CRN" not in result["answer"]
+    assert ";" not in result["answer"]
     assert result["citations"][0]["url"].startswith("https://oscar.gatech.edu/")
     assert result["answer_valid"] is True
+    assert result["schedule_query_type"] == "offering"
+    assert result["grounding_valid"] is True
+    assert result["claims_supported"] is True
     assert result["retry_count"] == 0
+    assert result["evidence"][0]["metadata"] == {
+        "term_code": "202608",
+        "subject": "CS",
+        "course_number": "7650",
+        "title": "Natural Language",
+        "section_code": "A",
+        "crn": "12345",
+        "campus": "Atlanta",
+        "schedule_type": "Lecture",
+        "instructional_method": "In Person",
+        "instructors": ["Ada Lovelace"],
+        "notes": None,
+        "meetings": [],
+        "source_url": offering.source_url,
+        "data_version_id": str(offering.data_version_id),
+        "freshness": "CURRENT",
+        "data_as_of": "2026-08-20T00:00:00+00:00",
+    }
     embed.assert_not_awaited()
     answer.assert_not_awaited()
+    semantic_validation.assert_not_awaited()
 
 
 @pytest.mark.asyncio

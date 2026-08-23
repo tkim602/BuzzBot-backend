@@ -71,6 +71,23 @@ def test_term_before_course_code_does_not_become_the_course():
 
 
 @pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("Is CS 7650 offered in Fall 2026?", "offering"),
+        ("What sections does CS 7650 have in Fall 2026?", "sections"),
+        ("What are the CRNs for CS 7650 in Fall 2026?", "crns"),
+        ("Who teaches CS 7650 in Fall 2026?", "instructors"),
+        ("When does CS 7650 meet in Fall 2026?", "meeting"),
+        ("Where does CS 7650 meet in Fall 2026?", "location"),
+        ("Does CS 7650 have an online section in Fall 2026?", "online_availability"),
+        ("Show me CS 7650 for Fall 2026", "general_schedule"),
+    ],
+)
+def test_schedule_query_kind_is_deterministic(query, expected):
+    assert understand_query(query)["schedule_query_type"] == expected
+
+
+@pytest.mark.parametrize(
     "query",
     [
         "GT Fall 2026 tuition and fee payment deadline",
