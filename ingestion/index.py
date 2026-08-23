@@ -144,7 +144,7 @@ def index_chunks(
     chunks: list,
     url: str,
     title: str | None,
-    headings: str | None,
+    _headings: str | None,
     fetched_at: datetime | None,
     embed_fn,
     batch_size: int = 32,
@@ -162,12 +162,18 @@ def index_chunks(
     # Create new chunks
     chunk_objs: list[Chunk] = []
     for c in chunks:
+        local_heading = (
+            str(
+                c.metadata.get("page_section_path") or c.metadata.get("section_heading") or ""
+            ).strip()
+            or None
+        )
         chunk_obj = Chunk(
             doc_id=doc_id,
             source_id=source_id,
             url=url,
             title=title,
-            headings=headings,
+            headings=local_heading,
             chunk_text=c.text,
             chunk_hash=c.chunk_hash,
             token_count=c.token_count,
@@ -182,7 +188,7 @@ def index_chunks(
     count = 0
     for i in range(0, len(chunk_objs), batch_size):
         batch = chunk_objs[i : i + batch_size]
-        texts = [c.chunk_text for c in batch]
+        texts = [_embedding_text(c) for c in batch]
         embeddings = embed_fn(texts)
         for chunk_obj, emb in zip(batch, embeddings, strict=True):
             emb_obj = Embedding(chunk_id=chunk_obj.chunk_id, embedding=emb)
@@ -191,6 +197,10 @@ def index_chunks(
     session.flush()
 
     return count
+
+
+def _embedding_text(chunk: Chunk) -> str:
+    return "\n".join(value for value in (chunk.title, chunk.headings, chunk.chunk_text) if value)
 
 
 def update_fetch_state(
