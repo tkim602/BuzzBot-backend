@@ -147,6 +147,21 @@ def test_schedule_manifest_covers_five_distinct_structured_sql_cases():
     assert all(case.time_sensitive for case in cases)
 
 
+def test_user_20_manifest_uses_unseen_facts_and_urls():
+    user_cases = load_manifest_cases(Path("eval/quality/manifests/user_20.json"))
+    dev_cases = load_manifest_cases(Path("eval/quality/manifests/dev_100.json"))
+
+    assert len(user_cases) == 20
+    assert len({case.variant_group for case in user_cases}) == 20
+    assert len({case.id for case in user_cases}) == 20
+    assert {case.variant_group for case in user_cases}.isdisjoint(
+        case.variant_group for case in dev_cases
+    )
+    assert {url.rstrip("/") for case in user_cases for url in case.gold_urls}.isdisjoint(
+        url.rstrip("/") for case in dev_cases for url in case.gold_urls
+    )
+
+
 def test_dev_evidence_artifact_covers_every_fixed_fact():
     cases = load_manifest_cases(Path("eval/quality/manifests/dev_100.json"))
     evidence = load_gold_evidence(Path("eval/quality/gold_evidence/dev_100.json"), cases)
