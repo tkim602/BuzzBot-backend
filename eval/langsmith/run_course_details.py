@@ -28,8 +28,7 @@ from eval.quality.schema import GoldCase
 from langsmith import Client
 
 DEFAULT_DATASET = Path(
-    "/Users/tkim01/Desktop/personal_project/"
-    "buzzbot_full_domain_500_dataset/full_domain_500.json"
+    "/Users/tkim01/Desktop/personal_project/buzzbot_full_domain_500_dataset/full_domain_500.json"
 )
 
 
@@ -37,9 +36,7 @@ def _git_sha() -> str:
     return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
 
 
-def _gold_case(
-    inputs: dict[str, object], reference_outputs: dict[str, object]
-) -> GoldCase:
+def _gold_case(inputs: dict[str, object], reference_outputs: dict[str, object]) -> GoldCase:
     return GoldCase(
         id=str(inputs["case_id"]),
         variant_group=str(inputs["case_id"]),
@@ -200,9 +197,7 @@ def summarize_rows(rows: list[dict[str, object]]) -> dict[str, object]:
         "slot_accuracy": rate("slots_correct"),
         "gold_url_hit_at_5": rate("gold_url_hit_at_5"),
         "gold_url_hit_at_8": rate("gold_url_hit_at_8"),
-        "mrr_at_8": sum(1 / rank for rank in ranks if rank <= 8) / len(records)
-        if records
-        else 0.0,
+        "mrr_at_8": sum(1 / rank for rank in ranks if rank <= 8) / len(records) if records else 0.0,
         "evidence_valid_rate": rate("evidence_valid"),
         "answer_correctness": rate("answer_correct"),
         "support_rate": rate("supported"),

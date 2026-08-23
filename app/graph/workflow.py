@@ -198,12 +198,9 @@ def build_workflow(
             "retrieval_top_k": top_k,
             "returned_evidence_count": len(evidence),
             "returned_urls": [item["url"] for item in evidence],
-            "retrieval_scores": [
-                _numeric(item["metadata"].get("score"), 1.0) for item in evidence
-            ],
+            "retrieval_scores": [_numeric(item["metadata"].get("score"), 1.0) for item in evidence],
             "retrieval_methods": [
-                str(item["metadata"].get("retrieval_method", item["kind"]))
-                for item in evidence
+                str(item["metadata"].get("retrieval_method", item["kind"])) for item in evidence
             ],
         }
 
