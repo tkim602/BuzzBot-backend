@@ -9,6 +9,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 import structlog
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
@@ -50,6 +51,15 @@ app = FastAPI(
     description="RAG chatbot for Georgia Tech campus information",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+# CORS — allow frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
