@@ -53,7 +53,7 @@ class ChunkResult:
 
 
 def _looks_like_heading(line: str) -> bool:
-    if not line or STRUCTURED_FIELD_RE.match(line):
+    if not line or STRUCTURED_FIELD_RE.match(line) or (" — " in line and ": " in line):
         return False
     m = MARKDOWN_HEADING_RE.match(line)
     if m:

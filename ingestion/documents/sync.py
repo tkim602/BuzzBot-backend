@@ -50,7 +50,7 @@ class DocumentQualityError(ValueError):
     pass
 
 
-CHUNKING_VERSION = 2
+CHUNKING_VERSION = 3
 
 
 _REDIRECT_SCOPES = {
