@@ -42,6 +42,8 @@ def test_policy_snapshot_freezes_exact_dev_100_top_five_evidence():
         for case in snapshot.cases
         for item in case.evidence
     )
+    assert sum(bool(case.metadata["document_hit_at_5"]) for case in snapshot.cases) == 80
+    assert sum(bool(case.metadata["evidence_hit_at_5"]) for case in snapshot.cases) == 70
 
 
 def test_policy_taxonomy_covers_exactly_the_twenty_one_answer_layer_failures():
@@ -192,6 +194,8 @@ def test_policy_langsmith_dataset_includes_frozen_evidence_inputs():
     assert dataset.name == "buzzbot-policy-answer-dev-100-v1"
     assert len(client.examples) == 100
     assert client.examples[0]["inputs"]["evidence"] == list(snapshot.cases[0].evidence)
+    assert "document_hit" in client.examples[0]["inputs"]
+    assert "evidence_hit" in client.examples[0]["inputs"]
     assert client.examples[0]["outputs"]["gold_answer"] == snapshot.cases[0].gold_answer
 
 

@@ -327,10 +327,9 @@ def ensure_dataset(client: object, snapshot: PolicySnapshot):
                     "case_id": case.case_id,
                     "question": case.question,
                     "evidence": list(case.evidence),
-                    "retrieval_hit": bool(
-                        case.metadata.get("accepted_retrieval_rank")
-                        and int(case.metadata["accepted_retrieval_rank"]) <= 5
-                    ),
+                    "retrieval_hit": bool(case.metadata["document_hit_at_5"]),
+                    "document_hit": bool(case.metadata["document_hit_at_5"]),
+                    "evidence_hit": bool(case.metadata["evidence_hit_at_5"]),
                 },
                 "outputs": {
                     "gold_answer": case.gold_answer,
