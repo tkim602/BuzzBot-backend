@@ -344,18 +344,27 @@ def ensure_dataset(client: object, snapshot: PolicySnapshot):
 
 
 def summarize_records(records: list[dict[str, object]]) -> dict[str, object]:
-    def rate(key: str) -> float:
-        return sum(bool(record.get(key)) for record in records) / len(records) if records else 0.0
+    def rate(rows: list[dict[str, object]], key: str) -> float:
+        return sum(bool(record.get(key)) for record in rows) / len(rows) if rows else 0.0
+
+    def quality(rows: list[dict[str, object]]) -> dict[str, float | int]:
+        return {
+            "cases": len(rows),
+            "answer_correctness": rate(rows, "correct"),
+            "answer_support": rate(rows, "supported"),
+            "citation_entails_claim": rate(rows, "citation_entails_claim"),
+            "unsupported_confident": rate(rows, "unsupported_confident"),
+        }
 
     return {
         "cases": len(records),
-        "answer_correctness": rate("correct"),
-        "answer_support": rate("supported"),
-        "citation_present": rate("citation_present"),
-        "citation_entails_claim": rate("citation_entails_claim"),
-        "citation_source_correct": rate("citation_source_correct"),
-        "abstention_correct": rate("abstention_correct"),
-        "unsupported_confident": rate("unsupported_confident"),
+        "answer_correctness": rate(records, "correct"),
+        "answer_support": rate(records, "supported"),
+        "citation_present": rate(records, "citation_present"),
+        "citation_entails_claim": rate(records, "citation_entails_claim"),
+        "citation_source_correct": rate(records, "citation_source_correct"),
+        "abstention_correct": rate(records, "abstention_correct"),
+        "unsupported_confident": rate(records, "unsupported_confident"),
         "failure_categories": dict(
             sorted(Counter(str(record["failure_category"]) for record in records).items())
         ),
@@ -368,6 +377,12 @@ def summarize_records(records: list[dict[str, object]]) -> dict[str, object]:
                 ).items()
             )
         ),
+        "by_evidence_hit": {
+            str(value).lower(): quality(
+                [record for record in records if bool(record.get("evidence_hit")) is value]
+            )
+            for value in (False, True)
+        },
         "cost_usd": sum(float(record.get("cost_usd", 0.0)) for record in records),
     }
 
@@ -456,6 +471,8 @@ async def diagnose(snapshot: PolicySnapshot, rows: tuple[TaxonomyRow, ...]) -> d
             {
                 "case_id": case.case_id,
                 "question": case.question,
+                "document_hit": bool(case.metadata["document_hit_at_5"]),
+                "evidence_hit": bool(case.metadata["evidence_hit_at_5"]),
                 "raw_answer": output["raw_answer"],
                 "answer": output["answer"],
                 "raw_citations": output["raw_citations"],
@@ -499,9 +516,16 @@ def _records_from_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]
                 "failure_category": str(feedback.get("failure_category", "UNKNOWN")),
                 "failure_reason": str(feedback.get("failure_reason", "")),
                 "validator_outcome": str(feedback.get("validator_outcome", "UNKNOWN")),
+                "document_hit": bool(example.inputs.get("document_hit")),
+                "evidence_hit": bool(example.inputs.get("evidence_hit")),
                 "raw_answer": str(outputs.get("raw_answer", "")),
                 "answer": str(outputs.get("answer", "")),
                 "answer_valid": bool(outputs.get("answer_valid")),
+                "citations": outputs.get("citations", []),
+                "notes": outputs.get("notes", []),
+                "grounding_valid": bool(outputs.get("grounding_valid")),
+                "claims_supported": bool(outputs.get("claims_supported")),
+                "polarity_consistent": bool(outputs.get("polarity_consistent")),
                 "retrieved_doc_ids": outputs.get("retrieved_doc_ids", []),
                 "cost_usd": float(dict(outputs.get("app_usage", {})).get("cost_usd") or 0.0)
                 + float(feedback.get("judge_cost_usd") or 0.0),
@@ -539,6 +563,7 @@ def _write_report(
         f"- Cost: ${float(summary['cost_usd']):.6f}",
         f"- Failure categories: `{json.dumps(summary['failure_categories'], sort_keys=True)}`",
         f"- Validator outcomes: `{json.dumps(summary['validator_outcomes'], sort_keys=True)}`",
+        f"- Evidence-hit breakdown: `{json.dumps(summary['by_evidence_hit'], sort_keys=True)}`",
         "",
     ]
     report_path.parent.mkdir(parents=True, exist_ok=True)

@@ -212,6 +212,7 @@ def test_policy_summary_keeps_all_quality_metrics_separate():
                 "unsupported_confident": False,
                 "failure_category": "PASS",
                 "validator_outcome": "PASS",
+                "evidence_hit": True,
                 "cost_usd": 0.01,
             },
             {
@@ -224,6 +225,7 @@ def test_policy_summary_keeps_all_quality_metrics_separate():
                 "unsupported_confident": False,
                 "failure_category": "CITATION_MISMATCH",
                 "validator_outcome": "TRUE_REJECTION",
+                "evidence_hit": False,
                 "cost_usd": 0.02,
             },
         ]
@@ -238,6 +240,22 @@ def test_policy_summary_keeps_all_quality_metrics_separate():
     assert summary["unsupported_confident"] == 0.0
     assert summary["failure_categories"] == {"CITATION_MISMATCH": 1, "PASS": 1}
     assert summary["validator_outcomes"] == {"PASS": 1, "TRUE_REJECTION": 1}
+    assert summary["by_evidence_hit"] == {
+        "false": {
+            "cases": 1,
+            "answer_correctness": 0.0,
+            "answer_support": 1.0,
+            "citation_entails_claim": 0.0,
+            "unsupported_confident": 0.0,
+        },
+        "true": {
+            "cases": 1,
+            "answer_correctness": 1.0,
+            "answer_support": 1.0,
+            "citation_entails_claim": 1.0,
+            "unsupported_confident": 0.0,
+        },
+    }
     assert summary["cost_usd"] == pytest.approx(0.03)
 
 
