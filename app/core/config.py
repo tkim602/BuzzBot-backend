@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import Field, PositiveInt
 from pydantic_settings import BaseSettings
 
 load_dotenv()
@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     ingest_max_urls_per_source: int = 200
     ingest_concurrency: int = 5
     active_term_code: str = Field(default="202608", pattern=r"^\d{6}$")
+    background_sync_enabled: bool = False
+    schedule_sync_interval_seconds: PositiveInt = 86_400
+    document_sync_interval_seconds: PositiveInt = 604_800
 
     # Usage tracking
     usage_limit: float = 3.0  # Maximum API cost in USD
