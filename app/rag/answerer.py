@@ -32,6 +32,11 @@ _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 _NEGATION_RE = re.compile(r"\b(?:no|not|never)\b", re.I)
 _EXPLICIT_NEGATION_RE = re.compile(r"\b(?:cannot|no|not|never|without)\b|n['’]t\b", re.I)
 _INVENTED_NEGATION_RE = re.compile(r"\b(?:not|never)\b\s*|\bno\b\s+|n['’]t\b\s*", re.I)
+_GUIDANCE_LOCATION_RE = re.compile(
+    r"^\s*where can i find (?:the )?(?:official )?(?:georgia tech )?guidance on "
+    r"(?P<topic>.+?)\??\s*$",
+    re.I,
+)
 
 
 def _load_prompt(name: str) -> str:
@@ -98,6 +103,13 @@ def _format_history(history: list[dict] | None) -> str:
     return "\n".join(lines) if lines else "none"
 
 
+def _generation_query(query: str) -> str:
+    match = _GUIDANCE_LOCATION_RE.match(query)
+    if not match:
+        return query
+    return f"What does the official guidance say about {match.group('topic')}?"
+
+
 def _ground_citation_quotes(
     citations: object, chunks: list[RetrievedChunk], answer: str
 ) -> list[dict]:
@@ -118,7 +130,9 @@ def _ground_citation_quotes(
             ]
             spans = [*sentences, *split_factual_claims(chunk.chunk_text)]
             spans.extend(
-                f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
+                " ".join(sentences[start : start + size])
+                for size in range(2, min(6, len(sentences)) + 1)
+                for start in range(len(sentences) - size + 1)
             )
             for span in spans:
                 span_words = _lexical_terms(span)
@@ -237,7 +251,9 @@ async def generate_answer(
                 "Do not repeat the proposition as a negated sentence."
             )
 
-    user_msg = user_template.replace("{{QUERY}}", query).replace("{{CONTEXT}}", context_str)
+    user_msg = user_template.replace("{{QUERY}}", _generation_query(query)).replace(
+        "{{CONTEXT}}", context_str
+    )
     if user_context:
         user_msg = user_msg.replace("{{USER_CONTEXT}}", json.dumps(user_context))
     else:

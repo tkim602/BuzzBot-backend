@@ -243,6 +243,37 @@ def test_multi_claim_answer_selects_support_for_each_claim():
     assert "financial obligation" in evidence
 
 
+def test_compound_list_claim_keeps_all_supporting_bullets_in_citation():
+    chunk = _chunk(
+        "temporary-accommodations",
+        "Temporary Accommodations",
+        "Documentation must address:\n"
+        "- Type of disability\n"
+        "- Severity\n"
+        "- Functional limitations\n"
+        "- Prognosis\n"
+        "- Estimated duration",
+    )
+    answer = (
+        "Documentation must include the disability type, severity, functional limitations, "
+        "prognosis, and estimated duration."
+    )
+
+    selected = _ground_citation_quotes([{"url": chunk.url}], [chunk], answer)
+    evidence = "\n".join(str(citation["quote"]) for citation in selected)
+
+    assert all(
+        field in evidence
+        for field in (
+            "Type of disability",
+            "Severity",
+            "Functional limitations",
+            "Prognosis",
+            "Estimated duration",
+        )
+    )
+
+
 def test_citation_span_selection_prefers_exact_numeric_evidence_across_chunks():
     distractor = _chunk(
         "immunization-form",
@@ -638,6 +669,24 @@ async def test_factual_prompt_requires_every_requested_field_without_adjacent_ru
     system_prompt = call.await_args.args[0]
     assert "every requested field" in system_prompt
     assert "unrequested adjacent rules" in system_prompt
+
+
+@pytest.mark.asyncio
+async def test_guidance_location_question_is_normalized_to_request_policy_content(monkeypatch):
+    call = AsyncMock(
+        return_value='{"answer":"Georgia Tech uses the Common Application.",'
+        '"citations":[],"confidence":1.0,"notes":[]}'
+    )
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    await generate_answer(
+        "Where can I find the official Georgia Tech guidance on first-year application platform?",
+        [_chunk("first-year", "First-Year Admission", "Georgia Tech uses the Common Application.")],
+        intent="policy",
+    )
+
+    user_prompt = call.await_args.args[1]
+    assert "What does the official guidance say about first-year application platform?" in user_prompt
 
 
 @pytest.mark.asyncio
