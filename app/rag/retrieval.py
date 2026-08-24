@@ -681,6 +681,15 @@ async def hybrid_retrieve(
     if settings.rag_enable_reranking:
         fts_top_k = max(fts_top_k, fusion_top_k)
     fts_fetch_k = fts_top_k * 3 if max_chunks_per_url else fts_top_k
+    deep_lexical_pool = bool(
+        force_fts
+        and max_chunks_per_url
+        and source_filter
+        and not hints.course_code
+        and not includes_calendar_events
+    )
+    if deep_lexical_pool:
+        fts_fetch_k = max(fts_fetch_k, 200)
 
     exact_schedule_lookup = schedule_only and metadata_course_code and metadata_term_name
     if settings.rag_skip_fts_for_exact_schedule and exact_schedule_lookup:
@@ -733,6 +742,11 @@ async def hybrid_retrieve(
             metadata_term_name=metadata_term_name,
             metadata_semester=metadata_semester,
             match_any=force_fts,
+        )
+
+    if deep_lexical_pool:
+        fts_results.sort(
+            key=lambda chunk: (_lexical_match_score(query, chunk), chunk.score), reverse=True
         )
 
     if max_chunks_per_url:

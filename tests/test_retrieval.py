@@ -244,6 +244,58 @@ async def test_document_cap_backfills_fts_candidates_before_reranking(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_policy_deep_lexical_pool_is_reranked_before_existing_fusion_budget(monkeypatch):
+    generic = [
+        RetrievedChunk(
+            chunk_id=f"generic-{index}",
+            url=f"https://example.com/generic-{index}",
+            title="Official Policy",
+            chunk_text="General Georgia Tech policy information.",
+            score=1 - index / 1000,
+            method="fts",
+        )
+        for index in range(100)
+    ]
+    relevant = RetrievedChunk(
+        chunk_id="returning-housing",
+        url="https://example.com/returning-housing",
+        title="Returning Student Housing",
+        chunk_text="Housing is not guaranteed for returning students.",
+        score=0.01,
+        method="fts",
+    )
+    requested = {}
+
+    async def search_fts(*args, top_k, **kwargs):
+        requested["top_k"] = top_k
+        return [*generic, relevant][:top_k]
+
+    monkeypatch.setattr("app.rag.retrieval.vector_search", AsyncMock(return_value=[]))
+    monkeypatch.setattr("app.rag.retrieval.fts_search", search_fts)
+    monkeypatch.setattr(settings, "rag_enable_reranking", True)
+
+    def rerank(query, chunks, top_k):
+        assert len(chunks) <= 15
+        assert relevant in chunks
+        return [relevant, *[chunk for chunk in chunks if chunk is not relevant]][:top_k]
+
+    monkeypatch.setattr("app.rag.retrieval.rerank_with_cross_encoder", rerank)
+
+    results = await hybrid_retrieve(
+        object(),
+        "Is housing guaranteed for returning students?",
+        [0.1],
+        top_k=5,
+        source_filter=["gt-housing"],
+        force_fts=True,
+        max_chunks_per_url=1,
+    )
+
+    assert requested["top_k"] == 200
+    assert results[0] is relevant
+
+
+@pytest.mark.asyncio
 async def test_async_embedding_client_receives_key_loaded_by_settings(monkeypatch):
     captured: dict[str, str] = {}
 
