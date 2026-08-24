@@ -45,6 +45,33 @@ def test_understanding_routes_common_gt_questions(query, expected):
     assert result | expected == result
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "When is the first day of Fall 2026 classes?",
+        "When is the Fall 2026 payment deadline?",
+        "When are Fall 2026 final grades available online?",
+        "When is the first day of Spring 2027 classes?",
+        "When is the Spring 2027 payment deadline?",
+        "When are master's thesis forms due in Spring 2027?",
+        "When are Spring 2027 final grades available online?",
+    ],
+)
+def test_explicit_term_calendar_events_route_to_academic_calendar(query):
+    assert understand_query(query)["intent"] == "registration_calendar"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "When is the OMSCS application deadline for Fall 2026?",
+        "How long does a financial aid appeal take in Fall 2026?",
+    ],
+)
+def test_term_language_does_not_override_explicit_policy_domains(query):
+    assert understand_query(query)["intent"] == "policy"
+
+
 def test_schedule_query_requires_explicit_course_and_term():
     result = understand_query("When is CS 7650 offered?")
 
@@ -102,6 +129,31 @@ def test_schedule_pronoun_without_context_clarifies_instead_of_guessing():
     assert result["needs_clarification"] is True
     assert "course code" in result["clarification"].lower()
     assert "term" in result["clarification"].lower()
+
+
+def test_casual_instructor_wording_keeps_schedule_intent_and_query_type():
+    result = understand_query("whos teaching CS 1100 Fall 2026?")
+
+    assert result["intent"] == "course_schedule"
+    assert result["subject"] == "CS"
+    assert result["course_number"] == "1100"
+    assert result["schedule_query_type"] == "instructors"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "where does CS7650 meet?",
+        "7650 sections Fall 2026?",
+        "does 7650 run in Fall 2026?",
+        "what CRNs are there for 7650 in Fall 2026?",
+    ],
+)
+def test_incomplete_schedule_phrasing_clarifies_instead_of_guessing(query):
+    result = understand_query(query)
+
+    assert result["intent"] == "course_schedule"
+    assert result["needs_clarification"] is True
 
 
 @pytest.mark.parametrize(

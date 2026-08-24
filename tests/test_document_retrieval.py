@@ -133,6 +133,47 @@ async def test_policy_reselection_keeps_high_confidence_lexical_evidence(monkeyp
 
 
 @pytest.mark.asyncio
+async def test_course_code_anchor_survives_same_url_child_reselection(monkeypatch):
+    def chunk(chunk_id, text, score):
+        return RetrievedChunk(
+            chunk_id,
+            "https://catalog.gatech.edu/coursesaz/cs/",
+            "Computer Science (CS)",
+            text,
+            score,
+            source_name="gt-catalog",
+            metadata_json={"source_type": "course_catalog", "authority": "catalog"},
+        )
+
+    target = chunk(
+        "cs-6300",
+        "CS 6300. Software Development Process. 3 Credit Hours.",
+        0.4,
+    )
+    children = [
+        chunk("cs-2316", "CS 2316. Data Input and Manipulation.", 0.99),
+        chunk("cs-2340", "CS 2340. Objects and Design.", 0.98),
+        target,
+    ]
+    monkeypatch.setattr("app.retrieval.documents.hybrid_retrieve", AsyncMock(return_value=[target]))
+    monkeypatch.setattr(
+        "app.retrieval.documents.vector_search", AsyncMock(return_value=children), raising=False
+    )
+
+    evidence = await search_policy_docs(
+        object(),
+        PolicyQuery(
+            "CS 6300 course description credits prerequisites",
+            source_types=("course_catalog",),
+            top_k=2,
+        ),
+        [0.1] * 1536,
+    )
+
+    assert evidence[0].chunk_id == target.chunk_id
+
+
+@pytest.mark.asyncio
 async def test_duration_question_preserves_top_reranked_evidence(monkeypatch):
     def chunk(chunk_id, text, score):
         return RetrievedChunk(
@@ -204,6 +245,46 @@ async def test_exact_deadline_uses_calendar_authority_and_preserves_citation(mon
     assert evidence[0].authority == "academic_calendar"
     assert evidence[0].edition == "2026-2027"
     assert evidence[0].retrieval_method == "hybrid_rrf"
+
+
+@pytest.mark.asyncio
+async def test_atomic_calendar_events_skip_same_url_child_reselection(monkeypatch):
+    target = RetrievedChunk(
+        chunk_id="event-509",
+        url="https://registrar.gatech.edu/current-academic-calendar",
+        title="Academic Calendar",
+        chunk_text="Event 509 | Spring 2027 registration closes January 15.",
+        score=0.9,
+        source_name="gt-academic-calendar",
+        metadata_json={"source_type": "academic_calendar", "authority": "academic_calendar"},
+    )
+    monkeypatch.setattr("app.retrieval.documents.hybrid_retrieve", AsyncMock(return_value=[target]))
+    child_search = AsyncMock(
+        return_value=[
+            RetrievedChunk(
+                chunk_id="wrong-event",
+                url=target.url,
+                title=target.title,
+                chunk_text="A different withdrawal event.",
+                score=1,
+                source_name=target.source_name,
+                metadata_json=target.metadata_json,
+            )
+        ]
+    )
+    monkeypatch.setattr("app.retrieval.documents.vector_search", child_search, raising=False)
+
+    evidence = await search_policy_docs(
+        object(),
+        PolicyQuery(
+            "When does Spring 2027 registration close?",
+            source_types=("academic_calendar",),
+        ),
+        [0.1] * 1536,
+    )
+
+    assert evidence[0].chunk_id == target.chunk_id
+    child_search.assert_not_awaited()
 
 
 @pytest.mark.parametrize(

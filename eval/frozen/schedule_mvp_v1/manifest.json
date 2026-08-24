@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "name": "schedule-mvp-v1",
+  "base_manifest": "eval/frozen/schedule_sql_150_v1/manifest.json",
+  "base_manifest_sha256": "006d740a1a29cbfba1d156ac4f45ece5e33a80f1d2631895d7d613e39d2edbcb",
+  "term_code": "202608",
+  "courses": [
+    "CS 1100",
+    "CS 1315R",
+    "CS 1332",
+    "CS 2050",
+    "CS 2200",
+    "CS 2340",
+    "CS 2740",
+    "CS 3001",
+    "CS 3237",
+    "CS 4698",
+    "CS 3510",
+    "CS 3630",
+    "CS 3790",
+    "CS 4210",
+    "CS 4262",
+    "CS 4392",
+    "CS 4460",
+    "CS 4488",
+    "CS 4540",
+    "CS 4641"
+  ],
+  "direct_templates": [
+    {
+      "id": "offering",
+      "question": "Is {compact} offered in Fall 2026?",
+      "query_type": "offering"
+    },
+    {
+      "id": "sections",
+      "question": "{course} sections Fall 2026?",
+      "query_type": "sections"
+    },
+    {
+      "id": "crns",
+      "question": "what CRNs are there for {dashed} in 2026 Fall?",
+      "query_type": "crns"
+    },
+    {
+      "id": "instructors",
+      "question": "whos teaching {course} Fall 2026?",
+      "query_type": "instructors"
+    },
+    {
+      "id": "online",
+      "question": "is there an online section for {compact} in Fall 2026?",
+      "query_type": "online_availability"
+    }
+  ],
+  "context_templates": [
+    {
+      "id": "meeting-follow-up",
+      "question": "what time does it meet?",
+      "query_type": "meeting"
+    },
+    {
+      "id": "location-follow-up",
+      "question": "where does that class meet?",
+      "query_type": "location"
+    }
+  ],
+  "safety_cases": [
+    {"id": "missing-term-offering", "question": "Is CS7650 offered?"},
+    {"id": "missing-term-crn", "question": "what CRNs are there for CS7650?"},
+    {"id": "missing-term-location", "question": "where does CS7650 meet?"},
+    {"id": "relative-this-fall", "question": "CS7650 this fall?"},
+    {"id": "relative-next-fall", "question": "CS7650 next fall?"},
+    {"id": "pronoun-instructor", "question": "who teaches it?"},
+    {"id": "pronoun-meeting", "question": "when does it meet?"},
+    {"id": "missing-subject-sections", "question": "7650 sections Fall 2026?"},
+    {"id": "missing-subject-offering", "question": "does 7650 run in Fall 2026?"},
+    {"id": "missing-subject-crn", "question": "what CRNs are there for 7650 in Fall 2026?"}
+  ]
+}

@@ -145,6 +145,14 @@ def _feedback(row: dict[str, object]) -> dict[str, object]:
     return feedback
 
 
+def _run_url(run: object) -> str:
+    url = getattr(run, "url", None)
+    if url:
+        return str(url)
+    get_url = getattr(run, "get_url", None)
+    return str(get_url()) if callable(get_url) else ""
+
+
 def summarize_rows(rows: list[dict[str, object]]) -> dict[str, object]:
     records = []
     for row in rows:
@@ -168,7 +176,7 @@ def summarize_rows(rows: list[dict[str, object]]) -> dict[str, object]:
                     cast(dict[str, object], outputs.get("app_usage", {})).get("cost_usd") or 0.0
                 ),
                 "latency_ms": float(outputs.get("latency_ms", 0.0)),
-                "trace_url": run.url,
+                "trace_url": _run_url(run),
             }
         )
     records.sort(key=lambda record: str(record["case_id"]))
