@@ -16,9 +16,9 @@
 - Create: `tests/test_policy_oracle_retrieval.py`
 - Create: `eval/quality/policy_oracle_retrieval.py`
 
-- [ ] Write failing tests proving the oracle candidate function keeps only the gold URL and returns at most five ranked chunks.
-- [ ] Write failing tests for Evidence Hit@1/3/5, MRR@5, mean/p95 latency, and PR11 category grouping.
-- [ ] Run `python -m pytest -q tests/test_policy_oracle_retrieval.py` and confirm failure because the evaluator does not exist.
+- [x] Write failing tests proving the oracle candidate function keeps only the gold URL and returns at most five ranked chunks.
+- [x] Write failing tests for Evidence Hit@1/3/5, MRR@5, mean/p95 latency, and PR11 category grouping.
+- [x] Run `python -m pytest -q tests/test_policy_oracle_retrieval.py` and confirm failure because the evaluator does not exist.
 
 ### Task 2: Implement the evaluator-only oracle path
 
@@ -27,12 +27,12 @@
 - Modify: `Makefile`
 - Modify: `eval/quality/README.md`
 
-- [ ] Load the fixed manifest, committed gold evidence, and PR11 taxonomy with strict denominator validation.
-- [ ] Batch query embeddings once and run the existing production Policy retriever for the global baseline.
-- [ ] Load each gold document's chunks, rank them using existing vector, lexical, RRF, and cross-encoder helpers, and retain the existing final top-five budget.
-- [ ] Write summary JSON, per-case JSONL, and Markdown outputs.
-- [ ] Add `make quality-policy-oracle` and document that it makes embedding/retrieval calls but no answer/judge calls.
-- [ ] Run the focused tests and confirm they pass.
+- [x] Load the fixed manifest, committed gold evidence, and PR11 taxonomy with strict denominator validation.
+- [x] Batch query embeddings once and run the existing production Policy retriever for the global baseline.
+- [x] Load each gold document's chunks, rank them using existing vector, lexical, RRF, and cross-encoder helpers, and retain the existing final top-five budget.
+- [x] Write summary JSON, per-case JSONL, and Markdown outputs.
+- [x] Add `make quality-policy-oracle` and document that it makes embedding/retrieval calls but no answer/judge calls.
+- [x] Run the focused tests and confirm they pass.
 
 ### Task 3: Run the fixed experiment once
 
@@ -41,16 +41,16 @@
 - Create: `eval/quality/policy_oracle_retrieval_pr12_cases.jsonl`
 - Create: `docs/evals/policy_oracle_retrieval_pr12.md`
 
-- [ ] Run the evaluator against `dev_100.json`, `gold_evidence/dev_100.json`, and the current `buzzbot_v2` database.
-- [ ] Record global and oracle Evidence Hit@1/3/5, oracle MRR@5, mean/p95 latency, and unresolved PR11 category results.
-- [ ] Apply the predeclared 90% oracle Hit@5 architectural decision rule without changing retrieval code.
+- [x] Run the evaluator against `dev_100.json`, `gold_evidence/dev_100.json`, and the current `buzzbot_v2` database.
+- [x] Record global and oracle Evidence Hit@1/3/5, oracle MRR@5, mean/p95 latency, and unresolved PR11 category results.
+- [x] Apply the predeclared 90% oracle Hit@5 architectural decision rule without changing retrieval code.
 
 ### Task 4: Verify regressions
 
 **Files:**
 - Modify only generated PR12 result/report files if values need normalization.
 
-- [ ] Run `python -m pytest -q` and expect the full unit suite to pass.
-- [ ] Run `ruff check .` and `ruff format --check .` and expect both to pass.
-- [ ] Run the existing PostgreSQL integration, Schedule SQL/NLU/renderer, Course Details, and Calendar gates.
-- [ ] Confirm the PR10 frozen fixture hashes are unchanged and no live Policy answer evaluation was executed.
+- [x] Run `python -m pytest -q` and expect the full unit suite to pass.
+- [x] Run `ruff check .` and `ruff format --check .` and expect both to pass.
+- [x] Run the existing PostgreSQL integration, Schedule SQL/NLU/renderer, Course Details, and Calendar gates.
+- [x] Confirm the PR10 frozen fixture hashes are unchanged and no live Policy answer evaluation was executed.

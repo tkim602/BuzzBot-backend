@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "generated_at": "2026-08-24T09:53:50.632005+00:00",
+  "branch": "eval/policy-hierarchical-retrieval",
+  "manifest": "eval/quality/manifests/dev_100.json",
+  "gold_evidence": "eval/quality/gold_evidence/dev_100.json",
+  "pr11_taxonomy": "eval/quality/policy_evidence_miss_diagnosis_pr11_after.json",
+  "cases": 100,
+  "top_k": 5,
+  "embedding_batch_ms": 3336.614982006722,
+  "global": {
+    "cases": 100,
+    "evidence_hit_at_1": 0.39,
+    "evidence_hit_at_3": 0.6,
+    "evidence_hit_at_5": 0.7,
+    "evidence_mrr_at_5": 0.5058333333333334,
+    "latency_ms": {
+      "mean": 2276.1145203904016,
+      "p95": 3902.26498201082
+    }
+  },
+  "oracle_document": {
+    "cases": 100,
+    "evidence_hit_at_1": 0.64,
+    "evidence_hit_at_3": 0.83,
+    "evidence_hit_at_5": 0.92,
+    "evidence_mrr_at_5": 0.7476666666666667,
+    "latency_ms": {
+      "mean": 698.8266698502412,
+      "p95": 1800.7919560041046
+    }
+  },
+  "unresolved_pr11_categories": {
+    "CANDIDATE_GENERATION_TRUNCATION": {
+      "cases": 6,
+      "evidence_hit_at_1": 0.5,
+      "evidence_hit_at_3": 0.5,
+      "evidence_hit_at_5": 0.6666666666666666,
+      "evidence_mrr_at_5": 0.5416666666666666
+    },
+    "CHILD_RESELECTION_LOSS": {
+      "cases": 4,
+      "evidence_hit_at_1": 0.75,
+      "evidence_hit_at_3": 1,
+      "evidence_hit_at_5": 1,
+      "evidence_mrr_at_5": 0.875
+    },
+    "CHUNKING_BOUNDARY_LOSS": {
+      "cases": 1,
+      "evidence_hit_at_1": 0,
+      "evidence_hit_at_3": 0,
+      "evidence_hit_at_5": 0,
+      "evidence_mrr_at_5": 0.0
+    },
+    "DOCUMENT_RETRIEVED_WRONG_CHUNK": {
+      "cases": 8,
+      "evidence_hit_at_1": 0.125,
+      "evidence_hit_at_3": 0.5,
+      "evidence_hit_at_5": 0.875,
+      "evidence_mrr_at_5": 0.35833333333333334
+    },
+    "FUSION_OR_RERANK_LOSS": {
+      "cases": 5,
+      "evidence_hit_at_1": 0.8,
+      "evidence_hit_at_3": 1,
+      "evidence_hit_at_5": 1,
+      "evidence_mrr_at_5": 0.9
+    },
+    "GOLD_OR_EVAL_DEFINITION_ISSUE": {
+      "cases": 3,
+      "evidence_hit_at_1": 0,
+      "evidence_hit_at_3": 0,
+      "evidence_hit_at_5": 0,
+      "evidence_mrr_at_5": 0.0
+    }
+  },
+  "decision_gate": {
+    "metric": "oracle_document.evidence_hit_at_5",
+    "target": 0.9,
+    "result": "HIERARCHICAL_RETRIEVAL_SUPPORTED"
+  },
+  "paid_semantic_answer_eval_performed": false
+}
