@@ -17,10 +17,10 @@
 - Create: `eval/quality/policy_hierarchical_retrieval.py`
 - Modify: `eval/quality/policy_oracle_retrieval.py`
 
-- [ ] Add a failing test that only `N = (1, 2, 3, 5)` is accepted and selected document prefixes contain no gold-aware behavior.
-- [ ] Add a failing test that cross-document merge returns at most five chunks from the selected URLs.
-- [ ] Add a failing test that candidate selection chooses the smallest passing `N` at the best Hit@5 and returns no candidate below 85%.
-- [ ] Run `python -m pytest -q tests/test_policy_hierarchical_retrieval.py` and verify RED because the module does not exist.
+- [x] Add a failing test that only `N = (1, 2, 3, 5)` is accepted and selected document prefixes contain no gold-aware behavior.
+- [x] Add a failing test that cross-document merge returns at most five chunks from the selected URLs.
+- [x] Add a failing test that candidate selection chooses the smallest passing `N` at the best Hit@5 and returns no candidate below 85%.
+- [x] Run `python -m pytest -q tests/test_policy_hierarchical_retrieval.py` and verify RED because the module does not exist.
 
 ### Task 2: Implement the evaluation-only hierarchy
 
@@ -30,12 +30,12 @@
 - Modify: `Makefile`
 - Modify: `eval/quality/README.md`
 
-- [ ] Add an optional evaluator-only switch that lets PR13 reuse PR12 within-document ranking before the final cross-document rerank.
-- [ ] Load the fixed manifest/evidence, batch embeddings once, and obtain five Stage 1 documents with existing routed parent retrieval.
-- [ ] For each `N`, retrieve chunks only from the selected URLs, keep at most 15 candidates per document, rerank the merged pool once, and return five.
-- [ ] Compute document recall, evidence metrics, mean/p95 latency, wins/regressions versus the fixed production result, and the 85%/90% gates.
-- [ ] Write JSON, JSONL, and Markdown artifacts and add `make quality-policy-hierarchical`.
-- [ ] Run focused tests and verify GREEN.
+- [x] Add an optional evaluator-only switch that lets PR13 reuse PR12 within-document ranking before the final cross-document rerank.
+- [x] Load the fixed manifest/evidence, batch embeddings once, and obtain five Stage 1 documents with existing routed parent retrieval.
+- [x] For each `N`, retrieve chunks only from the selected URLs, keep at most 15 candidates per document, rerank the merged pool once, and return five.
+- [x] Compute document recall, evidence metrics, mean/p95 latency, wins/regressions versus the fixed production result, and the 85%/90% gates.
+- [x] Write JSON, JSONL, and Markdown artifacts and add `make quality-policy-hierarchical`.
+- [x] Run focused tests and verify GREEN.
 
 ### Task 3: Execute one fixed dev-100 comparison
 
@@ -44,16 +44,16 @@
 - Create: `eval/quality/policy_hierarchical_retrieval_pr13_cases.jsonl`
 - Create: `docs/evals/policy_hierarchical_retrieval_pr13.md`
 
-- [ ] Run exactly `N = 1, 2, 3, 5` against `buzzbot_v2` once.
-- [ ] Record all required metrics and choose a candidate only through the predeclared gate.
-- [ ] Keep the eight PR12 oracle misses unchanged and skip paid semantic answer evaluation.
+- [x] Run exactly `N = 1, 2, 3, 5` against `buzzbot_v2` once.
+- [x] Record all required metrics and choose a candidate only through the predeclared gate.
+- [x] Keep the eight PR12 oracle misses unchanged and skip paid semantic answer evaluation.
 
 ### Task 4: Verify regressions
 
 **Files:**
 - Modify only PR13 result/report artifacts if verification metadata is added.
 
-- [ ] Run the full unit suite and PostgreSQL integration suite.
-- [ ] Run Ruff check, format check, and `git diff --check`.
-- [ ] Run Schedule SQL/NLU/renderer, Course Details, and Calendar frozen gates.
-- [ ] Confirm PR10 fixture hashes and production retrieval files are unchanged.
+- [x] Run the full unit suite and PostgreSQL integration suite.
+- [x] Run Ruff check, format check, and `git diff --check`.
+- [x] Run Schedule SQL/NLU/renderer, Course Details, and Calendar frozen gates.
+- [x] Confirm PR10 fixture hashes and production retrieval files are unchanged.

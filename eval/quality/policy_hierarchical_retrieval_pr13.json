@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "generated_at": "2026-08-24T10:28:42.642380+00:00",
+  "branch": "eval/policy-hierarchical-prototype",
+  "manifest": "eval/quality/manifests/dev_100.json",
+  "gold_evidence": "eval/quality/gold_evidence/dev_100.json",
+  "cases": 100,
+  "document_counts": [
+    1,
+    2,
+    3,
+    5
+  ],
+  "within_document_candidates": 15,
+  "final_top_k": 5,
+  "embedding_batch_ms": 2276.8405790120596,
+  "production_baseline": {
+    "cases": 100,
+    "evidence_hit_at_1": 0.39,
+    "evidence_hit_at_3": 0.6,
+    "evidence_hit_at_5": 0.7,
+    "evidence_mrr_at_5": 0.5058333333333334,
+    "latency_ms": {
+      "mean": 2276.1145203904016,
+      "p95": 3902.26498201082
+    }
+  },
+  "oracle_ceiling": {
+    "cases": 100,
+    "evidence_hit_at_1": 0.64,
+    "evidence_hit_at_3": 0.83,
+    "evidence_hit_at_5": 0.92,
+    "evidence_mrr_at_5": 0.7476666666666667,
+    "latency_ms": {
+      "mean": 698.8266698502412,
+      "p95": 1800.7919560041046
+    }
+  },
+  "hierarchical": {
+    "1": {
+      "cases": 100,
+      "evidence_hit_at_1": 0.32,
+      "evidence_hit_at_3": 0.39,
+      "evidence_hit_at_5": 0.44,
+      "evidence_mrr_at_5": 0.3626666666666667,
+      "latency_ms": {
+        "mean": 2940.7915199206036,
+        "p95": 4523.148657986894
+      },
+      "document_recall": 0.46,
+      "wins_vs_global": 4,
+      "regressions_vs_global": 30
+    },
+    "2": {
+      "cases": 100,
+      "evidence_hit_at_1": 0.31,
+      "evidence_hit_at_3": 0.51,
+      "evidence_hit_at_5": 0.56,
+      "evidence_mrr_at_5": 0.4098333333333333,
+      "latency_ms": {
+        "mean": 3620.2442848517967,
+        "p95": 5707.893807004439
+      },
+      "document_recall": 0.64,
+      "wins_vs_global": 5,
+      "regressions_vs_global": 19
+    },
+    "3": {
+      "cases": 100,
+      "evidence_hit_at_1": 0.31,
+      "evidence_hit_at_3": 0.48,
+      "evidence_hit_at_5": 0.61,
+      "evidence_mrr_at_5": 0.4171666666666667,
+      "latency_ms": {
+        "mean": 4230.462150840176,
+        "p95": 7153.551585011883
+      },
+      "document_recall": 0.76,
+      "wins_vs_global": 6,
+      "regressions_vs_global": 15
+    },
+    "5": {
+      "cases": 100,
+      "evidence_hit_at_1": 0.31,
+      "evidence_hit_at_3": 0.48,
+      "evidence_hit_at_5": 0.62,
+      "evidence_mrr_at_5": 0.4186666666666667,
+      "latency_ms": {
+        "mean": 5055.844671329105,
+        "p95": 8392.901910003275
+      },
+      "document_recall": 0.83,
+      "wins_vs_global": 6,
+      "regressions_vs_global": 14
+    }
+  },
+  "candidate": null,
+  "gates": {
+    "minimum_evidence_hit_at_5": 0.85,
+    "stretch_evidence_hit_at_5": 0.9
+  },
+  "production_switch_performed": false,
+  "paid_semantic_answer_eval_performed": false
+}
