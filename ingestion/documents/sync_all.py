@@ -8,7 +8,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from db.models import IngestionRun, IngestionRunUnit
+from app.db.models import IngestionRun, IngestionRunUnit
 from ingestion.documents.registry import DocumentSource
 from ingestion.documents.sync import sync_document_url
 from ingestion.documents.sync_source import PROVIDER, _discover, _unit_result

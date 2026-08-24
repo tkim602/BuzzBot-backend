@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.orm import Session
 
-from db.models import (
+from app.db.models import (
     AcademicTerm,
     Course,
     DataVersion,

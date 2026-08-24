@@ -28,7 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     source = sources.get(args.source)
 
     if args.command == "sync-all":
-        from db.session import SyncSessionLocal
+        from app.db.session import SyncSessionLocal
         from ingestion.documents.sync_all import profile_coverage, sync_document_profile
         from ingestion.index import get_embedding_function
 
@@ -65,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(asdict(result), default=str, separators=(",", ":")))
         return 0 if result.status is DocumentProbeStatus.READY else 2
 
-    from db.session import SyncSessionLocal
+    from app.db.session import SyncSessionLocal
     from ingestion.documents.sync import sync_document_source, sync_document_url
     from ingestion.index import get_embedding_function
 

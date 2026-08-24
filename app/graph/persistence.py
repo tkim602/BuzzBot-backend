@@ -18,5 +18,4 @@ def checkpoint_url(configured_url: str) -> str:
 @asynccontextmanager
 async def postgres_checkpointer(database_url: str) -> AsyncIterator[AsyncPostgresSaver]:
     async with AsyncPostgresSaver.from_conn_string(checkpoint_url(database_url)) as saver:
-        await saver.setup()
         yield saver

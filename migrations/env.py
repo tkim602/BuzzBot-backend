@@ -8,10 +8,10 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 # Ensure project root is importable
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.core.config import settings  # noqa: E402
-from db.models import Base  # noqa: E402
+from app.db.models import Base  # noqa: E402
 
 config = context.config
 

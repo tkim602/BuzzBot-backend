@@ -17,7 +17,7 @@ class ChatTurn(BaseModel):
     content: str = Field(..., min_length=1, max_length=4000)
 
 
-class AgentChatRequest(BaseModel):
+class ChatRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000)
     user_context: UserContext | None = None
     history: list[ChatTurn] = Field(default_factory=list, max_length=20)
@@ -53,7 +53,7 @@ class DebugInfo(BaseModel):
     stage_timings_ms: dict[str, int] = {}
 
 
-class ChatResponse(BaseModel):
+class ChatResponseBase(BaseModel):
     answer: str
     citations: list[Citation] = []
     confidence: float = Field(0.0, ge=0.0, le=1.0)
@@ -62,5 +62,5 @@ class ChatResponse(BaseModel):
     debug: DebugInfo = DebugInfo()
 
 
-class AgentChatResponse(ChatResponse):
+class ChatResponse(ChatResponseBase):
     thread_id: str

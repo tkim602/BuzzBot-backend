@@ -9,11 +9,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.core.usage import get_usage
+from app.db.session import AsyncSessionLocal
 from app.graph.understanding import understand_query
 from app.rag.retrieval import get_text_embeddings
 from app.retrieval import RegistrationCalendarQuery, lookup_registration_calendar
 from app.retrieval.documents import DocumentEvidence
-from db.session import AsyncSessionLocal
 
 
 @dataclass(frozen=True)

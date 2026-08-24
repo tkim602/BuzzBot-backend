@@ -16,10 +16,10 @@ from dotenv import load_dotenv
 from sqlalchemy import func, select
 
 from app.core.usage import get_usage
+from app.db.models import Chunk, Document
+from app.db.session import AsyncSessionLocal
 from app.graph.state import AgentState
 from app.graph.workflow import WorkflowServices, build_workflow
-from db.models import Chunk, Document
-from db.session import AsyncSessionLocal
 from eval.langsmith.datasets import CourseDetailsCase, ensure_dataset, load_course_details
 from eval.langsmith.evaluators import score_stages, stage_evaluator
 from eval.langsmith.failure_stage import classify_failure

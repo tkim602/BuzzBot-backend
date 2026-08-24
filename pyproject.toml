@@ -1,5 +1,5 @@
 [project]
-name = "buzzbot"
+name = "buzzbot-backend"
 version = "0.1.0"
 description = "RAG chatbot for Georgia Tech campus information"
 requires-python = ">=3.11"
@@ -42,7 +42,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["app*", "db*", "ingestion*"]
+include = ["app*", "ingestion*"]
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

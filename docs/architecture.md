@@ -1,8 +1,8 @@
-# BuzzBot v2 Architecture
+# BuzzBot Backend Architecture
 
 ## Design goal
 
-BuzzBot v2 is a controlled Agentic RAG system for public Georgia Tech facts. “Agentic” means the
+BuzzBot is a controlled Agentic RAG system for public Georgia Tech facts. “Agentic” means the
 workflow can choose a typed retrieval tool, validate its evidence, make one bounded recovery attempt,
 and abstain. It does not mean an unconstrained LLM loop.
 
@@ -93,13 +93,14 @@ Document search reuses one retrieval implementation:
 5. stable deduplication and typed evidence with canonical citations
 
 Exact date queries are pinned to `academic_calendar`; explicit source types take priority over query
-keywords. There is no general web-search fallback in v2.
+keywords. There is no general web-search fallback in production.
 
 ## Persistence and API lifecycle
 
-`/v2/chat` compiles the graph with a request-scoped async SQLAlchemy session. When enabled, an
-application-scoped `AsyncPostgresSaver` is created during FastAPI lifespan and runs its idempotent
-setup. A bounded client `thread_id` is passed through LangGraph configuration.
+`/chat` compiles the graph with a request-scoped async SQLAlchemy session. When enabled, an
+application-scoped `AsyncPostgresSaver` is created during FastAPI lifespan. Its tables are owned by
+Alembic migrations; application startup does not run schema DDL. A bounded client `thread_id` is
+passed through LangGraph configuration.
 
 The already-hashed request fingerprint is used as `checkpoint_ns`, so two unauthenticated clients
 that choose the same visible thread ID do not share checkpoint state.
@@ -117,6 +118,12 @@ memory saver is substituted in production.
 | `/usage` | tracked cost, `$3` cap, remaining budget |
 
 LangSmith tracing is optional observability and is not part of readiness.
+
+## Evaluation-only retrieval experiments
+
+PR12 oracle-document retrieval and the rejected PR13 hierarchical prototype live under `eval/`.
+Production `app/` and `ingestion/` modules do not import them. They remain reproducible diagnostic
+evidence and cannot be selected as a production retrieval path.
 
 ## Failure policy
 

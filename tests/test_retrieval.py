@@ -23,7 +23,7 @@ from app.rag.retrieval import (
 
 
 def test_fts_query_expression_matches_migration_index():
-    migration = Path("db/migrations/versions/005_document_fts_metadata.py").read_text()
+    migration = Path("migrations/versions/005_document_fts_metadata.py").read_text()
 
     assert FTS_DOCUMENT_EXPRESSION == (
         "coalesce(title, '') || ' ' || coalesce(headings, '') || ' ' || chunk_text"

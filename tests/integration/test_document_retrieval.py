@@ -10,12 +10,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.db.models import Chunk, Document, FetchState, Source
+from app.db.session import sync_engine
 from app.rag.answerer import generate_answer
 from app.rag.retrieval import RetrievedChunk
 from app.retrieval import documents as document_retrieval
 from app.retrieval.documents import PolicyQuery, search_policy_docs
-from db.models import Chunk, Document, FetchState, Source
-from db.session import sync_engine
 from ingestion.documents.registry import DocumentSource
 from ingestion.documents.sync import FetchedDocument, _store_document
 from ingestion.extract import extract_content

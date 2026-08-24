@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, update
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from db.models import IngestionRun, IngestionRunUnit
+from app.db.models import IngestionRun, IngestionRunUnit
 from ingestion.orchestration import create_run, plan_run
 from ingestion.probes.core import ProbeStatus
 from ingestion.schedule import sync_term

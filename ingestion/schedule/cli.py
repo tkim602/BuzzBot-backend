@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
 
-from db.session import SyncSessionLocal
+from app.db.session import SyncSessionLocal
 from ingestion.schedule.sync import SyncOutcome, sync_subject
 
 

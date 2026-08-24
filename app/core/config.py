@@ -23,7 +23,7 @@ def sync_database_url(database_url: str) -> str:
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = "postgresql+asyncpg://buzzbot:buzzbot_dev@localhost:5432/buzzbot"
+    database_url: str
 
     @property
     def database_url_sync(self) -> str:

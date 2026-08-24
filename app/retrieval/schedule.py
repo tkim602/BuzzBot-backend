@@ -9,7 +9,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from db.models import Course, DataVersion, Meeting, Section, SourceSnapshot
+from app.db.models import Course, DataVersion, Meeting, Section, SourceSnapshot
 from ingestion.schedule.validate import FreshnessState, freshness_state
 
 DAY_CODES = frozenset("MTWRFSU")

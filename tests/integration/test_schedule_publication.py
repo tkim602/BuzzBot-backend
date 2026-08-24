@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, delete, event, func, insert, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from db.models import DataVersion
+from app.db.models import DataVersion
 from ingestion.schedule.repository import (
     SafeSnapshot,
     latest_published_version,

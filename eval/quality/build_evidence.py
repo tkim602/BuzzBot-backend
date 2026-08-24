@@ -9,9 +9,9 @@ from pathlib import Path
 from sqlalchemy import select
 
 from app.core.config import settings
+from app.db.models import Document
+from app.db.session import SyncSessionLocal
 from app.rag.grounding import semantic_claim_verdict
-from db.models import Document
-from db.session import SyncSessionLocal
 from eval.quality.evidence import load_gold_evidence, validate_evidence_texts
 from eval.quality.metrics import normalize_url
 from eval.quality.schema import GoldCase, load_manifest_cases

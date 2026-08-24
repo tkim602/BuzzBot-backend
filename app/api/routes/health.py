@@ -12,9 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.usage import get_usage
+from app.db.models import Chunk, DataVersion, Document, Source, SourceSnapshot
+from app.db.session import get_async_session
 from app.retrieval.documents import OFFICIAL_SOURCE_NAMES
-from db.models import Chunk, DataVersion, Document, Source, SourceSnapshot
-from db.session import get_async_session
 from ingestion.schedule.validate import FreshnessState, freshness_state
 
 router = APIRouter()

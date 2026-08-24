@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.api.health import readiness_status
+from app.api.routes.health import readiness_status
 
 
 @pytest.mark.asyncio

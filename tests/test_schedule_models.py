@@ -4,7 +4,7 @@ import importlib
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, UniqueConstraint, inspect
 
-from db import models
+from app.db import models
 
 SCHEDULE_TABLES = {
     "data_versions",
