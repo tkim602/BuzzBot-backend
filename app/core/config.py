@@ -22,6 +22,24 @@ def sync_database_url(database_url: str) -> str:
 
 
 class Settings(BaseSettings):
+    # Web
+    cors_origins: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3100,http://127.0.0.1:3100"
+    )
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        origins = list(
+            dict.fromkeys(
+                origin.strip().rstrip("/")
+                for origin in self.cors_origins.split(",")
+                if origin.strip()
+            )
+        )
+        if "*" in origins:
+            raise ValueError("CORS origins cannot contain a wildcard when credentials are enabled")
+        return origins
+
     # Database
     database_url: str
 
