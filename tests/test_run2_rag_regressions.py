@@ -740,7 +740,9 @@ async def test_guidance_location_question_is_normalized_to_request_policy_conten
     )
 
     user_prompt = call.await_args.args[1]
-    assert "What does the official guidance say about first-year application platform?" in user_prompt
+    assert (
+        "What does the official guidance say about first-year application platform?" in user_prompt
+    )
 
 
 @pytest.mark.asyncio

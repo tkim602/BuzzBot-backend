@@ -169,10 +169,7 @@ def _ground_citation_quotes(
                     (
                         (
                             len(claim_numbers & span_numbers),
-                            int(
-                                not _NEGATION_RE.search(claim)
-                                or bool(_NEGATION_RE.search(span))
-                            ),
+                            int(not _NEGATION_RE.search(claim) or bool(_NEGATION_RE.search(span))),
                             sum(len(term) for term in overlap),
                             len(overlap),
                             len(overlap) / max(len(claim_words), 1),

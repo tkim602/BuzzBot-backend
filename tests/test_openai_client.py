@@ -3,6 +3,7 @@ from app.core.clients import get_openai_client
 
 def test_openai_client_is_reused(monkeypatch):
     created = []
+    monkeypatch.setenv("LANGSMITH_TRACING", "false")
 
     def client(*, api_key):
         created.append(api_key)

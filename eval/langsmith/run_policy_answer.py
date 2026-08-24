@@ -260,9 +260,7 @@ def deterministic_scores(
     }
 
 
-def classify_validator(
-    raw_semantic: dict[str, object], output: dict[str, object]
-) -> str:
+def classify_validator(raw_semantic: dict[str, object], output: dict[str, object]) -> str:
     raw_safe = bool(
         raw_semantic.get("correct")
         and raw_semantic.get("supported")

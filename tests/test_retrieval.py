@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.core.clients import get_openai_client
 from app.core.config import settings
 from app.rag.retrieval import (
     FTS_DOCUMENT_EXPRESSION,
@@ -298,6 +299,8 @@ async def test_policy_deep_lexical_pool_is_reranked_before_existing_fusion_budge
 @pytest.mark.asyncio
 async def test_async_embedding_client_receives_key_loaded_by_settings(monkeypatch):
     captured: dict[str, str] = {}
+    monkeypatch.setenv("LANGSMITH_TRACING", "false")
+    get_openai_client.cache_clear()
 
     class Embeddings:
         async def create(self, **kwargs):
@@ -317,3 +320,4 @@ async def test_async_embedding_client_receives_key_loaded_by_settings(monkeypatc
 
     assert await get_text_embeddings(["test query"]) == [[0.1]]
     assert captured == {"api_key": "test-key"}
+    get_openai_client.cache_clear()
