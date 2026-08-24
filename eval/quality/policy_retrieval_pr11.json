@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "date": "2026-08-24",
+  "branch": "data/policy-evidence-coverage",
+  "benchmark": {
+    "manifest": "eval/quality/manifests/dev_100.json",
+    "gold_evidence": "eval/quality/gold_evidence/dev_100.json",
+    "cases": 100,
+    "top_k": 5
+  },
+  "frozen_pr10_baseline": {
+    "document_hit_at_5": 0.8,
+    "evidence_hit_at_5": 0.7,
+    "document_mrr_at_5": 0.6398333333333334
+  },
+  "pr11_source_run_before_fix": {
+    "document_hit_at_5": 0.79,
+    "evidence_hit_at_5": 0.69,
+    "document_mrr_at_5": 0.6265,
+    "mean_latency_ms": 2053.150968200207,
+    "p95_latency_ms": 3316.4052840002114
+  },
+  "pr11_final": {
+    "document_hit_at_5": 0.79,
+    "evidence_hit_at_1": 0.39,
+    "evidence_hit_at_3": 0.6,
+    "evidence_hit_at_5": 0.7,
+    "evidence_mrr_at_5": 0.5058333333333334,
+    "document_mrr_at_5": 0.6331666666666667,
+    "mean_latency_ms": 2260.0960046002,
+    "p95_latency_ms": 4383.070955998846
+  },
+  "gate": {
+    "metric": "evidence_hit_at_5",
+    "target": 0.85,
+    "status": "FAIL"
+  },
+  "accepted_change": {
+    "behavior": "Serialized table relationship rows are no longer treated as section headings.",
+    "chunking_version": 3,
+    "wins_vs_source_run": ["gold-030-v10"],
+    "regressions_vs_source_run": []
+  },
+  "rejected_experiments": [
+    {
+      "name": "vector_pool_matches_fusion_budget",
+      "document_hit_at_5": 0.78,
+      "evidence_hit_at_5": 0.69,
+      "decision": "REJECTED_NO_NET_EVIDENCE_GAIN"
+    },
+    {
+      "name": "second_cross_encoder_child_rerank",
+      "document_hit_at_5": 0.78,
+      "evidence_hit_at_5": 0.64,
+      "mean_latency_ms": 3004.0065157094796,
+      "decision": "REJECTED_REGRESSION_AND_LATENCY"
+    }
+  ],
+  "root_causes_before": {
+    "CANDIDATE_GENERATION_TRUNCATION": 5,
+    "CHILD_RESELECTION_LOSS": 4,
+    "CHUNKING_BOUNDARY_LOSS": 3,
+    "DOCUMENT_RETRIEVED_WRONG_CHUNK": 8,
+    "FUSION_OR_RERANK_LOSS": 5,
+    "GOLD_OR_EVAL_DEFINITION_ISSUE": 3,
+    "RESOLVED_SINCE_FREEZE": 2
+  },
+  "root_causes_after": {
+    "CANDIDATE_GENERATION_TRUNCATION": 6,
+    "CHILD_RESELECTION_LOSS": 4,
+    "CHUNKING_BOUNDARY_LOSS": 1,
+    "DOCUMENT_RETRIEVED_WRONG_CHUNK": 8,
+    "FUSION_OR_RERANK_LOSS": 5,
+    "GOLD_OR_EVAL_DEFINITION_ISSUE": 3,
+    "RESOLVED_SINCE_FREEZE": 3
+  },
+  "policy_e2e_rerun": {
+    "performed": false,
+    "reason": "Retrieval did not meet or improve beyond the frozen 70% baseline, so the bounded paid semantic run was intentionally skipped."
+  },
+  "frozen_fixture_sha256": {
+    "snapshot.json": "4adf938f211f5934884cf798d15ee66bbab3dbf1c2051ba13579cdfb9f2c36f5",
+    "taxonomy.json": "42f67f9fd3a4fd738b26a89ba36200bd1982928842d42078729198026d58fe64"
+  }
+}

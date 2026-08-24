@@ -1,6 +1,6 @@
 """Tests for chunking logic."""
 
-from ingestion.chunk import chunk_text
+from ingestion.chunk import _looks_like_heading, chunk_text
 from ingestion.extract import extract_content
 
 
@@ -65,6 +65,10 @@ Event: Registration opens.
 
     assert len(result) == 1
     assert result[0].text == text.removeprefix("## ")
+
+
+def test_serialized_table_relationship_is_content_not_heading():
+    assert not _looks_like_heading("Document Deadline — Fall Semester: March 16")
 
 
 def test_catalog_lists_are_content_not_one_token_headings():
