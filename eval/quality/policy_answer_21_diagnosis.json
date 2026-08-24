@@ -1,0 +1,1295 @@
+{
+  "cases": 21,
+  "answer_correctness": 0.2857142857142857,
+  "answer_support": 0.6190476190476191,
+  "citation_present": 0.6190476190476191,
+  "citation_entails_claim": 0.3333333333333333,
+  "citation_source_correct": 0.47619047619047616,
+  "abstention_correct": 0.6190476190476191,
+  "unsupported_confident": 0.0,
+  "failure_categories": {
+    "CITATION_MISMATCH": 2,
+    "INCOMPLETE_ANSWER": 11,
+    "PASS": 5,
+    "VALIDATOR_FALSE_REJECTION": 3
+  },
+  "validator_outcomes": {
+    "FALSE_REJECTION": 3,
+    "MISSED_UNSUPPORTED_CLAIM": 7,
+    "PASS": 6,
+    "TRUE_REJECTION": 5
+  },
+  "cost_usd": 0.0132783,
+  "records": [
+    {
+      "case_id": "gold-002-v7",
+      "question": "So like, for whether Georgia Tech issues unofficial transcripts, what am I supposed to go by?",
+      "raw_answer": "No. Georgia Tech does not issue “unofficial” transcripts.",
+      "answer": "No. Georgia Tech does not issue “unofficial” transcripts.",
+      "raw_citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-students/transcripts",
+          "title": "gt-registrar-lifecycle",
+          "fetched_at": null,
+          "quote": "Georgia Tech does not issue “unofficial” transcripts."
+        },
+        {
+          "url": "https://registrar.gatech.edu/records/transcripts",
+          "title": "gt-registrar-lifecycle",
+          "fetched_at": null,
+          "quote": "Current, active students can access their unofficial transcripts through OSCAR. Unofficial transcripts are intended for personal use and provide a summary of your enrollment history and degree progress."
+        },
+        {
+          "url": "https://registrar.gatech.edu/records/transcripts",
+          "title": "gt-registrar-lifecycle",
+          "fetched_at": null,
+          "quote": "Unofficial transcripts are intended for personal use and provide a summary of your enrollment history and degree progress."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-students/transcripts",
+          "title": "gt-registrar-lifecycle",
+          "fetched_at": null,
+          "quote": "Georgia Tech does not issue “unofficial” transcripts."
+        },
+        {
+          "url": "https://registrar.gatech.edu/records/transcripts",
+          "title": "gt-registrar-lifecycle",
+          "fetched_at": null,
+          "quote": "Current, active students can access their unofficial transcripts through OSCAR. Unofficial transcripts are intended for personal use and provide a summary of your enrollment history and degree progress."
+        },
+        {
+          "url": "https://registrar.gatech.edu/records/transcripts",
+          "title": "gt-registrar-lifecycle",
+          "fetched_at": null,
+          "quote": "Unofficial transcripts are intended for personal use and provide a summary of your enrollment history and degree progress."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": true,
+      "supported": true,
+      "complete": true,
+      "citation_entails_claim": true,
+      "abstention_correct": true,
+      "failure_category": "PASS",
+      "reason": "The answer correctly states that Georgia Tech does not issue unofficial transcripts, which is fully supported by the citation.",
+      "citation_present": true,
+      "citation_source_correct": true,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0007836,
+      "raw_semantic": {
+        "correct": true,
+        "supported": true,
+        "complete": true,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "PASS",
+        "reason": "The answer correctly states that Georgia Tech does not issue unofficial transcripts, which is fully supported by the citation."
+      },
+      "validator_outcome": "PASS"
+    },
+    {
+      "case_id": "gold-004-v10",
+      "question": "GT when degrees are awarded after commencement",
+      "raw_answer": "Degrees are awarded approximately 6 to 8 weeks after Commencement. Diplomas are printed and mailed by an outside company during this timeframe.",
+      "answer": "Degrees are awarded approximately 6 to 8 weeks after Commencement. Diplomas are printed and mailed by an outside company during this timeframe.",
+      "raw_citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-students/degree-information",
+          "title": "gt-registrar-lifecycle",
+          "fetched_at": null,
+          "quote": "Diplomas are printed by an outside company and it normally takes 6-8 weeks after Commencement to be printed and mailed. Students who are active degree candidates at the time of commencement are eligible to participate in the ceremony."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-students/degree-information",
+          "title": "gt-registrar-lifecycle",
+          "fetched_at": null,
+          "quote": "Diplomas are printed by an outside company and it normally takes 6-8 weeks after Commencement to be printed and mailed."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-students/degree-information",
+          "title": "gt-registrar-lifecycle",
+          "fetched_at": null,
+          "quote": "Diplomas are printed by an outside company and it normally takes 6-8 weeks after Commencement to be printed and mailed. Students who are active degree candidates at the time of commencement are eligible to participate in the ceremony."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-students/degree-information",
+          "title": "gt-registrar-lifecycle",
+          "fetched_at": null,
+          "quote": "Diplomas are printed by an outside company and it normally takes 6-8 weeks after Commencement to be printed and mailed."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": false,
+      "supported": true,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": true,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer does not match the gold answer regarding the timing of degree awards, which states they are awarded on the Thursday following Commencement.",
+      "citation_present": true,
+      "citation_source_correct": true,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.00058815,
+      "raw_semantic": {
+        "correct": false,
+        "supported": true,
+        "complete": false,
+        "citation_entails_claim": false,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer does not match the gold answer regarding the timing of degree awards, which states they are awarded on the Thursday following Commencement."
+      },
+      "validator_outcome": "MISSED_UNSUPPORTED_CLAIM"
+    },
+    {
+      "case_id": "gold-007-v10",
+      "question": "Quick question: what do I actually need to know about undergraduate minor credit-hour requirement at Tech?",
+      "raw_answer": "To fulfill the undergraduate minor credit-hour requirement at Georgia Tech, students must complete at least 15 credit hours. All courses counting toward the minor must be taken on a letter-grade basis and completed with a grade of C or above. Additionally, a maximum of 3 credit hours of transfer credit may be used, and a maximum of 3 credit hours can be shared with another minor.",
+      "answer": "To fulfill the undergraduate minor credit-hour requirement at Georgia Tech, students must complete at least 15 credit hours. All courses counting toward the minor must be taken on a letter-grade basis and completed with a grade of C or above. Additionally, a maximum of 3 credit hours of transfer credit may be used, and a maximum of 3 credit hours can be shared with another minor.",
+      "raw_citations": [
+        {
+          "url": "https://catalog.gatech.edu/programs/minor-energy-systems",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "The breadth courses and the capstone project course, courses taken by all students completing the minor, require one or more prerequisites; specifically, basic economics, mathematics, and lab science courses. The minor must consist of at least 15 credit hours and all courses in the minor also must be 3000 level and above."
+        },
+        {
+          "url": "https://catalog.gatech.edu/academics/minors",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "- All courses counting toward the minor must be taken on a letter-grade basis."
+        },
+        {
+          "url": "https://catalog.gatech.edu/academics/minors",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "- All courses used to satisfy the course requirements for a minor must be completed with a grade of C or above."
+        },
+        {
+          "url": "https://catalog.gatech.edu/programs/minor-energy-systems",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "- A maximum of 3 credit hours of transfer credit may be used to satisfy the course requirements for a minor."
+        },
+        {
+          "url": "https://catalog.gatech.edu/academics/minors",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "- A maximum of 3 credit hours can be shared with another minor."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://catalog.gatech.edu/programs/minor-energy-systems",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "The breadth courses and the capstone project course, courses taken by all students completing the minor, require one or more prerequisites; specifically, basic economics, mathematics, and lab science courses. The minor must consist of at least 15 credit hours and all courses in the minor also must be 3000 level and above."
+        },
+        {
+          "url": "https://catalog.gatech.edu/academics/minors",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "- All courses counting toward the minor must be taken on a letter-grade basis."
+        },
+        {
+          "url": "https://catalog.gatech.edu/academics/minors",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "- All courses used to satisfy the course requirements for a minor must be completed with a grade of C or above."
+        },
+        {
+          "url": "https://catalog.gatech.edu/programs/minor-energy-systems",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "- A maximum of 3 credit hours of transfer credit may be used to satisfy the course requirements for a minor."
+        },
+        {
+          "url": "https://catalog.gatech.edu/academics/minors",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "- A maximum of 3 credit hours can be shared with another minor."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": true,
+      "supported": true,
+      "complete": false,
+      "citation_entails_claim": true,
+      "abstention_correct": true,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer provides additional details beyond the credit-hour requirement but does not specify the upper limit of 18 credit hours, making it incomplete.",
+      "citation_present": true,
+      "citation_source_correct": true,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0008097,
+      "raw_semantic": {
+        "correct": true,
+        "supported": true,
+        "complete": false,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer provides additional details beyond the credit-hour requirement but does not specify the upper limit of 18 credit hours, making it incomplete."
+      },
+      "validator_outcome": "PASS"
+    },
+    {
+      "case_id": "gold-015-v10",
+      "question": "graduate transfer-credit limit for a smaller master's program at GT?",
+      "raw_answer": "A student in a master's degree program requiring fewer than 33 semester credit hours may receive up to six hours of transfer credit, while a program requiring 33 semester credit hours or more may receive up to nine hours of transfer credit.",
+      "answer": "A student in a master's degree program requiring fewer than 33 semester credit hours may receive up to six hours of transfer credit, while a program requiring 33 semester credit hours or more may receive up to nine hours of transfer credit.",
+      "raw_citations": [
+        {
+          "url": "https://catalog.gatech.edu/academics/graduate/policies-and-regulations",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "- Students in a master's degree program requiring fewer than 33 semester credit hours may receive up to six hours of transfer credit for graduate-level courses taken at an institution accredited by a Canadian or U.S."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://catalog.gatech.edu/academics/graduate/policies-and-regulations",
+          "title": "gt-catalog-programs",
+          "fetched_at": null,
+          "quote": "- Students in a master's degree program requiring fewer than 33 semester credit hours may receive up to six hours of transfer credit for graduate-level courses taken at an institution accredited by a Canadian or U.S."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": false,
+      "supported": true,
+      "complete": false,
+      "citation_entails_claim": true,
+      "abstention_correct": true,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer does not fully address the specific limit for smaller master's programs as stated in the gold answer.",
+      "citation_present": true,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0006076499999999999,
+      "raw_semantic": {
+        "correct": false,
+        "supported": true,
+        "complete": false,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer does not fully address the specific limit for smaller master's programs as stated in the gold answer."
+      },
+      "validator_outcome": "MISSED_UNSUPPORTED_CLAIM"
+    },
+    {
+      "case_id": "gold-017-v10",
+      "question": "Where can I find the official Georgia Tech guidance on first-year application platform?",
+      "raw_answer": "You can find the official Georgia Tech guidance on the first-year application platform on their admissions website, specifically at the First-Year Admission page.",
+      "answer": "I don't have enough official evidence to answer that reliably. Please make the course, term, program, or deadline more specific.",
+      "raw_citations": [
+        {
+          "url": "https://admission.gatech.edu/first-year/major-selection",
+          "title": "gt-admission",
+          "fetched_at": null,
+          "quote": "Read more about how we shape Georgia Tech’s first-year class each year here, and learn more about the majors we offer here. Students wishing to be considered for a Stamps President’s or Gold Scholarship must do so with the primary major listed on their admission application."
+        }
+      ],
+      "citations": [],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": false,
+        "polarity_consistent": true,
+        "answer_valid": false
+      },
+      "correct": false,
+      "supported": false,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": false,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer does not provide the specific information about the application platform being the Common Application, which is essential to fully address the question.",
+      "citation_present": false,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.00064365,
+      "raw_semantic": {
+        "correct": false,
+        "supported": false,
+        "complete": false,
+        "citation_entails_claim": false,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer does not provide the specific information about the application platform being the Common Application, which is essential to fully address the question."
+      },
+      "validator_outcome": "TRUE_REJECTION"
+    },
+    {
+      "case_id": "gold-020-v10",
+      "question": "Georgia Tech official SAT or ACT score timing for admitted students official policy",
+      "raw_answer": "Georgia Tech requires all admitted students to submit official SAT or ACT scores before attending orientation.",
+      "answer": "Georgia Tech requires all admitted students to submit official SAT or ACT scores before attending orientation.",
+      "raw_citations": [
+        {
+          "url": "https://admission.gatech.edu/first-year/standardized-tests",
+          "title": "gt-admission",
+          "fetched_at": null,
+          "quote": "Students who are admitted and choose to enroll at Georgia Tech, will need to submit official test scores before attending orientation."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://admission.gatech.edu/first-year/standardized-tests",
+          "title": "gt-admission",
+          "fetched_at": null,
+          "quote": "Students who are admitted and choose to enroll at Georgia Tech, will need to submit official test scores before attending orientation."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": true,
+      "supported": true,
+      "complete": true,
+      "citation_entails_claim": true,
+      "abstention_correct": true,
+      "failure_category": "PASS",
+      "reason": "The answer accurately reflects the gold answer and is fully supported by the citation.",
+      "citation_present": true,
+      "citation_source_correct": true,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0005931,
+      "raw_semantic": {
+        "correct": true,
+        "supported": true,
+        "complete": true,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "PASS",
+        "reason": "The answer accurately reflects the gold answer and is fully supported by the citation."
+      },
+      "validator_outcome": "PASS"
+    },
+    {
+      "case_id": "gold-022-v3",
+      "question": "I'm a Georgia Tech student planning around reapplying in Regular Decision after an Early Action denial. What does the official guidance say?",
+      "raw_answer": "No, students who are denied admission in Early Action may not reapply during the Regular Decision round.",
+      "answer": "No, students who are denied admission in Early Action may not reapply during the Regular Decision round.",
+      "raw_citations": [
+        {
+          "url": "https://admission.gatech.edu/first-year/decision-outcomes",
+          "title": "gt-admission",
+          "fetched_at": null,
+          "quote": "First-year applicants who receive this decision are not offered admission to Georgia Tech. If a student who applied for Early Action is denied, they may not reapply during our Regular Decision round."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://admission.gatech.edu/first-year/decision-outcomes",
+          "title": "gt-admission",
+          "fetched_at": null,
+          "quote": "First-year applicants who receive this decision are not offered admission to Georgia Tech. If a student who applied for Early Action is denied, they may not reapply during our Regular Decision round."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": true,
+      "supported": true,
+      "complete": true,
+      "citation_entails_claim": true,
+      "abstention_correct": true,
+      "failure_category": "PASS",
+      "reason": "The answer correctly reflects the gold answer and is fully supported by the citation.",
+      "citation_present": true,
+      "citation_source_correct": true,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.00056655,
+      "raw_semantic": {
+        "correct": true,
+        "supported": true,
+        "complete": true,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "PASS",
+        "reason": "The answer correctly reflects the gold answer and is fully supported by the citation."
+      },
+      "validator_outcome": "PASS"
+    },
+    {
+      "case_id": "gold-023-v10",
+      "question": "So like, for whether first-year recommendations are required, what am I supposed to go by?",
+      "raw_answer": "No. First-year applicants who receive this decision are not offered admission to Georgia Tech.",
+      "answer": "No. First-year applicants who receive this decision are not offered admission to Georgia Tech.",
+      "raw_citations": [
+        {
+          "url": "https://admission.gatech.edu/first-year/decision-outcomes",
+          "title": "gt-admission",
+          "fetched_at": null,
+          "quote": "First-year applicants who receive this decision are not offered admission to Georgia Tech."
+        },
+        {
+          "url": "https://admission.gatech.edu/first-year/recommendations",
+          "title": "gt-admission",
+          "fetched_at": null,
+          "quote": "This is completely optional."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://admission.gatech.edu/first-year/decision-outcomes",
+          "title": "gt-admission",
+          "fetched_at": null,
+          "quote": "First-year applicants who receive this decision are not offered admission to Georgia Tech."
+        },
+        {
+          "url": "https://admission.gatech.edu/first-year/recommendations",
+          "title": "gt-admission",
+          "fetched_at": null,
+          "quote": "This is completely optional."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": false,
+      "supported": true,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": true,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer does not address the requirement of recommendation letters for first-year applicants, which is the main question.",
+      "citation_present": true,
+      "citation_source_correct": true,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0007513499999999999,
+      "raw_semantic": {
+        "correct": false,
+        "supported": true,
+        "complete": false,
+        "citation_entails_claim": false,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer does not address the requirement of recommendation letters for first-year applicants, which is the main question."
+      },
+      "validator_outcome": "MISSED_UNSUPPORTED_CLAIM"
+    },
+    {
+      "case_id": "gold-029-v3",
+      "question": "I'm a Georgia Tech student planning around fall transfer application window. What does the official guidance say?",
+      "raw_answer": "The official guidance for Georgia Tech's fall transfer application states that the application period is from January 18 to March 1, with a document deadline of March 16. Applicants must have completed at least 30 semester or 45 quarter credit hours and meet specific GPA requirements depending on their intended college.",
+      "answer": "I don't have enough official evidence to answer that reliably. Please make the course, term, program, or deadline more specific.",
+      "raw_citations": [
+        {
+          "url": "https://admission.gatech.edu/transfer/deadlines-fees",
+          "title": "gt-transfer-admission",
+          "fetched_at": null,
+          "quote": "Application Available — Fall Semester: January 18 – March 1 Document Deadline — Fall Semester: March 16"
+        },
+        {
+          "url": "https://admission.gatech.edu/transfer/application-requirements",
+          "title": "gt-transfer-admission",
+          "fetched_at": null,
+          "quote": "A transfer applicant is a degree-seeking student who has completed a minimum of 30 semester or 45 quarter credit hours. This includes students who have earned college credit through dual enrollment or credit by exam (AP or IB)."
+        },
+        {
+          "url": "https://admission.gatech.edu/transfer/application-requirements",
+          "title": "gt-transfer-admission",
+          "fetched_at": null,
+          "quote": "Transfer applicants must complete the course requirements for their intended major by the course requirement deadline."
+        }
+      ],
+      "citations": [],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": false,
+        "polarity_consistent": true,
+        "answer_valid": false
+      },
+      "correct": false,
+      "supported": false,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": false,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer includes additional information about document deadlines and GPA requirements that are not part of the gold answer, making it incomplete in relation to the specific question asked.",
+      "citation_present": false,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0006688499999999999,
+      "raw_semantic": {
+        "correct": false,
+        "supported": true,
+        "complete": false,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer includes additional information about document deadlines and GPA requirements that are not part of the gold answer, making it incomplete in relation to the specific question asked."
+      },
+      "validator_outcome": "TRUE_REJECTION"
+    },
+    {
+      "case_id": "gold-030-v10",
+      "question": "fall transfer document deadline at GT?",
+      "raw_answer": "The fall transfer document deadline at Georgia Tech is May 30.",
+      "answer": "I don't have enough official evidence to answer that reliably. Please make the course, term, program, or deadline more specific.",
+      "raw_citations": [
+        {
+          "url": "https://admission.gatech.edu/transfer/deadlines-fees",
+          "title": "gt-transfer-admission",
+          "fetched_at": null,
+          "quote": "Course Requirements Deadline* — Fall Semester: May 30 Decision Release* — Fall Semester: April 16 – Dual Degree May 14 – Regular Transfer, REPP, and Veterans Pathways June 11 – APS, Arts & Sciences, Conditional, and Talent Initiative Pathways"
+        }
+      ],
+      "citations": [],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": false,
+        "polarity_consistent": true,
+        "answer_valid": false
+      },
+      "correct": false,
+      "supported": false,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": false,
+      "failure_category": "CITATION_MISMATCH",
+      "reason": "The answer states a deadline of May 30, which contradicts the gold answer of March 16, and the citation does not support the claim made in the answer.",
+      "citation_present": false,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0005258999999999999,
+      "raw_semantic": {
+        "correct": false,
+        "supported": false,
+        "complete": false,
+        "citation_entails_claim": false,
+        "abstention_correct": false,
+        "failure_category": "CITATION_MISMATCH",
+        "reason": "The answer states a deadline of May 30, which contradicts the gold answer of March 16, and the citation does not support the claim made in the answer."
+      },
+      "validator_outcome": "TRUE_REJECTION"
+    },
+    {
+      "case_id": "gold-038-v5",
+      "question": "I need to make a decision involving OMSCS summer course availability. What rule or requirement should I rely on?",
+      "raw_answer": "The OMSCS program does not offer Summer admissions, and students can only enroll in a limited number of courses during the Summer semester. Specifically, students may take one letter grade course during Summer, with the possibility of applying for an additional course depending on availability.",
+      "answer": "The OMSCS program does not offer Summer admissions, and students can only enroll in a limited number of courses during the Summer semester. Specifically, students may take one letter grade course during Summer, with the possibility of applying for an additional course depending on availability.",
+      "raw_citations": [
+        {
+          "url": "https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "The OMSCS program accepts applications year-round for both Fall and Spring matriculations (there are no Summer admissions)."
+        },
+        {
+          "url": "https://omscs.gatech.edu/prospective-student-faqs",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "By default, the maximum number of letter grade courses a student may take during a Fall or Spring semester is two, and the maximum number of letter grade courses a student may take during a Summer semester is one. Depending on enrollment patterns and their own progress through the program, students may sometimes be permitted to apply to take a single additional course; when available, this application process is announced by the academic advisers."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "The OMSCS program accepts applications year-round for both Fall and Spring matriculations (there are no Summer admissions)."
+        },
+        {
+          "url": "https://omscs.gatech.edu/prospective-student-faqs",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "By default, the maximum number of letter grade courses a student may take during a Fall or Spring semester is two, and the maximum number of letter grade courses a student may take during a Summer semester is one. Depending on enrollment patterns and their own progress through the program, students may sometimes be permitted to apply to take a single additional course; when available, this application process is announced by the academic advisers."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": false,
+      "supported": true,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": true,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer does not fully address the question regarding the availability of courses in the Summer, as it does not mention that only a subset of courses is offered.",
+      "citation_present": true,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0006896999999999999,
+      "raw_semantic": {
+        "correct": false,
+        "supported": true,
+        "complete": false,
+        "citation_entails_claim": false,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer does not fully address the question regarding the availability of courses in the Summer, as it does not mention that only a subset of courses is offered."
+      },
+      "validator_outcome": "MISSED_UNSUPPORTED_CLAIM"
+    },
+    {
+      "case_id": "gold-041-v10",
+      "question": "If a student asked about total OMSCS degree hours and courses, what would Georgia Tech's official guidance be?",
+      "raw_answer": "Georgia Tech's Online Master of Science in Computer Science (OMSCS) requires a minimum of 30 credit hours for completion, which includes 15-18 hours for a specialization and 12-15 hours of free electives.",
+      "answer": "Georgia Tech's Online Master of Science in Computer Science (OMSCS) requires a minimum of 30 credit hours for completion, which includes 15-18 hours for a specialization and 12-15 hours of free electives.",
+      "raw_citations": [
+        {
+          "url": "https://omscs.gatech.edu/prospective-student-faqs",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "in Computer Science requires a minimum of 30 credit hours for completion. Specializations require 15-18 hours of coursework, and the remaining 12-15 hours are “free” electives."
+        },
+        {
+          "url": "https://omscs.gatech.edu/prospective-student-faqs",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "Specializations require 15-18 hours of coursework, and the remaining 12-15 hours are “free” electives."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://omscs.gatech.edu/prospective-student-faqs",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "in Computer Science requires a minimum of 30 credit hours for completion. Specializations require 15-18 hours of coursework, and the remaining 12-15 hours are “free” electives."
+        },
+        {
+          "url": "https://omscs.gatech.edu/prospective-student-faqs",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "Specializations require 15-18 hours of coursework, and the remaining 12-15 hours are “free” electives."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": false,
+      "supported": true,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": true,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer provides additional details about specializations and free electives, which are not part of the gold answer. It does not directly state the total number of courses, which is a key part of the gold answer.",
+      "citation_present": true,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0006374999999999999,
+      "raw_semantic": {
+        "correct": false,
+        "supported": true,
+        "complete": false,
+        "citation_entails_claim": false,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer provides additional details about specializations and free electives, which are not part of the gold answer. It does not directly state the total number of courses, which is a key part of the gold answer."
+      },
+      "validator_outcome": "MISSED_UNSUPPORTED_CLAIM"
+    },
+    {
+      "case_id": "gold-046-v3",
+      "question": "I'm a Georgia Tech student planning around OMSCS Fall and Spring application deadlines. What does the official guidance say?",
+      "raw_answer": "The official application deadlines for the OMSCS program are March 1 for Fall matriculation and August 15 for Spring matriculation. Applications are accepted year-round, but all materials must be submitted by these deadlines for review.",
+      "answer": "I don't have enough official evidence to answer that reliably. Please make the course, term, program, or deadline more specific.",
+      "raw_citations": [
+        {
+          "url": "https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "- Application deadline for Fall matriculation: March 1"
+        },
+        {
+          "url": "https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "- Application deadline for Spring matriculation: August 15"
+        },
+        {
+          "url": "https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "The OMSCS program accepts applications year-round for both Fall"
+        },
+        {
+          "url": "https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines",
+          "title": "gt-omscs",
+          "fetched_at": null,
+          "quote": "The deadlines for submitting all application materials (listed in the next section), including any supporting materials, are:"
+        }
+      ],
+      "citations": [],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": false,
+        "polarity_consistent": true,
+        "answer_valid": false
+      },
+      "correct": false,
+      "supported": false,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": false,
+      "failure_category": "VALIDATOR_FALSE_REJECTION",
+      "reason": "The answer accurately reflects the gold answer and is fully supported by the citation quotes.",
+      "citation_present": false,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.00064635,
+      "raw_semantic": {
+        "correct": true,
+        "supported": true,
+        "complete": true,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "PASS",
+        "reason": "The answer accurately reflects the gold answer and is fully supported by the citation quotes."
+      },
+      "validator_outcome": "FALSE_REJECTION"
+    },
+    {
+      "case_id": "gold-051-v7",
+      "question": "I'm dealing with whether WebCheck carries a payment fee right now. What's the Georgia Tech rule I should follow?",
+      "raw_answer": "No. If an electronic check is not paid upon processing by the bank on which it is drawn, either because of incorrect bank routing and/or account information or insufficient funds, the payment will be reversed on the student’s account and a $30 fee assessed.",
+      "answer": "No. If an electronic check is not paid upon processing by the bank on which it is drawn, either because of incorrect bank routing and/or account information or insufficient funds, the payment will be reversed on the student’s account and a $30 fee assessed.",
+      "raw_citations": [
+        {
+          "url": "https://bursar.gatech.edu/payment-options",
+          "title": "gt-bursar",
+          "fetched_at": null,
+          "quote": "If an electronic check is not paid upon processing by the bank on which it is drawn, either because of incorrect bank routing and/or account information or insufficient funds, the payment will be reversed on the student’s account and a $30 fee assessed."
+        },
+        {
+          "url": "https://bursar.gatech.edu/payment-options",
+          "title": "gt-bursar",
+          "fetched_at": null,
+          "quote": "Electronic Check/WebCheck (FREE) Georgia Tech offers the ability to pay by electronic check from a U.S."
+        },
+        {
+          "url": "https://bursar.gatech.edu/payment-options",
+          "title": "gt-bursar",
+          "fetched_at": null,
+          "quote": "bank checking or savings account."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://bursar.gatech.edu/payment-options",
+          "title": "gt-bursar",
+          "fetched_at": null,
+          "quote": "If an electronic check is not paid upon processing by the bank on which it is drawn, either because of incorrect bank routing and/or account information or insufficient funds, the payment will be reversed on the student’s account and a $30 fee assessed."
+        },
+        {
+          "url": "https://bursar.gatech.edu/payment-options",
+          "title": "gt-bursar",
+          "fetched_at": null,
+          "quote": "Electronic Check/WebCheck (FREE) Georgia Tech offers the ability to pay by electronic check from a U.S."
+        },
+        {
+          "url": "https://bursar.gatech.edu/payment-options",
+          "title": "gt-bursar",
+          "fetched_at": null,
+          "quote": "bank checking or savings account."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": false,
+      "supported": true,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": true,
+      "failure_category": "CITATION_MISMATCH",
+      "reason": "The answer incorrectly states that there is a fee associated with WebCheck, while the gold answer states it is a free payment option. The citations do not support the claim made in the answer.",
+      "citation_present": true,
+      "citation_source_correct": true,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0008033999999999999,
+      "raw_semantic": {
+        "correct": false,
+        "supported": true,
+        "complete": false,
+        "citation_entails_claim": false,
+        "abstention_correct": false,
+        "failure_category": "CITATION_MISMATCH",
+        "reason": "The answer incorrectly states that there is a fee associated with WebCheck, while the gold answer states it is a free payment option. The citations do not support the claim made in the answer."
+      },
+      "validator_outcome": "MISSED_UNSUPPORTED_CLAIM"
+    },
+    {
+      "case_id": "gold-053-v3",
+      "question": "I'm a Georgia Tech student planning around tasks available in the Student Payment Portal. What does the official guidance say?",
+      "raw_answer": "The official guidance for using the Student Payment Portal at Georgia Tech includes checking your balance, making payments, viewing payment history, storing payment methods, signing up for eRefunds, and providing permission for others to view your bill and make payments.",
+      "answer": "I don't have enough official evidence to answer that reliably. Please make the course, term, program, or deadline more specific.",
+      "raw_citations": [
+        {
+          "url": "https://bursar.gatech.edu/payment-options",
+          "title": "gt-bursar",
+          "fetched_at": null,
+          "quote": "If you have any questions about making international payments with Flywire contact them at https://flywire.com/contact. Georgia Tech has partnered with CIBC International Student Pay to provide a fast, easy and cost-effective method for you to pay you tuition fees in your home currency from anywhere in the world, at any time."
+        },
+        {
+          "url": "https://bursar.gatech.edu/student-payment-instructions",
+          "title": "gt-bursar",
+          "fetched_at": null,
+          "quote": "- As a student, provide permission to others (parents, employers, etc) to view your bill and make payments"
+        },
+        {
+          "url": "https://bursar.gatech.edu/student-payment-instructions",
+          "title": "gt-bursar",
+          "fetched_at": null,
+          "quote": "- Make a payment towards your balance"
+        }
+      ],
+      "citations": [],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": false,
+        "polarity_consistent": true,
+        "answer_valid": false
+      },
+      "correct": false,
+      "supported": false,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": false,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer includes additional information not found in the gold answer, making it incomplete compared to the official guidance.",
+      "citation_present": false,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.00065805,
+      "raw_semantic": {
+        "correct": false,
+        "supported": true,
+        "complete": false,
+        "citation_entails_claim": false,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer includes additional information not found in the gold answer, making it incomplete compared to the official guidance."
+      },
+      "validator_outcome": "TRUE_REJECTION"
+    },
+    {
+      "case_id": "gold-063-v7",
+      "question": "What is Georgia Tech's official rule or procedure regarding new federal loan limits for graduate students?",
+      "raw_answer": "Georgia Tech's official rule regarding new federal loan limits for graduate students allows current graduate students to continue borrowing under existing federal loan limits and retain access to Graduate PLUS Loans until either the end of their current academic program or three academic years after July 1, 2026.",
+      "answer": "Georgia Tech's official rule regarding new federal loan limits for graduate students allows current graduate students to continue borrowing under existing federal loan limits and retain access to Graduate PLUS Loans until either the end of their current academic program or three academic years after July 1, 2026.",
+      "raw_citations": [
+        {
+          "url": "https://finaid.gatech.edu/updates",
+          "title": "gt-financial-aid",
+          "fetched_at": null,
+          "quote": "*Current graduate students may continue to borrow under the existing federal loan limits and retain access to Graduate PLUS Loans for a limited period."
+        },
+        {
+          "url": "https://finaid.gatech.edu/updates",
+          "title": "gt-financial-aid",
+          "fetched_at": null,
+          "quote": "*Current graduate students may continue to borrow under the existing federal loan limits and retain access to Graduate PLUS Loans for a limited period. Eligibility continues until the earlier of: (1) the end of the student's current academic program, or (2) three academic years after July 1, 2026."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://finaid.gatech.edu/updates",
+          "title": "gt-financial-aid",
+          "fetched_at": null,
+          "quote": "*Current graduate students may continue to borrow under the existing federal loan limits and retain access to Graduate PLUS Loans for a limited period."
+        },
+        {
+          "url": "https://finaid.gatech.edu/updates",
+          "title": "gt-financial-aid",
+          "fetched_at": null,
+          "quote": "*Current graduate students may continue to borrow under the existing federal loan limits and retain access to Graduate PLUS Loans for a limited period. Eligibility continues until the earlier of: (1) the end of the student's current academic program, or (2) three academic years after July 1, 2026."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": false,
+      "supported": true,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": true,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer does not address the specific loan limits mentioned in the gold answer, which are the $20,500 annual limit and the $100,000 lifetime limit.",
+      "citation_present": true,
+      "citation_source_correct": true,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.00049515,
+      "raw_semantic": {
+        "correct": false,
+        "supported": true,
+        "complete": false,
+        "citation_entails_claim": false,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer does not address the specific loan limits mentioned in the gold answer, which are the $20,500 annual limit and the $100,000 lifetime limit."
+      },
+      "validator_outcome": "MISSED_UNSUPPORTED_CLAIM"
+    },
+    {
+      "case_id": "gold-077-v10",
+      "question": "Where can I find the official Georgia Tech guidance on first steps for requesting a disability-related housing accommodation?",
+      "raw_answer": "You can find the official Georgia Tech guidance on requesting a disability-related housing accommodation on the Office of Disability Services website. Students must apply for housing first and indicate their need for accommodations in the Housing Application. After that, they should register with the Office of Disability Services by completing the New Student Application Request Form.",
+      "answer": "I don't have enough official evidence to answer that reliably. Please make the course, term, program, or deadline more specific.",
+      "raw_citations": [
+        {
+          "url": "https://disabilityservices.gatech.edu/students/getting-started",
+          "title": "gt-disability",
+          "fetched_at": null,
+          "quote": "Requesting Accommodations To receive accommodations and services, students must identify themselves to the Office of Disability Services and present official documentation of their disability."
+        },
+        {
+          "url": "https://disabilityservices.gatech.edu/students/housing-accommodations",
+          "title": "gt-disability",
+          "fetched_at": null,
+          "quote": "Students must apply for Housing first."
+        },
+        {
+          "url": "https://disabilityservices.gatech.edu/students/housing-accommodations",
+          "title": "gt-disability",
+          "fetched_at": null,
+          "quote": "When completing the Housing Application, students must indicate they need housing accommodations."
+        },
+        {
+          "url": "https://disabilityservices.gatech.edu/students/housing-accommodations",
+          "title": "gt-disability",
+          "fetched_at": null,
+          "quote": "After submitting the Housing Application, students will register with our Office of Disability Services by completing the New Student Application Request Form."
+        }
+      ],
+      "citations": [],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": false,
+        "polarity_consistent": true,
+        "answer_valid": false
+      },
+      "correct": false,
+      "supported": false,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": false,
+      "failure_category": "VALIDATOR_FALSE_REJECTION",
+      "reason": "The answer accurately reflects the gold answer and is fully supported by the provided citations.",
+      "citation_present": false,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.00055425,
+      "raw_semantic": {
+        "correct": true,
+        "supported": true,
+        "complete": true,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "PASS",
+        "reason": "The answer accurately reflects the gold answer and is fully supported by the provided citations."
+      },
+      "validator_outcome": "FALSE_REJECTION"
+    },
+    {
+      "case_id": "gold-080-v10",
+      "question": "Georgia Tech documentation for temporary disability accommodations official policy",
+      "raw_answer": "To receive accommodations for a temporary disability at Georgia Tech, students must fill out the online New Student Application form and provide medical documentation that includes details about the type of disability, severity, functional limitations, prognosis, and estimated duration of the condition.",
+      "answer": "I don't have enough official evidence to answer that reliably. Please make the course, term, program, or deadline more specific.",
+      "raw_citations": [
+        {
+          "url": "https://disabilityservices.gatech.edu/students/temporary-accommodations",
+          "title": "gt-disability",
+          "fetched_at": null,
+          "quote": "To receive accommodations for a temporary disability, the student will fill out the online New Student Application form and upload medical documentation that addresses the following criteria:"
+        },
+        {
+          "url": "https://disabilityservices.gatech.edu/students/temporary-accommodations",
+          "title": "gt-disability",
+          "fetched_at": null,
+          "quote": "To receive accommodations for a temporary disability, the student will fill out the online New Student Application form and upload medical documentation that addresses the following criteria: - Type of disability"
+        },
+        {
+          "url": "https://disabilityservices.gatech.edu/students/temporary-accommodations",
+          "title": "gt-disability",
+          "fetched_at": null,
+          "quote": "- Estimated duration of the disabling condition"
+        }
+      ],
+      "citations": [],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": false,
+        "polarity_consistent": true,
+        "answer_valid": false
+      },
+      "correct": false,
+      "supported": false,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": false,
+      "failure_category": "VALIDATOR_FALSE_REJECTION",
+      "reason": "The answer correctly summarizes the requirements for temporary disability accommodations at Georgia Tech and is fully supported by the citation quotes.",
+      "citation_present": false,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0005634,
+      "raw_semantic": {
+        "correct": true,
+        "supported": true,
+        "complete": true,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "PASS",
+        "reason": "The answer correctly summarizes the requirements for temporary disability accommodations at Georgia Tech and is fully supported by the citation quotes."
+      },
+      "validator_outcome": "FALSE_REJECTION"
+    },
+    {
+      "case_id": "gold-084-v10",
+      "question": "What is Georgia Tech's official rule or procedure regarding online credits counting toward F-1 or J-1 full-time enrollment?",
+      "raw_answer": "Georgia Tech's official rule states that only 3 credit hours of fully online coursework can count towards the full-time enrollment requirement for F-1 and J-1 visa holders, who must enroll in 12 credit hours total at Georgia Tech.",
+      "answer": "Georgia Tech's official rule states that only 3 credit hours of fully online coursework can count towards the full-time enrollment requirement for F-1 and J-1 visa holders, who must enroll in 12 credit hours total at Georgia Tech.",
+      "raw_citations": [
+        {
+          "url": "https://isss.oie.gatech.edu/content/enrollment-requirements",
+          "title": "gt-international",
+          "fetched_at": null,
+          "quote": "Only 3 credit hours of fully at a distance or online coursework can count towards full-time enrollment."
+        },
+        {
+          "url": "https://isss.oie.gatech.edu/content/enrollment-requirements",
+          "title": "gt-international",
+          "fetched_at": null,
+          "quote": "Students must be registered for all 12 credits at Georgia Tech and cannot utilize credits/enrollment at other institutions to count towards the full-time enrollment. Unless approved for CPT and working elsewhere or engaged in Study Abroad or GRIP, F-1 and J-1 student visa holders are expected be inside the U.S."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://isss.oie.gatech.edu/content/enrollment-requirements",
+          "title": "gt-international",
+          "fetched_at": null,
+          "quote": "Only 3 credit hours of fully at a distance or online coursework can count towards full-time enrollment."
+        },
+        {
+          "url": "https://isss.oie.gatech.edu/content/enrollment-requirements",
+          "title": "gt-international",
+          "fetched_at": null,
+          "quote": "Students must be registered for all 12 credits at Georgia Tech and cannot utilize credits/enrollment at other institutions to count towards the full-time enrollment. Unless approved for CPT and working elsewhere or engaged in Study Abroad or GRIP, F-1 and J-1 student visa holders are expected be inside the U.S."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": true,
+      "supported": true,
+      "complete": true,
+      "citation_entails_claim": true,
+      "abstention_correct": true,
+      "failure_category": "PASS",
+      "reason": "The answer accurately reflects the gold answer and is fully supported by the citation quotes.",
+      "citation_present": true,
+      "citation_source_correct": true,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.0006111,
+      "raw_semantic": {
+        "correct": true,
+        "supported": true,
+        "complete": true,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "PASS",
+        "reason": "The answer accurately reflects the gold answer and is fully supported by the citation quotes."
+      },
+      "validator_outcome": "PASS"
+    },
+    {
+      "case_id": "gold-092-v10",
+      "question": "Where can I find the official Georgia Tech guidance on academic-course enrollment during CPT?",
+      "raw_answer": "You can find the official Georgia Tech guidance on academic-course enrollment during CPT on the Office of International Education (OIE) website, specifically at the Curricular Practical Training (CPT) page.",
+      "answer": "I don't have enough official evidence to answer that reliably. Please make the course, term, program, or deadline more specific.",
+      "raw_citations": [
+        {
+          "url": "https://isss.oie.gatech.edu/content/international-student-employment-overview",
+          "title": "gt-international",
+          "fetched_at": null,
+          "quote": "Georgia Tech F-1 students are eligible for CPT if Georgia Tech’s Center for Career Discovery and Development has determined that the prospective employment is eligible for the co-op program. CPT must be approved per semester by GT’s Office of International Education (OIE) prior to the start of employment."
+        }
+      ],
+      "citations": [],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": false,
+        "polarity_consistent": true,
+        "answer_valid": false
+      },
+      "correct": false,
+      "supported": false,
+      "complete": false,
+      "citation_entails_claim": false,
+      "abstention_correct": false,
+      "failure_category": "INCOMPLETE_ANSWER",
+      "reason": "The answer does not directly address where to find the official guidance on academic-course enrollment during CPT, and the citation does not support the claim made in the answer.",
+      "citation_present": false,
+      "citation_source_correct": false,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.00052125,
+      "raw_semantic": {
+        "correct": false,
+        "supported": false,
+        "complete": false,
+        "citation_entails_claim": false,
+        "abstention_correct": false,
+        "failure_category": "INCOMPLETE_ANSWER",
+        "reason": "The answer does not directly address where to find the official guidance on academic-course enrollment during CPT, and the citation does not support the claim made in the answer."
+      },
+      "validator_outcome": "TRUE_REJECTION"
+    },
+    {
+      "case_id": "gold-096-v10",
+      "question": "Student life support for mental health and well-being — what's the rule?",
+      "raw_answer": "Georgia Tech provides various mental health and well-being support services for students, including professional counseling, advocacy, and resources to help resolve concerns and address emergencies. Students are encouraged to seek assistance early to maintain a balanced and healthy lifestyle.",
+      "answer": "Georgia Tech provides various mental health and well-being support services for students, including professional counseling, advocacy, and resources to help resolve concerns and address emergencies. Students are encouraged to seek assistance early to maintain a balanced and healthy lifestyle.",
+      "raw_citations": [
+        {
+          "url": "https://studentlife.gatech.edu/services/mental-health-well-being",
+          "title": "gt-student-support",
+          "fetched_at": null,
+          "quote": "Georgia Tech prides itself on the rigor of its academics and research as well as the strength and resilience of its students."
+        },
+        {
+          "url": "https://studentlife.gatech.edu/services/mental-health-well-being",
+          "title": "gt-student-support",
+          "fetched_at": null,
+          "quote": "The Office maintains a 24/7 emergency on-call system to respond to student emergencies – including medical and personal. So if you or someone you know could benefit from getting some help - whether that be involvement in a student organization, letting some steam out at the CRC, or getting professional counseling services – check out the resources below."
+        },
+        {
+          "url": "https://studentlife.gatech.edu/services/mental-health-well-being",
+          "title": "gt-student-support",
+          "fetched_at": null,
+          "quote": "The Vice President for Student Engagement & Well-Being and the Associate Vice President for Student Life and Brandt-Fritz Dean of Students Chair, promotes development and involvement, and also provides advocacy, information, resources and referrals to help resolve concerns and address emergencies."
+        },
+        {
+          "url": "https://studentlife.gatech.edu/services/mental-health-well-being",
+          "title": "gt-student-support",
+          "fetched_at": null,
+          "quote": "And students who thrive here at Tech are often the ones who seek assistance early and maintain a balanced, healthy lifestyle."
+        }
+      ],
+      "citations": [
+        {
+          "url": "https://studentlife.gatech.edu/services/mental-health-well-being",
+          "title": "gt-student-support",
+          "fetched_at": null,
+          "quote": "Georgia Tech prides itself on the rigor of its academics and research as well as the strength and resilience of its students."
+        },
+        {
+          "url": "https://studentlife.gatech.edu/services/mental-health-well-being",
+          "title": "gt-student-support",
+          "fetched_at": null,
+          "quote": "The Office maintains a 24/7 emergency on-call system to respond to student emergencies – including medical and personal. So if you or someone you know could benefit from getting some help - whether that be involvement in a student organization, letting some steam out at the CRC, or getting professional counseling services – check out the resources below."
+        },
+        {
+          "url": "https://studentlife.gatech.edu/services/mental-health-well-being",
+          "title": "gt-student-support",
+          "fetched_at": null,
+          "quote": "The Vice President for Student Engagement & Well-Being and the Associate Vice President for Student Life and Brandt-Fritz Dean of Students Chair, promotes development and involvement, and also provides advocacy, information, resources and referrals to help resolve concerns and address emergencies."
+        },
+        {
+          "url": "https://studentlife.gatech.edu/services/mental-health-well-being",
+          "title": "gt-student-support",
+          "fetched_at": null,
+          "quote": "And students who thrive here at Tech are often the ones who seek assistance early and maintain a balanced, healthy lifestyle."
+        }
+      ],
+      "validator": {
+        "grounding_valid": true,
+        "claims_supported": true,
+        "polarity_consistent": true,
+        "answer_valid": true
+      },
+      "correct": true,
+      "supported": true,
+      "complete": true,
+      "citation_entails_claim": true,
+      "abstention_correct": true,
+      "failure_category": "PASS",
+      "reason": "The answer accurately reflects the support services provided for mental health and well-being, aligns with the gold answer, and is supported by the citation quotes.",
+      "citation_present": true,
+      "citation_source_correct": true,
+      "output_contract_valid": true,
+      "unsupported_confident": false,
+      "cost_usd": 0.00055965,
+      "raw_semantic": {
+        "correct": true,
+        "supported": true,
+        "complete": true,
+        "citation_entails_claim": true,
+        "abstention_correct": false,
+        "failure_category": "PASS",
+        "reason": "The answer accurately reflects the support services provided for mental health and well-being, aligns with the gold answer, and is supported by the citation quotes."
+      },
+      "validator_outcome": "PASS"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ from eval.langsmith import run_policy_answer
 from eval.langsmith.run_policy_answer import (
     TAXONOMY_LABELS,
     answer_case,
+    classify_validator,
     deterministic_scores,
     ensure_dataset,
     load_snapshot,
@@ -206,6 +207,7 @@ def test_policy_summary_keeps_all_quality_metrics_separate():
                 "abstention_correct": True,
                 "unsupported_confident": False,
                 "failure_category": "PASS",
+                "validator_outcome": "PASS",
                 "cost_usd": 0.01,
             },
             {
@@ -217,6 +219,7 @@ def test_policy_summary_keeps_all_quality_metrics_separate():
                 "abstention_correct": False,
                 "unsupported_confident": False,
                 "failure_category": "CITATION_MISMATCH",
+                "validator_outcome": "TRUE_REJECTION",
                 "cost_usd": 0.02,
             },
         ]
@@ -230,7 +233,37 @@ def test_policy_summary_keeps_all_quality_metrics_separate():
     assert summary["abstention_correct"] == 0.5
     assert summary["unsupported_confident"] == 0.0
     assert summary["failure_categories"] == {"CITATION_MISMATCH": 1, "PASS": 1}
+    assert summary["validator_outcomes"] == {"PASS": 1, "TRUE_REJECTION": 1}
     assert summary["cost_usd"] == pytest.approx(0.03)
+
+
+@pytest.mark.parametrize(
+    ("raw", "output", "expected"),
+    [
+        (
+            {"correct": True, "supported": True, "citation_entails_claim": True},
+            {"answer_valid": False},
+            "FALSE_REJECTION",
+        ),
+        (
+            {"correct": False, "supported": False, "citation_entails_claim": False},
+            {"answer_valid": False},
+            "TRUE_REJECTION",
+        ),
+        (
+            {"correct": True, "supported": False, "citation_entails_claim": False},
+            {"answer_valid": True},
+            "MISSED_UNSUPPORTED_CLAIM",
+        ),
+        (
+            {"correct": True, "supported": True, "citation_entails_claim": True},
+            {"answer_valid": True},
+            "PASS",
+        ),
+    ],
+)
+def test_validator_outcome_uses_raw_answer_semantics(raw, output, expected):
+    assert classify_validator(raw, output) == expected
 
 
 @pytest.mark.asyncio
@@ -283,6 +316,7 @@ async def test_policy_evaluator_exports_semantic_and_deterministic_feedback(monk
             "citations": [{"url": case.gold_urls[0], "quote": "Evidence"}],
             "confidence": 1.0,
             "abstained": False,
+            "answer_valid": True,
         },
         {"gold_answer": case.gold_answer, "gold_urls": list(case.gold_urls)},
     )

@@ -260,6 +260,49 @@ def deterministic_scores(
     }
 
 
+def classify_validator(
+    raw_semantic: dict[str, object], output: dict[str, object]
+) -> str:
+    raw_safe = bool(
+        raw_semantic.get("correct")
+        and raw_semantic.get("supported")
+        and raw_semantic.get("citation_entails_claim")
+    )
+    if not output.get("answer_valid"):
+        return "FALSE_REJECTION" if raw_safe else "TRUE_REJECTION"
+    if not raw_safe:
+        return "MISSED_UNSUPPORTED_CLAIM"
+    return "PASS"
+
+
+def _raw_output(output: dict[str, object]) -> dict[str, object]:
+    return {
+        "answer": output.get("raw_answer", output.get("answer", "")),
+        "citations": output.get("raw_citations", output.get("citations", [])),
+        "abstained": False,
+    }
+
+
+def _final_semantic(
+    raw_semantic: dict[str, object], output: dict[str, object], validator_outcome: str
+) -> dict[str, object]:
+    if not output.get("abstained"):
+        return raw_semantic
+    return {
+        "correct": False,
+        "supported": False,
+        "complete": False,
+        "citation_entails_claim": False,
+        "abstention_correct": False,
+        "failure_category": (
+            "VALIDATOR_FALSE_REJECTION"
+            if validator_outcome == "FALSE_REJECTION"
+            else raw_semantic["failure_category"]
+        ),
+        "reason": raw_semantic["reason"],
+    }
+
+
 def ensure_dataset(client: object, snapshot: PolicySnapshot):
     if client.has_dataset(dataset_name=DATASET_NAME):
         dataset = client.read_dataset(dataset_name=DATASET_NAME)
@@ -317,6 +360,15 @@ def summarize_records(records: list[dict[str, object]]) -> dict[str, object]:
         "failure_categories": dict(
             sorted(Counter(str(record["failure_category"]) for record in records).items())
         ),
+        "validator_outcomes": dict(
+            sorted(
+                Counter(
+                    str(record["validator_outcome"])
+                    for record in records
+                    if record.get("validator_outcome")
+                ).items()
+            )
+        ),
         "cost_usd": sum(float(record.get("cost_usd", 0.0)) for record in records),
     }
 
@@ -359,7 +411,9 @@ async def policy_evaluator(
         metadata={},
     )
     before = get_usage()
-    semantic = await semantic_evaluator(case, outputs)
+    raw_semantic = await semantic_evaluator(case, _raw_output(outputs))
+    validator_outcome = classify_validator(raw_semantic, outputs)
+    semantic = _final_semantic(raw_semantic, outputs, validator_outcome)
     judge_usage = _usage_delta(before, get_usage())
     deterministic = deterministic_scores(case, outputs, semantic=semantic)
     values: dict[str, object] = {
@@ -368,6 +422,9 @@ async def policy_evaluator(
         "answer_complete": semantic["complete"],
         "citation_entails_claim": semantic["citation_entails_claim"],
         "semantic_abstention_correct": semantic["abstention_correct"],
+        "raw_answer_correct": raw_semantic["correct"],
+        "raw_answer_supported": raw_semantic["supported"],
+        "raw_citation_entails_claim": raw_semantic["citation_entails_claim"],
         **deterministic,
         "judge_cost_usd": float(judge_usage.get("cost_usd") or 0.0),
     }
@@ -376,6 +433,7 @@ async def policy_evaluator(
             *({"key": key, "score": value} for key, value in values.items()),
             {"key": "failure_category", "value": semantic["failure_category"]},
             {"key": "failure_reason", "value": semantic["reason"]},
+            {"key": "validator_outcome", "value": validator_outcome},
         ]
     }
 
@@ -392,7 +450,9 @@ async def diagnose(snapshot: PolicySnapshot, rows: tuple[TaxonomyRow, ...]) -> d
             continue
         before = get_usage()
         output = await answer_case(case)
-        semantic = await semantic_evaluator(case, output)
+        raw_semantic = await semantic_evaluator(case, _raw_output(output))
+        validator_outcome = classify_validator(raw_semantic, output)
+        semantic = _final_semantic(raw_semantic, output, validator_outcome)
         records.append(
             {
                 "case_id": case.case_id,
@@ -411,6 +471,8 @@ async def diagnose(snapshot: PolicySnapshot, rows: tuple[TaxonomyRow, ...]) -> d
                     )
                 },
                 **semantic,
+                "raw_semantic": raw_semantic,
+                "validator_outcome": validator_outcome,
                 **deterministic_scores(case, output, semantic=semantic),
                 "cost_usd": float(_usage_delta(before, get_usage()).get("cost_usd") or 0.0),
             }
@@ -437,6 +499,7 @@ def _records_from_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]
                 "unsupported_confident": bool(feedback.get("unsupported_confident")),
                 "failure_category": str(feedback.get("failure_category", "UNKNOWN")),
                 "failure_reason": str(feedback.get("failure_reason", "")),
+                "validator_outcome": str(feedback.get("validator_outcome", "UNKNOWN")),
                 "raw_answer": str(outputs.get("raw_answer", "")),
                 "answer": str(outputs.get("answer", "")),
                 "answer_valid": bool(outputs.get("answer_valid")),
@@ -476,6 +539,7 @@ def _write_report(
         f"- Unsupported confident: {float(summary['unsupported_confident']):.1%}",
         f"- Cost: ${float(summary['cost_usd']):.6f}",
         f"- Failure categories: `{json.dumps(summary['failure_categories'], sort_keys=True)}`",
+        f"- Validator outcomes: `{json.dumps(summary['validator_outcomes'], sort_keys=True)}`",
         "",
     ]
     report_path.parent.mkdir(parents=True, exist_ok=True)
