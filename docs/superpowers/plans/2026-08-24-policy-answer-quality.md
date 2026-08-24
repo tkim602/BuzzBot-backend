@@ -93,6 +93,6 @@
 - [x] Rerun the frozen SQL 150, Schedule/NLU, Course Details 120, and Calendar
   20 gates.
 - [x] Run `ruff check .`, `ruff format --check .`, and `git diff --check`.
-- [ ] Record exact results, costs, accepted/rejected gates, and remaining
+- [x] Record exact results, costs, accepted/rejected gates, and remaining
   limitations; commit as `tkim602`, push `data/policy-answer-quality`, and open
   PR10 stacked on PR9 until PR9 merges.
