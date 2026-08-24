@@ -50,9 +50,7 @@ def _latest_document_completion() -> datetime | None:
 def _job_lock(job: str) -> Iterator[bool]:
     key = _LOCK_KEYS[job]
     with sync_engine.connect() as connection:
-        acquired = bool(
-            connection.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": key})
-        )
+        acquired = bool(connection.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": key}))
         try:
             yield acquired
         finally:
@@ -60,9 +58,7 @@ def _job_lock(job: str) -> Iterator[bool]:
                 connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": key})
 
 
-async def _run_locked(
-    job: str, operation: Callable[[], Awaitable[object]]
-) -> object | None:
+async def _run_locked(job: str, operation: Callable[[], Awaitable[object]]) -> object | None:
     with _job_lock(job) as acquired:
         if not acquired:
             logger.info("background sync skipped", job=job, reason="LOCKED")
@@ -86,12 +82,8 @@ async def _sync_schedule() -> object:
 
 
 async def _sync_documents() -> object:
-    sources = tuple(
-        source for source in load_document_sources() if "run3" in source.profiles
-    )
-    return await sync_document_profile(
-        "run3", sources, SyncSessionLocal, get_embedding_function()
-    )
+    sources = tuple(source for source in load_document_sources() if "run3" in source.profiles)
+    return await sync_document_profile("run3", sources, SyncSessionLocal, get_embedding_function())
 
 
 async def run_sync_cycle(now: datetime | None = None) -> None:

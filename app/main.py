@@ -46,9 +46,7 @@ async def lifespan(application: FastAPI):
             except Exception as exc:
                 logger.error("langgraph checkpoint unavailable", error=type(exc).__name__)
         if settings.background_sync_enabled:
-            sync_task = asyncio.create_task(
-                background_sync_loop(), name="buzzbot-background-sync"
-            )
+            sync_task = asyncio.create_task(background_sync_loop(), name="buzzbot-background-sync")
         try:
             yield
         finally:

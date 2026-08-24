@@ -98,9 +98,7 @@ def test_explicit_term_wins_over_configured_active_term():
 
 
 def test_active_term_is_not_injected_into_policy_questions():
-    result = understand_query(
-        "What are OMSCS admission requirements?", active_term="202608"
-    )
+    result = understand_query("What are OMSCS admission requirements?", active_term="202608")
 
     assert result["intent"] == "policy"
     assert result["term_code"] is None
