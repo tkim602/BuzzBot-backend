@@ -178,7 +178,10 @@ def build_workflow(
 ) -> CompiledStateGraph:
     async def understand_node(state: AgentState) -> dict[str, object]:
         return understand_query(
-            state["query"], state.get("user_term"), cast(dict[str, object], state)
+            state["query"],
+            state.get("user_term"),
+            cast(dict[str, object], state),
+            state.get("active_term"),
         )
 
     async def retrieve_node(state: AgentState) -> dict[str, object]:

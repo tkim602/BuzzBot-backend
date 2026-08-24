@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -89,6 +90,7 @@ async def test_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
     assert body["citations"][0]["url"].startswith("https://registrar.gatech.edu/")
     state, config = graph.ainvoke.await_args.args
     assert state["user_term"] == "Fall 2026"
+    assert state["active_term"] == "202608"
     assert config == {
         "configurable": {
             "thread_id": "portfolio-demo-1",
@@ -128,3 +130,29 @@ async def test_application_lifespan_preloads_reranker(monkeypatch):
         pass
 
     preload.assert_called_once_with()
+
+
+@pytest.mark.asyncio
+async def test_application_lifespan_owns_background_sync_task(monkeypatch):
+    import app.main as main_module
+
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def sync_loop():
+        started.set()
+        try:
+            await asyncio.Future()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    monkeypatch.setattr(main_module, "background_sync_loop", sync_loop)
+    monkeypatch.setattr(main_module.settings, "background_sync_enabled", True)
+    monkeypatch.setattr(main_module.settings, "rag_enable_reranking", False)
+    monkeypatch.setattr(main_module.settings, "langgraph_checkpoint_enabled", False)
+
+    async with main_module.lifespan(FastAPI()):
+        await asyncio.wait_for(started.wait(), timeout=1)
+
+    assert cancelled.is_set()

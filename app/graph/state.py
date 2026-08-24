@@ -50,6 +50,7 @@ class AgentState(TypedDict):
     query: str
     history: NotRequired[list[dict[str, str]]]
     user_term: NotRequired[str | None]
+    active_term: NotRequired[str]
     intent: NotRequired[GraphIntent]
     subject: NotRequired[str | None]
     course_number: NotRequired[str | None]

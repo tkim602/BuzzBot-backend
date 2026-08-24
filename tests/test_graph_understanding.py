@@ -80,6 +80,30 @@ def test_schedule_query_requires_explicit_course_and_term():
     assert "term" in result["clarification"].lower()
 
 
+@pytest.mark.parametrize(
+    "query",
+    ["Is CS 2200 offered?", "Is CS 2200 offered this semester?"],
+)
+def test_schedule_query_uses_configured_active_term_when_omitted(query):
+    result = understand_query(query, active_term="202608")
+
+    assert result["term_code"] == "202608"
+    assert result["needs_clarification"] is False
+
+
+def test_explicit_term_wins_over_configured_active_term():
+    result = understand_query("Is CS 2200 offered in Fall 2027?", active_term="202608")
+
+    assert result["term_code"] == "202708"
+
+
+def test_active_term_is_not_injected_into_policy_questions():
+    result = understand_query("What are OMSCS admission requirements?", active_term="202608")
+
+    assert result["intent"] == "policy"
+    assert result["term_code"] is None
+
+
 def test_user_term_supplies_missing_schedule_term():
     result = understand_query("What sections does CS 7650 have?", user_term="Summer 2027")
 
