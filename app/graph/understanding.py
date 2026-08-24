@@ -96,6 +96,7 @@ def understand_query(
     query: str,
     user_term: str | None = None,
     context: dict[str, object] | None = None,
+    active_term: str | None = None,
 ) -> dict[str, object]:
     text = query.strip()
     if not text:
@@ -139,6 +140,9 @@ def understand_query(
         intent = "course_details"
     else:
         intent = "policy"
+
+    if intent == "course_schedule" and term_code is None and active_term:
+        term_code = active_term
 
     result: dict[str, object] = {
         "intent": intent,

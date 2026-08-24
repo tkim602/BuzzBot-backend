@@ -15,6 +15,7 @@ from app.api.schemas.chat import (
     DebugInfo,
     FreshnessInfo,
 )
+from app.core.config import settings
 from app.core.guardrails import (
     GuardrailViolation,
     acquire_chat_slot,
@@ -45,6 +46,7 @@ async def chat(
             "query": payload.query,
             "history": [turn.model_dump() for turn in payload.history],
             "user_term": user_term,
+            "active_term": settings.active_term_code,
         }
         config = {
             "configurable": {

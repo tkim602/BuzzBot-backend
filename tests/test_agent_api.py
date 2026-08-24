@@ -89,6 +89,7 @@ async def test_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
     assert body["citations"][0]["url"].startswith("https://registrar.gatech.edu/")
     state, config = graph.ainvoke.await_args.args
     assert state["user_term"] == "Fall 2026"
+    assert state["active_term"] == "202608"
     assert config == {
         "configurable": {
             "thread_id": "portfolio-demo-1",

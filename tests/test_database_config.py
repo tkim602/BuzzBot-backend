@@ -32,3 +32,19 @@ def test_database_url_is_an_explicit_environment_contract(monkeypatch):
 
     with pytest.raises(ValidationError, match="database_url"):
         Settings(_env_file=None)
+
+
+def test_active_term_must_be_a_six_digit_banner_code():
+    configured = Settings(
+        _env_file=None,
+        database_url="postgresql+asyncpg://buzzbot:secret@db:5432/buzzbot",
+        active_term_code="202608",
+    )
+
+    assert configured.active_term_code == "202608"
+    with pytest.raises(ValidationError, match="active_term_code"):
+        Settings(
+            _env_file=None,
+            database_url="postgresql+asyncpg://buzzbot:secret@db:5432/buzzbot",
+            active_term_code="Fall 2026",
+        )
