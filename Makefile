@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-gt-all resume-gt-all sync-oscar sync-oscar-all run-backend test test-db lint fmt usage eval-v2 quality-retrieval-dev quality-retrieval-change quality-retrieval-full quality-chat-dev quality-chat-change quality-chat-schedule quality-diagnose-dev
+.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-gt-all resume-gt-all sync-oscar sync-oscar-all run-backend test test-db lint fmt usage eval-v2 quality-retrieval-dev quality-retrieval-change quality-retrieval-full quality-policy-oracle quality-chat-dev quality-chat-change quality-chat-schedule quality-diagnose-dev
 
 setup:
 	pip install -e ".[dev]"
@@ -68,6 +68,9 @@ quality-retrieval-change:
 
 quality-retrieval-full:
 	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.runner --dataset eval/quality/data_verified
+
+quality-policy-oracle:
+	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.policy_oracle_retrieval
 
 quality-chat-dev:
 	PYTHONPATH=$$PWD $(PYTHON) -m eval.quality.chat_runner \

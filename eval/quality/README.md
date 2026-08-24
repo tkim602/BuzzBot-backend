@@ -14,6 +14,10 @@ make quality-retrieval-change
 # Full retrieval release gate only
 make quality-retrieval-full
 
+# PR12 architecture experiment: production vs. gold-document-conditioned chunks
+# Uses query embeddings and local retrieval/reranking; makes no answer/judge calls.
+make quality-policy-oracle
+
 # In another terminal, start the API before a live chat evaluation
 make run-backend
 
