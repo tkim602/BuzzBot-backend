@@ -59,6 +59,7 @@ def rank_document_chunks(
     document_chunks: list[RetrievedChunk],
     *,
     top_k: int = 5,
+    rerank: bool = True,
 ) -> list[RetrievedChunk]:
     """Rank chunks from one known document with the existing retrieval signals."""
     target = normalize_url(canonical_url)
@@ -82,7 +83,7 @@ def rank_document_chunks(
         ),
         reverse=True,
     )
-    if settings.rag_enable_reranking and len(merged) > 1:
+    if rerank and settings.rag_enable_reranking and len(merged) > 1:
         merged = rerank_with_cross_encoder(query, merged[:15], top_k=top_k)
     return merged[:top_k]
 

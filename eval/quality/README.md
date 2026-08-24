@@ -18,6 +18,10 @@ make quality-retrieval-full
 # Uses query embeddings and local retrieval/reranking; makes no answer/judge calls.
 make quality-policy-oracle
 
+# PR13 eval-only hierarchy; compares document counts 1, 2, 3, and 5.
+# Uses embeddings and local reranking, but no answer/judge calls.
+make quality-policy-hierarchical
+
 # In another terminal, start the API before a live chat evaluation
 make run-backend
 
