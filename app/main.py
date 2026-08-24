@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from contextlib import AsyncExitStack, asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager, suppress
 
 import structlog
 from dotenv import load_dotenv
@@ -15,6 +15,7 @@ load_dotenv()
 
 from app.api.routes.chat import router as chat_router  # noqa: E402
 from app.api.routes.health import router as health_router  # noqa: E402
+from app.core.background_sync import background_sync_loop  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.graph.persistence import postgres_checkpointer  # noqa: E402
 from app.rag.retrieval import preload_cross_encoder  # noqa: E402
@@ -33,6 +34,7 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     application.state.checkpointer = None
+    sync_task: asyncio.Task[None] | None = None
     async with AsyncExitStack() as stack:
         if settings.rag_enable_reranking:
             await asyncio.to_thread(preload_cross_encoder)
@@ -43,7 +45,17 @@ async def lifespan(application: FastAPI):
                 )
             except Exception as exc:
                 logger.error("langgraph checkpoint unavailable", error=type(exc).__name__)
-        yield
+        if settings.background_sync_enabled:
+            sync_task = asyncio.create_task(
+                background_sync_loop(), name="buzzbot-background-sync"
+            )
+        try:
+            yield
+        finally:
+            if sync_task is not None:
+                sync_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await sync_task
 
 
 app = FastAPI(
