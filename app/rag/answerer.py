@@ -29,6 +29,9 @@ _BINARY_QUESTION_RE = re.compile(
 )
 _LEADING_ANSWER_RE = re.compile(r"^\s*(?:yes|no)\b\s*[,.;:—–-]?\s*", re.I)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+_CITATION_CLAIM_SPLIT_RE = re.compile(
+    r"(?:\n+|[!?;](?:\s+|$)|\.(?!\d)(?:\s+|$)|,\s+|\s+(?:and|but)\s+)", re.I
+)
 _NEGATION_RE = re.compile(r"\b(?:no|not|never)\b", re.I)
 _EXPLICIT_NEGATION_RE = re.compile(r"\b(?:cannot|no|not|never|without)\b|n['’]t\b", re.I)
 _INVENTED_NEGATION_RE = re.compile(r"\b(?:not|never)\b\s*|\bno\b\s+|n['’]t\b\s*", re.I)
@@ -111,7 +114,11 @@ def _generation_query(query: str) -> str:
 
 
 def _ground_citation_quotes(
-    citations: object, chunks: list[RetrievedChunk], answer: str
+    citations: object,
+    chunks: list[RetrievedChunk],
+    answer: str,
+    *,
+    query: str | None = None,
 ) -> list[dict]:
     if not isinstance(citations, list) or not citations or not chunks:
         return []
@@ -120,19 +127,37 @@ def _ground_citation_quotes(
 
     grounded: list[dict] = []
     seen: set[tuple[str | None, str]] = set()
-    for claim in split_factual_claims(answer):
+    claims = list(
+        dict.fromkeys(
+            [
+                *split_factual_claims(answer),
+                *(part.strip() for part in _CITATION_CLAIM_SPLIT_RE.split(answer)),
+            ]
+        )
+    )
+    for claim in claims:
+        if claim.casefold() in {"yes", "no"}:
+            continue
         claim_words = _lexical_terms(claim)
+        if not claim_words:
+            continue
         claim_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", claim))
         candidates: list[tuple[tuple[int, int, int, int, float, float], RetrievedChunk, str]] = []
         for chunk in chunks:
             sentences = [
                 part.strip() for part in _SENTENCE_SPLIT_RE.split(chunk.chunk_text) if part.strip()
             ]
-            spans = [*sentences, *split_factual_claims(chunk.chunk_text)]
+            spans = [
+                *sentences,
+                *split_factual_claims(chunk.chunk_text),
+                *(
+                    part.strip()
+                    for part in _CITATION_CLAIM_SPLIT_RE.split(chunk.chunk_text)
+                    if part.strip()
+                ),
+            ]
             spans.extend(
-                " ".join(sentences[start : start + size])
-                for size in range(2, min(6, len(sentences)) + 1)
-                for start in range(len(sentences) - size + 1)
+                f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
             )
             for span in spans:
                 span_words = _lexical_terms(span)
@@ -145,12 +170,13 @@ def _ground_citation_quotes(
                         (
                             len(claim_numbers & span_numbers),
                             int(
-                                bool(_NEGATION_RE.search(claim)) == bool(_NEGATION_RE.search(span))
+                                not _NEGATION_RE.search(claim)
+                                or bool(_NEGATION_RE.search(span))
                             ),
                             sum(len(term) for term in overlap),
                             len(overlap),
                             len(overlap) / max(len(claim_words), 1),
-                            _lexical_match_score(claim, chunk),
+                            _lexical_match_score(f"{query or ''} {claim}", chunk),
                         ),
                         chunk,
                         span,
@@ -280,16 +306,14 @@ async def generate_answer(
         }
 
     parsed["citations"] = _ground_citation_quotes(
-        parsed.get("citations"), chunks, str(parsed.get("answer", ""))
+        parsed.get("citations"),
+        chunks,
+        str(parsed.get("answer", "")),
+        query=query,
     )
     if binary_verdict and polarity:
         body = _LEADING_ANSWER_RE.sub("", str(parsed.get("answer", "")), count=1)
-        cited_body = False
-        if binary_verdict == "FALSE" and _EXPLICIT_NEGATION_RE.search(body) and parsed["citations"]:
-            body = str(parsed["citations"][0].get("quote") or body)
-            cited_body = True
-        separator = ". " if cited_body else ", "
-        parsed["answer"] = f"{polarity}{separator}{body}" if body else f"{polarity}."
+        parsed["answer"] = f"{polarity}, {body}" if body else f"{polarity}."
         parsed["_binary_verdict"] = binary_verdict
 
     return parsed

@@ -211,6 +211,39 @@ def test_negative_claim_cites_span_with_matching_polarity():
     assert selected[0]["quote"] == decisive.chunk_text
 
 
+def test_binary_citation_uses_question_topic_to_select_decisive_exception():
+    decisive = _chunk(
+        "deadlines",
+        "gt-omscs",
+        "The OMSCS program accepts applications year-round for both Fall and Spring "
+        "matriculations (there are no Summer admissions).",
+    )
+    distractor = _chunk(
+        "admission-criteria",
+        "gt-omscs",
+        "Preferred qualifications for admitted OMSCS students are an undergraduate degree. "
+        "Applicants who do not meet these criteria are evaluated case by case. "
+        "Georgia Tech students must complete foundational program requirements. "
+        "Summer information is published elsewhere.",
+    )
+    answer = (
+        "No, OMSCS does not admit students for Summer. "
+        "Applications are accepted for Fall and Spring matriculation."
+    )
+
+    selected = _ground_citation_quotes(
+        [{"url": distractor.url}],
+        [distractor, decisive],
+        answer,
+        query="Does OMSCS admit students for Summer?",
+    )
+    evidence = "\n".join(str(citation["quote"]) for citation in selected)
+
+    assert "no Summer admissions" in evidence
+    assert "Fall and Spring" in evidence
+    assert distractor.chunk_text not in evidence
+
+
 def test_multi_claim_answer_selects_support_for_each_claim():
     ordering = _chunk(
         "ordering",
@@ -272,6 +305,27 @@ def test_compound_list_claim_keeps_all_supporting_bullets_in_citation():
             "Estimated duration",
         )
     )
+
+
+def test_citation_prefers_compact_decisive_span_over_long_adjacent_policy_text():
+    decisive = "We will hold a spot in our class for up to one year after the original term."
+    chunk = _chunk(
+        "defer-enrollment",
+        "Deferred Enrollment",
+        decisive
+        + "\nStudents with approved deferrals must maintain academic excellence."
+        + "\nDeferral requests must arrive before the entry term starts."
+        + "\nInternational requests may be considered later.",
+    )
+
+    selected = _ground_citation_quotes(
+        [{"url": chunk.url}],
+        [chunk],
+        "Students may defer enrollment for up to one year after the original term.",
+    )
+
+    assert selected[0]["quote"].startswith(decisive)
+    assert selected[0]["quote"].count(".") <= 2
 
 
 def test_citation_span_selection_prefers_exact_numeric_evidence_across_chunks():
@@ -566,7 +620,7 @@ async def test_binary_answer_uses_exact_retrieved_citation_quote(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_false_binary_negative_restatement_uses_positive_cited_requirement(monkeypatch):
+async def test_false_binary_answer_keeps_generated_explanation(monkeypatch):
     evidence = (
         "An undergraduate student may take a graduate level course with department permission, "
         "a minimum GPA of 2.7, and be classified as a senior."
@@ -593,7 +647,7 @@ async def test_false_binary_negative_restatement_uses_positive_cited_requirement
         intent="policy",
     )
 
-    assert answer["answer"] == f"No. {evidence}"
+    assert answer["answer"] == "No, you cannot take a graduate-level course as a junior."
     assert answer["citations"][0]["quote"] == evidence
 
 
