@@ -9,6 +9,7 @@ from app.rag.grounding import (
     check_claim_support,
     check_grounding,
     semantic_claim_verdict,
+    split_factual_claims,
 )
 from app.rag.retrieval import RetrievedChunk
 
@@ -55,6 +56,15 @@ def test_empty_citations():
     valid, notes = check_grounding([], [])
     assert valid == []
     assert notes == []
+
+
+def test_claim_splitter_preserves_conditions_joined_by_conjunctions():
+    claim = (
+        "For transfer pathway students, 30 hours must be completed after high school, "
+        "and prior dual-enrollment credit does not count."
+    )
+
+    assert split_factual_claims(claim) == [claim.rstrip(".")]
 
 
 def test_empty_quote_removed():

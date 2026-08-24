@@ -13,7 +13,7 @@ _WORD_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)?", re.I)
 _NUMBER_RE = re.compile(r"\b\d+(?:\.\d+)?\b")
 _LEADING_POLARITY_RE = re.compile(r"^\s*(?:yes|no)\b", re.I)
 _LEADING_ANSWER_TOKEN_RE = re.compile(r"^\s*(?:yes|no)\s*[,.;:—–-]\s*", re.I)
-_CLAIM_SPLIT_RE = re.compile(r"(?:\n+|[!?;](?:\s+|$)|\.(?!\d)(?:\s+|$)|\s+(?:and|but)\s+)", re.I)
+_CLAIM_SPLIT_RE = re.compile(r"(?:\n+|[!?;](?:\s+|$)|\.(?!\d)(?:\s+|$))", re.I)
 _STOPWORDS = {
     "a",
     "an",
