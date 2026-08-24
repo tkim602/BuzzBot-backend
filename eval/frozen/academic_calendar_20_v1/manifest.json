@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "name": "academic-calendar-20-v1",
+  "items": [
+    {
+      "id": "calendar-447",
+      "question": "When does Fall 2026 Phase I registration close?",
+      "event_id": 447,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 447\nSemester: Fall 2026\nCategory: Registration\nDate: May 22 (Fri), 2026\nEvent: Fall 2026 Phase I registration closes at 11:59 PM Eastern Time",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-454",
+      "question": "When is the first day of Fall 2026 classes?",
+      "event_id": 454,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 454\nSemester: Fall 2026\nCategory: Classes\nDate: August 24 (Mon), 2026\nEvent: First day of classes for Fall 2026",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-457",
+      "question": "What is the Fall 2026 deadline to register or drop without a W?",
+      "event_id": 457,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 457\nSemester: Fall 2026\nCategory: Registration\nDate: August 28 (Fri), 2026\nEvent: Fall 2026 Phase II registration closes at 11:59 PM Eastern Time. Last day to register, make schedule changes, and/or drop without a W grade by 11:59 pm Eastern Time. No changes to/from audit mode permitted after the registration deadline.",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-460",
+      "question": "When is the Fall 2026 payment deadline?",
+      "event_id": 460,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 460\nSemester: Fall 2026\nCategory: Payment\nDate: August 31 (Mon), 2026\nEvent: Payment deadline 4:00 PM Eastern Time",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-462",
+      "question": "When is the Labor Day holiday in Fall 2026?",
+      "event_id": 462,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 462\nSemester: Fall 2026\nCategory: Holiday\nDate: September 7 (Mon), 2026\nEvent: Official institute holiday -- Labor Day",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-488",
+      "question": "When is the Fall 2026 withdrawal deadline?",
+      "event_id": 488,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 488\nSemester: Fall 2026\nCategory: Registration\nDate: October 31 (Sat), 2026\nEvent: Withdrawal deadline. Last day to withdraw from a single course or from school with W grades for Fall Semester 2026 by 11:59 PM Eastern Time. Students must withdraw from all classes in order to receive a refund.",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-489",
+      "question": "When is Fall Break in Fall 2026?",
+      "event_id": 489,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 489\nSemester: Fall 2026\nCategory: Recess\nDate: October 5 (Mon) - 6 (Tue), 2026\nEvent: Fall break. No Classes. Campus open.",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-473",
+      "question": "When are final exams for Fall 2026?",
+      "event_id": 473,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 473\nSemester: Fall 2026\nCategory: Exams\nDate: December 10 (Thu) - 17 (Thu), 2026\nEvent: Final exams. Policy in the Catalog under Rules/Regulations XII. Contact the Academic Scheduling team in the Registrar's Office with questions.",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-479",
+      "question": "When is Fall 2026 commencement?",
+      "event_id": 479,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 479\nSemester: Fall 2026\nCategory: Graduation\nDate: December 17 (Thu) - 19 (Sat), 2026\nEvent: Commencement",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-481",
+      "question": "When are Fall 2026 final grades available online?",
+      "event_id": 481,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 481\nSemester: Fall 2026\nCategory: Grades\nDate: December 22 (Tue), 2026\nEvent: Final grades available online after 6:00 PM Eastern Time",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-506",
+      "question": "When is the first day of Spring 2027 classes?",
+      "event_id": 506,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 506\nSemester: Spring 2027\nCategory: Classes\nDate: January 11 (Mon), 2027\nEvent: First day of classes for Spring 2027",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-509",
+      "question": "What is the Spring 2027 deadline to register or drop without a W?",
+      "event_id": 509,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 509\nSemester: Spring 2027\nCategory: Registration\nDate: January 15 (Fri), 2027\nEvent: Phase II registration for Spring 2027 closes at 11:59 PM Eastern Time. Last day to register, make schedule changes, and/or drop without a W grade by 11:59 pm Eastern Time. No changes to/from audit mode permitted after the registration deadline.",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-512",
+      "question": "When is the Spring 2027 payment deadline?",
+      "event_id": 512,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 512\nSemester: Spring 2027\nCategory: Payment\nDate: January 19 (Tue), 2027\nEvent: Payment deadline 4:00 PM Eastern Time",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-511",
+      "question": "When is the Martin Luther King Jr. holiday in Spring 2027?",
+      "event_id": 511,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 511\nSemester: Spring 2027\nCategory: Holiday\nDate: January 18 (Mon), 2027\nEvent: Official institute holiday -- Martin Luther King, Jr. Day",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-523",
+      "question": "When is Spring Break in Spring 2027?",
+      "event_id": 523,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 523\nSemester: Spring 2027\nCategory: Holiday\nDate: March 8 (Mon) - 12 (Fri), 2027\nEvent: Spring Break",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-521",
+      "question": "When is the Spring 2027 grade mode change deadline?",
+      "event_id": 521,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 521\nSemester: Spring 2027\nCategory: Grades\nDate: March 17 (Wed), 2027\nEvent: Grade mode change deadline. Last day to change grade more from Letter/Grade to Pass/Fail and vice versa. No changes to or from audit mode permitted after the last day of registration. Completed forms, including advisor signature, must be submitted no later than 11:59 PM Eastern Time.",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-524",
+      "question": "When are master's thesis forms due in Spring 2027?",
+      "event_id": 524,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 524\nSemester: Spring 2027\nCategory: Thesis\nDate: April 23 (Fri), 2027\nEvent: Thesis and required master's thesis forms due no later than 12:00 PM Eastern Time",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-527",
+      "question": "When are final exams for Spring 2027?",
+      "event_id": 527,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 527\nSemester: Spring 2027\nCategory: Exams\nDate: April 29 (Thu) - May 6 (Thu), 2027\nEvent: Final exams. Policy in the Catalog under Rules/Regulations XII. Contact the Academic Scheduling team in the Registrar's Office with questions.",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-531",
+      "question": "When is Spring 2027 commencement?",
+      "event_id": 531,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 531\nSemester: Spring 2027\nCategory: Graduation\nDate: May 6 (Thu) - 8 (Sat), 2027\nEvent: Commencement",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    },
+    {
+      "id": "calendar-533",
+      "question": "When are Spring 2027 final grades available online?",
+      "event_id": 533,
+      "gold_span": "Georgia Tech Academic Calendar 2026-2027 \u2014 Event 533\nSemester: Spring 2027\nCategory: Grades\nDate: May 11 (Tue), 2027\nEvent: Final grades available online after 6:00 PM Eastern Time. Final grades available online by 12:00 PM (Noon) Eastern Time",
+      "gold_url": "https://registrar.gatech.edu/current-academic-calendar",
+      "gold_source": "gt-academic-calendar",
+      "edition": "2026-2027",
+      "fetched_at": "2026-08-20T06:51:31.809103+00:00"
+    }
+  ]
+}

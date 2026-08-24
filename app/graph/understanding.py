@@ -66,6 +66,32 @@ def _term_code(text: str) -> str | None:
     return None
 
 
+def _explicit_calendar_event(text: str, term_code: str | None) -> bool:
+    lowered = text.lower()
+    if not term_code or any(
+        cue in lowered
+        for cue in ("admission", "application", "financial aid", "tuition", "fee payment")
+    ):
+        return False
+    temporal = re.search(r"\bwhen\b|\bdeadline\b|\bdue\b|\bavailable online\b", lowered)
+    events = (
+        "classes",
+        "payment",
+        "final grade",
+        "thesis",
+        "final exam",
+        "commencement",
+        "break",
+        "holiday",
+        "registration",
+        "withdraw",
+        "grade mode",
+        "reading period",
+        "end of term",
+    )
+    return bool(temporal and any(event in lowered for event in events))
+
+
 def understand_query(
     query: str,
     user_term: str | None = None,
@@ -105,7 +131,9 @@ def understand_query(
         or incomplete_schedule
     ):
         intent = "course_schedule"
-    elif route.intent == "registrar_calendar" and not domain_policy:
+    elif _explicit_calendar_event(text, term_code) or (
+        route.intent == "registrar_calendar" and not domain_policy
+    ):
         intent = "registration_calendar"
     elif route.intent == "catalog_course" and course is not None:
         intent = "course_details"

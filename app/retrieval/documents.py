@@ -310,7 +310,8 @@ async def search_policy_docs(
     )
     duration_anchor = chunks[0] if chunks and _DURATION_QUESTION_RE.search(query.text) else None
     urls = list(dict.fromkeys(chunk.url for chunk in chunks if chunk.url))
-    if urls and query_embedding:
+    atomic_calendar_events = query.source_types == ("academic_calendar",)
+    if urls and query_embedding and not atomic_calendar_events:
         url_rank = {url: rank for rank, url in enumerate(urls)}
         children = await vector_search(
             session,

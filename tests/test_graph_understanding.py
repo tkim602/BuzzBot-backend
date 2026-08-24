@@ -45,6 +45,33 @@ def test_understanding_routes_common_gt_questions(query, expected):
     assert result | expected == result
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "When is the first day of Fall 2026 classes?",
+        "When is the Fall 2026 payment deadline?",
+        "When are Fall 2026 final grades available online?",
+        "When is the first day of Spring 2027 classes?",
+        "When is the Spring 2027 payment deadline?",
+        "When are master's thesis forms due in Spring 2027?",
+        "When are Spring 2027 final grades available online?",
+    ],
+)
+def test_explicit_term_calendar_events_route_to_academic_calendar(query):
+    assert understand_query(query)["intent"] == "registration_calendar"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "When is the OMSCS application deadline for Fall 2026?",
+        "How long does a financial aid appeal take in Fall 2026?",
+    ],
+)
+def test_term_language_does_not_override_explicit_policy_domains(query):
+    assert understand_query(query)["intent"] == "policy"
+
+
 def test_schedule_query_requires_explicit_course_and_term():
     result = understand_query("When is CS 7650 offered?")
 

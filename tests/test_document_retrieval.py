@@ -247,6 +247,46 @@ async def test_exact_deadline_uses_calendar_authority_and_preserves_citation(mon
     assert evidence[0].retrieval_method == "hybrid_rrf"
 
 
+@pytest.mark.asyncio
+async def test_atomic_calendar_events_skip_same_url_child_reselection(monkeypatch):
+    target = RetrievedChunk(
+        chunk_id="event-509",
+        url="https://registrar.gatech.edu/current-academic-calendar",
+        title="Academic Calendar",
+        chunk_text="Event 509 | Spring 2027 registration closes January 15.",
+        score=0.9,
+        source_name="gt-academic-calendar",
+        metadata_json={"source_type": "academic_calendar", "authority": "academic_calendar"},
+    )
+    monkeypatch.setattr("app.retrieval.documents.hybrid_retrieve", AsyncMock(return_value=[target]))
+    child_search = AsyncMock(
+        return_value=[
+            RetrievedChunk(
+                chunk_id="wrong-event",
+                url=target.url,
+                title=target.title,
+                chunk_text="A different withdrawal event.",
+                score=1,
+                source_name=target.source_name,
+                metadata_json=target.metadata_json,
+            )
+        ]
+    )
+    monkeypatch.setattr("app.retrieval.documents.vector_search", child_search, raising=False)
+
+    evidence = await search_policy_docs(
+        object(),
+        PolicyQuery(
+            "When does Spring 2027 registration close?",
+            source_types=("academic_calendar",),
+        ),
+        [0.1] * 1536,
+    )
+
+    assert evidence[0].chunk_id == target.chunk_id
+    child_search.assert_not_awaited()
+
+
 @pytest.mark.parametrize(
     "question",
     (
