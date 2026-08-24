@@ -1,4 +1,4 @@
-"""Budget-free deterministic evaluation for the v2 query-understanding gate."""
+"""Budget-free deterministic evaluation for the query-understanding gate."""
 
 from __future__ import annotations
 

@@ -12,7 +12,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from db.models import Chunk, Document, Embedding, FetchState, Source
+from app.db.models import Chunk, Document, Embedding, FetchState, Source
 
 # Add app to path for usage tracking
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

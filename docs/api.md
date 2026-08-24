@@ -1,56 +1,85 @@
-# API Reference
+# BuzzBot Backend API
 
-Base URL: `http://localhost:8000`
+Local base URL: `http://localhost:8000`
 
-## `POST /v2/chat`
+## `POST /chat`
 
-Runs the controlled LangGraph workflow.
+Runs the production LangGraph workflow. Content type is `application/json`; streaming is not
+currently implemented.
+
+### Request
 
 ```json
 {
   "query": "Is CS 7650 offered in Fall 2026?",
   "thread_id": "portfolio-demo",
-  "user_context": {"term": "Fall 2026"},
-  "history": []
+  "user_context": {"term": "Fall 2026", "major": null},
+  "history": [
+    {"role": "user", "content": "Tell me about CS 7650."},
+    {"role": "assistant", "content": "What term are you interested in?"}
+  ]
 }
 ```
 
-`query` is required and limited to 2,000 characters. `thread_id` is optional, limited to 100
-characters, and accepts only letters, numbers, `.`, `_`, `:`, and `-`. It is a conversation key, not
-a GT user identity.
+- `query`: required, 1–2,000 characters.
+- `thread_id`: optional conversation key, 1–100 characters, limited to letters, numbers, `.`, `_`,
+  `:`, and `-`. It is not a Georgia Tech identity.
+- `user_context`: optional current `term` and `major` hints.
+- `history`: optional, at most 20 non-empty user/assistant turns.
+
+### Response
 
 ```json
 {
   "thread_id": "portfolio-demo",
-  "answer": "CS 7650 ... section A; CRN 12345 ...",
+  "answer": "CS 7650 is offered in Fall 2026 ...",
   "citations": [
     {
       "url": "https://oscar.gatech.edu/...",
       "title": "CS 7650 schedule",
       "fetched_at": "2026-08-20T00:00:00+00:00",
-      "quote": "CS 7650 ... CRN 12345 ..."
+      "quote": "CS 7650 ... CRN 12345 ...",
+      "page": null
     }
   ],
   "confidence": 0.95,
-  "freshness": {"strategy": "langgraph_controlled", "as_of": "..."},
+  "freshness": {
+    "strategy": "langgraph_controlled",
+    "as_of": "2026-08-24T00:00:00+00:00"
+  },
   "notes": [],
   "debug": {
     "intent": "course_schedule",
+    "source_filter": null,
     "retrieval_top_k": 1,
-    "top_sources": ["oscar"]
+    "top_sources": ["oscar"],
+    "rewritten_query": "Is CS 7650 offered in Fall 2026?",
+    "current_term": "202608",
+    "stage_timings_ms": {"total_ms": 125}
   }
 }
 ```
 
-Factual output without a grounded official citation is replaced by an abstention. The endpoint may
-return `429` for request guardrails or the tracked API cost limit, and `422` for invalid input.
+`freshness.as_of` is the response data timestamp. Each citation URL is its verification URL;
+`debug.top_sources` identifies the source used. An insufficient or ungrounded factual answer is
+replaced by a fail-closed abstention and explanation in `notes`.
+
+### Errors
+
+- `422`: invalid request schema.
+- `429`: request guardrail/rate limit or tracked API cost limit. JSON `detail.error` identifies
+  `guardrail_violation` or `usage_limit_exceeded`; a retry delay may be present.
+- `500`: unexpected server failure. Retain the request ID response header when reporting it.
+
+Successful responses include `X-Request-ID`.
 
 ## Health and operations
 
-- `GET /live`: dependency-free process liveness.
-- `GET /ready`: DB, official chunks, published schedule freshness, and configured checkpoint status.
+- `GET /live`: dependency-free liveness; `200` while the API process responds.
+- `GET /ready`: `200` only when DB, official chunks, schedule freshness, and the configured
+  checkpoint store are ready; otherwise `503` with individual checks.
+- `GET /usage`: tracked cost, configured limit, remaining budget, and usage percent.
 - `GET /stats`: source/document/chunk counts.
-- `GET /usage`: tracked API cost, fixed maximum limit, and remaining budget.
+- `GET /health`: retained liveness equivalent for existing operators.
 
-`/ready` returns `200` when ready and `503` with individual check results otherwise. Usage mutation
-is intentionally not exposed through the public API.
+No endpoint mutates usage, registration, or authenticated student data.

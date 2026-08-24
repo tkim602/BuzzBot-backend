@@ -14,6 +14,8 @@ from typing import Any
 from sqlalchemy import select
 
 from app.core.config import settings
+from app.db.models import Chunk, Document, Source
+from app.db.session import AsyncSessionLocal
 from app.rag.retrieval import (
     RetrievedChunk,
     _extract_query_hints,
@@ -24,8 +26,6 @@ from app.rag.retrieval import (
     rerank_with_cross_encoder,
     vector_search,
 )
-from db.models import Chunk, Document, Source
-from db.session import AsyncSessionLocal
 from eval.quality.evidence import GoldEvidence, evidence_rank, load_gold_evidence
 from eval.quality.metrics import RankedItem, normalize_url
 from eval.quality.runner import _production_retrieve

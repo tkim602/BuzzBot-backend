@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-gt-all resume-gt-all sync-oscar sync-oscar-all run-backend test test-db lint fmt usage eval-v2 quality-retrieval-dev quality-retrieval-change quality-retrieval-full quality-policy-oracle quality-policy-hierarchical quality-chat-dev quality-chat-change quality-chat-schedule quality-diagnose-dev
+.PHONY: setup db-up db-down migrate probe-doc sync-doc sync-doc-many resume-doc-run sync-gt-all resume-gt-all sync-oscar sync-oscar-all run-backend test test-db lint fmt usage eval-routing quality-retrieval-dev quality-retrieval-change quality-retrieval-full quality-policy-oracle quality-policy-hierarchical quality-chat-dev quality-chat-change quality-chat-schedule quality-diagnose-dev
 
 setup:
 	pip install -e ".[dev]"
@@ -53,7 +53,7 @@ test:
 test-db:
 	RUN_DB_TESTS=1 PYTHONPATH=$$PWD $(PYTHON) -m pytest -q tests/integration
 
-eval-v2:
+eval-routing:
 	PYTHONPATH=$$PWD $(PYTHON) eval/agentic_rag_eval.py
 
 quality-retrieval-dev:

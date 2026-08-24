@@ -8,32 +8,32 @@ from typing import Annotated, cast
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.chat import (
+    ChatRequest,
+    ChatResponse,
+    Citation,
+    DebugInfo,
+    FreshnessInfo,
+)
 from app.core.guardrails import (
     GuardrailViolation,
     acquire_chat_slot,
     enforce_request_guardrails,
 )
 from app.core.usage import UsageLimitExceeded, get_usage
+from app.db.session import get_async_session
 from app.graph.state import AgentState, CitationItem, EvidenceItem
 from app.graph.workflow import WorkflowServices, build_workflow
-from app.schemas.chat import (
-    AgentChatRequest,
-    AgentChatResponse,
-    Citation,
-    DebugInfo,
-    FreshnessInfo,
-)
-from db.session import get_async_session
 
-router = APIRouter(prefix="/v2", tags=["agentic-rag"])
+router = APIRouter(tags=["chat"])
 
 
-@router.post("/chat", response_model=AgentChatResponse)
-async def agent_chat(
-    payload: AgentChatRequest,
+@router.post("/chat", response_model=ChatResponse)
+async def chat(
+    payload: ChatRequest,
     request: Request,
     session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> AgentChatResponse:
+) -> ChatResponse:
     started = time.perf_counter()
     thread_id = payload.thread_id or str(uuid.uuid4())
     try:
@@ -52,7 +52,7 @@ async def agent_chat(
                 "checkpoint_ns": f"client:{client_id}",
             },
             "metadata": {"app": "buzzbot", "environment": "local", "thread_id": thread_id},
-            "tags": ["buzzbot", "v2-chat"],
+            "tags": ["buzzbot", "chat"],
         }
         async with acquire_chat_slot():
             result = cast(AgentState, await graph.ainvoke(initial_state, config))
@@ -70,7 +70,7 @@ async def agent_chat(
         ]
         sources = list(dict.fromkeys(item["source"] for item in evidence))
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return AgentChatResponse(
+        return ChatResponse(
             thread_id=thread_id,
             answer=result.get("answer", "I wasn't able to produce a grounded answer."),
             citations=citations,

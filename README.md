@@ -1,72 +1,48 @@
-# BuzzBot v2
+# BuzzBot Backend
 
-BuzzBot is a citation-first, controlled Agentic RAG assistant for Georgia Tech students. It combines
-validated OSCAR schedule data with a controlled registry of official GT documents, then orchestrates the
-retrieval paths through an explicit LangGraph workflow.
+BuzzBot Backend is a citation-first Agentic RAG API for Georgia Tech students. It combines
+validated public OSCAR schedule data with a controlled registry of official Georgia Tech documents
+and routes questions through LangGraph. It never signs into student accounts or performs
+registration, add, or drop actions.
 
-The project is designed to answer questions such as:
+## Current capabilities
 
-- Is `CS 7650` offered in Fall 2026? What are its CRN, instructor, meeting time, and room?
-- What does the official Catalog say about a course's credits or prerequisites?
-- What is the official registration, add/drop, or withdrawal date for a term?
-- What do official GT or OMSCS admissions pages require?
-
-It does not register, add, or drop courses and never accesses a student's authenticated account.
+- Course offerings, sections, CRNs, instructors, meetings, and locations from published OSCAR data
+- Official Catalog course descriptions, credits, and prerequisites
+- Academic Calendar dates and registration deadlines
+- Controlled official policy, OMSCS, admissions, finance, housing, support, and campus information
+- Exact citations, freshness metadata, bounded recovery, and fail-closed abstention
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    User --> API[FastAPI /v2/chat]
-    API --> Graph[Controlled LangGraph]
-    Graph --> Understand[Understand + validate fields]
-    Understand -->|schedule| SQL[Published OSCAR SQL]
-    Understand -->|catalog/calendar/policy| Hybrid[pgvector + FTS + RRF]
-    SQL --> Evidence[Typed evidence]
-    Hybrid --> Evidence
-    Evidence --> Gate{Evidence valid?}
-    Gate -->|no| Retry[One bounded retry]
-    Retry --> Gate
-    Gate -->|yes| Answer[Deterministic or gpt-4o-mini answer]
-    Answer --> Citation{Citation grounded?}
-    Citation -->|yes| Response[Answer + official citations]
-    Citation -->|no| Abstain[Transparent abstention]
-    Graph -. optional checkpoints .-> Postgres[(PostgreSQL + pgvector)]
+    Web[Client] --> API[FastAPI /chat]
+    API --> Graph[LangGraph workflow]
+    Graph -->|schedule| SQL[Published OSCAR SQL]
+    Graph -->|catalog/calendar/policy| RAG[pgvector + FTS + RRF + reranker]
+    SQL --> Evidence[Typed official evidence]
+    RAG --> Evidence
+    Evidence --> Validate[Grounding and validation]
+    Validate --> Response[Answer + citations]
+    Validate -->|insufficient| Abstain[Fail-closed abstention]
+    Graph -. checkpoints .-> DB[(PostgreSQL + pgvector)]
 ```
 
-Two data planes are intentionally separate:
+The API process and ingestion jobs are independent. FastAPI never runs a periodic ingestion loop.
+An external scheduler invokes explicit ingestion commands, and validated updates publish
+transactionally without replacing the last trusted version on failure.
 
-1. Schedule facts are normalized from public OSCAR pages, validated, and atomically published as a
-   version. Queries read only the latest `PUBLISHED` version.
-2. Policies and course descriptions come from a controlled official-source registry. Retrieval uses
-   vector search and PostgreSQL full-text search fused with RRF.
+See [architecture](docs/architecture.md), [API contract](docs/api.md), and
+[frontend handoff](docs/frontend_handoff.md).
 
-See [docs/architecture.md](docs/architecture.md) for the detailed flow and failure gates.
+## Local development
 
-## Safety and cost boundaries
-
-- Probe a representative URL before a bounded source sync.
-- Source-specific discovery creates an immutable URL manifest and fails closed above its configured
-  safety ceiling.
-- No wildcard Georgia Tech crawl, Common Crawl fallback, or authenticated OSCAR flow in v2.
-- Auth redirects, 429 responses, external redirects, and incompatible bodies stop that source.
-- Identical document hashes skip re-embedding; authority changes update metadata only.
-- The application clamps tracked API usage to `$3.00` and blocks new calls after the cap.
-- `LANGSMITH_TRACING=false` by default, so development tracing has no LangSmith usage.
-- The default models are `gpt-4o-mini` and `text-embedding-3-small`.
-
-The `$3` guard is application-level. Configure an account/project budget in the provider dashboard as
-an additional account-wide billing boundary.
-
-## Quickstart
-
-Requirements: Python 3.11+, Docker, and an OpenAI API key for embedding/document-answer operations.
-Schedule SQL queries and the offline evaluation do not call OpenAI.
+Requirements: Python 3.11+, Docker, and an OpenAI API key for embedding or document-answer calls.
 
 ```bash
 cp .env.example .env
-# Add OPENAI_API_KEY only in .env
-
+# Add secrets to .env only.
 make setup
 make db-up
 make migrate
@@ -80,114 +56,102 @@ The API starts at `http://localhost:8000`.
 ```bash
 curl -s http://localhost:8000/live
 curl -s http://localhost:8000/ready
-
-curl -s http://localhost:8000/v2/chat \
+curl -s http://localhost:8000/chat \
   -H 'Content-Type: application/json' \
-  -d '{
-    "query": "Is CS 7650 offered in Fall 2026?",
-    "thread_id": "portfolio-demo"
-  }'
+  -d '{"query":"Is CS 7650 offered in Fall 2026?","thread_id":"portfolio-demo"}'
 ```
 
-`thread_id` is optional. When supplied, LangGraph checkpoints compact graph state in PostgreSQL; it
-is not a GT identity and must contain only letters, numbers, `.`, `_`, `:`, or `-`.
+## Database requirements
 
-## Controlled data collection
+`DATABASE_URL` is required and is the single connection setting used by the API, Alembic,
+ingestion, evaluation, and LangGraph checkpoints. PostgreSQL with the `vector` extension is
+required. Schema creation is owned by Alembic; application startup does not create tables.
 
-The official document registry currently contains Registrar policy, Academic Calendar, Catalog,
-OMSCS, and Undergraduate Admissions seeds. Probe first, then sync only a READY source:
+The value in `.env.example` is for local Docker development. A managed PostgreSQL URL can replace
+it without code changes.
+
+## Ingestion and scheduled sync
+
+Probe a controlled document source before syncing it:
 
 ```bash
 make probe-doc source=gt-catalog
 make sync-doc source=gt-catalog
 ```
 
-Sync one OSCAR subject only after choosing one representative course for the gate probe:
+Run a bounded OSCAR subject sync:
 
 ```bash
 make sync-oscar term=202608 subject=CS course=7650
 ```
 
-The sync saves a safe snapshot, normalizes courses/sections/meetings, checks completeness and
-freshness, and publishes atomically. A failed collection never replaces the last good version.
+Production schedulers can invoke the same `python -m ingestion.documents...` and
+`python -m ingestion.schedule...` modules shown in [ingestion.md](docs/ingestion.md). Discovery is
+allowlisted and bounded, manifests are immutable and resumable, and failed publication preserves
+the previous trusted version.
 
-### Clean `buzzbot_v2` database
+## API endpoints
 
-`DATABASE_URL` is the only database setting. The application, Alembic, document ingestion,
-OSCAR ingestion, LangGraph checkpoints, and audit scripts derive their async or sync driver from
-that one URL.
+- `POST /chat` — typed LangGraph chat request and grounded response
+- `GET /live` — dependency-free process liveness
+- `GET /ready` — database, corpus, schedule freshness, and checkpoint readiness
+- `GET /usage` — tracked application API cost and remaining limit
+- `GET /stats` — source, document, and chunk counts
+- `GET /health` — legacy-neutral liveness equivalent retained for operators
 
-For a first clean setup:
+Streaming is not implemented. The current contract is one JSON response per request.
 
-```bash
-docker compose up -d db
-docker compose exec db createdb -U buzzbot buzzbot_v2
-# Set DATABASE_URL=postgresql+asyncpg://buzzbot:buzzbot_dev@localhost:5432/buzzbot_v2 in .env
-make migrate
+## Evaluation status
 
-make probe-doc source=gt-registrar
-make sync-doc source=gt-registrar
-make sync-oscar term=202608 subject=CS course=7650
+Accepted backend MVP gates:
 
-make run-backend
-curl -s http://localhost:8000/ready
-```
+- Schedule SQL: 150 / 150
+- Schedule NLU: 150 / 150
+- Schedule renderer: 140 / 140
+- Course Details retrieval: 120 / 120 Hit@1 and Hit@5
+- Academic Calendar route / Hit@5: 20 / 20
+- Policy answer correctness: 71%
+- Policy answer support: 92%
+- Aggregate citation entailment: 78%
+- Unsupported-confident Policy answers: 0%
+- Policy production decisive Evidence Hit@5: 70%
 
-Probe each additional controlled document source before syncing it. Do not run a term-wide subject
-loop until one representative subject has published successfully and the API is ready.
+PR12 oracle and PR13 hierarchical retrieval code under `eval/` are reproducible experiments only;
+neither is a production retrieval path.
 
-## Health semantics
+## Known limitation
 
-- `GET /live`: process liveness only; it has no database or external dependency.
-- `GET /ready`: requires the database, controlled official document chunks, a non-expired published
-  schedule, and the PostgreSQL checkpointer when checkpointing is enabled.
-- `GET /usage`: tracked OpenAI usage and remaining application budget.
+> Policy decisive Evidence Hit@5 remains 70% against an 85% target. Oracle-document retrieval
+> reaches 92%, while the tested hierarchical production approximation regresses to 62%. Further
+> retrieval optimization is deferred until real usage data is available.
 
-LangSmith is deliberately not a readiness dependency.
+This repository is a stable MVP backend boundary, not a claim of full production readiness.
 
-## Evaluation
-
-The small routing gate is deterministic and budget-free:
-
-```bash
-make eval-v2
-```
-
-It measures routing accuracy and required-field extraction across schedule, Catalog, Calendar, and
-policy questions. Citation grounding, bounded retry, abstention, persistence state reset, atomic
-publication, and retrieval source pinning are covered by unit and PostgreSQL integration tests.
-
-The current frozen retrieval baseline uses the fixed `dev_100` manifest:
-
-- Hit@5: 0.57
-- MRR@5: 0.40017
-
-Run `make quality-retrieval-dev` for the budget-free retrieval benchmark. `make quality-chat-dev`
-calls the real `/v2/chat` contract and the configured judge model, so run it intentionally under the
-shared `$3` application budget.
-
-## Project layout
+## Repository layout
 
 ```text
-app/graph/                 LangGraph state, understanding, workflow, checkpoint adapter
-app/retrieval/             Typed schedule and official-document retrieval tools
-app/api/                   v2 agent API and live/ready/usage endpoints
-ingestion/schedule/        OSCAR probe, normalization, validation, atomic publication
-ingestion/documents/       Controlled registry, probe, changed-only document sync
-db/                        SQLAlchemy models and Alembic migrations
-eval/                      Offline v2 golden set and evaluation runner
-tests/                     Unit and PostgreSQL integration tests
-docs/superpowers/          Final architecture designs and verification reports
+app/api/                    FastAPI routes and typed request/response schemas
+app/graph/                  LangGraph state, workflow, understanding, persistence
+app/rag/                    RAG routing, answer, retrieval orchestration, grounding
+app/retrieval/              Typed schedule and official-document data access
+app/db/                     SQLAlchemy models and centralized sessions
+ingestion/                  Explicit document and schedule ingestion jobs
+eval/                       Frozen gates and evaluation-only experiments
+migrations/                 Alembic schema history
+tests/                      Unit and PostgreSQL integration tests
+docker-compose.yml          Local pgvector development database
+Dockerfile                  Backend API image
 ```
 
-## Verification
+## Running tests
 
 ```bash
-PYTHONPATH=$PWD pytest -q
-RUN_DB_TESTS=1 PYTHONPATH=$PWD pytest -q tests/integration
-ruff check app/graph app/retrieval app/api/agent.py
-mypy --follow-imports=skip app/graph app/retrieval/tools.py app/api/agent.py
+make test
+make test-db
+make eval-routing
+make lint
 git diff --check
 ```
 
-Final implementation decisions and verification evidence are recorded under `docs/superpowers/`.
+`make quality-chat-dev` performs paid production and judge calls. Run it only intentionally under
+the shared `$3` application limit; repository productization does not require it.

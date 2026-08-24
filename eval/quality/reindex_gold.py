@@ -6,7 +6,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from db.session import SyncSessionLocal
+from app.db.session import SyncSessionLocal
 from eval.quality.schema import GoldCase, load_manifest_cases
 from ingestion.documents.registry import DocumentSource, load_document_sources
 from ingestion.documents.sync import sync_document_url

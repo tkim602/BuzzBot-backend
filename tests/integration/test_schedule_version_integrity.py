@@ -9,7 +9,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
-from db.models import AcademicTerm, Course, DataVersion, Meeting, Section
+from app.db.models import AcademicTerm, Course, DataVersion, Meeting, Section
 
 pytestmark = pytest.mark.skipif(
     os.getenv("RUN_DB_TESTS") != "1", reason="set RUN_DB_TESTS=1 for PostgreSQL tests"

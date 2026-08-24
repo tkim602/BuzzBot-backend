@@ -18,7 +18,7 @@ from app.core.cache import TTLCache
 from app.core.clients import get_openai_client
 from app.core.config import settings
 from app.core.usage import check_limit_or_raise, record_usage
-from db.models import Chunk, Embedding, Source
+from app.db.models import Chunk, Embedding, Source
 
 logger = structlog.get_logger(__name__)
 SourceFilter = str | list[str] | None

@@ -1,6 +1,6 @@
-# v2 Source Policy
+# Source Policy
 
-BuzzBot v2 uses exact public sources and stops before authentication. It does not perform a generic
+BuzzBot uses exact public sources and stops before authentication. It does not perform a generic
 `*.gatech.edu` crawl.
 
 ## Controlled document registry
@@ -40,9 +40,9 @@ OSCAR authentication redirects stop the run. BuzzBot never signs in or submits r
 ## Blocked and unsupported sources
 
 - RateMyProfessors: unsupported and never crawled.
-- Common Crawl: not a v2 fallback.
+- Common Crawl: not a fallback.
 - BuzzPort/SSO/student records: out of scope.
-- Arbitrary URLs supplied by a user or model: never fetched by the v2 graph.
+- Arbitrary URLs supplied by a user or model: never fetched by the production graph.
 
 ## Adding a source
 

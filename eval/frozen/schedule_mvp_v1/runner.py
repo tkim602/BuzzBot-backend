@@ -7,10 +7,10 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.db.session import AsyncSessionLocal
 from app.graph.state import ScheduleQueryType
 from app.graph.understanding import understand_query
 from app.graph.workflow import WorkflowServices, build_workflow
-from db.session import AsyncSessionLocal
 
 
 @dataclass(frozen=True)

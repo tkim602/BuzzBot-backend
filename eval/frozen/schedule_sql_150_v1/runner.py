@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from app.db.session import AsyncSessionLocal
 from app.retrieval import CourseQuery, lookup_course_offerings
-from db.session import AsyncSessionLocal
 
 MANIFEST = Path(__file__).with_name("manifest.json")
 

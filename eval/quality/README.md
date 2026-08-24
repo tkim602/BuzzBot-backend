@@ -1,6 +1,6 @@
 # BuzzBot quality evaluation
 
-The retrieval benchmark is local and deterministic. The chat benchmark calls the real `/v2/chat` production contract and judges responses with the configured `gpt-4o-mini`; both production and judge calls share the existing $3 usage guard.
+The retrieval benchmark is local and deterministic. The chat benchmark calls the real `/chat` production contract and judges responses with the configured `gpt-4o-mini`; both production and judge calls share the existing $3 usage guard.
 
 ## Commands
 
@@ -25,7 +25,7 @@ make quality-policy-hierarchical
 # In another terminal, start the API before a live chat evaluation
 make run-backend
 
-# Actual gpt-4o-mini + /v2/chat evaluation; resumes automatically
+# Actual gpt-4o-mini + /chat evaluation; resumes automatically
 make quality-chat-dev
 
 # Only after a material change

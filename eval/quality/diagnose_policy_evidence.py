@@ -10,6 +10,8 @@ from typing import Any
 
 from sqlalchemy import select
 
+from app.db.models import Chunk, Document, Source
+from app.db.session import AsyncSessionLocal
 from app.rag.retrieval import (
     RetrievedChunk,
     _cap_chunks_per_url,
@@ -27,8 +29,6 @@ from app.retrieval.documents import (
     SOURCE_NAMES_BY_TYPE,
     policy_source_types,
 )
-from db.models import Chunk, Document, Source
-from db.session import AsyncSessionLocal
 from eval.quality.evidence import (
     GoldEvidence,
     evidence_rank,

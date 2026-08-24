@@ -13,6 +13,8 @@ from typing import Any
 from sqlalchemy import func, select
 
 from app.core.config import settings
+from app.db.models import Chunk, Document, Embedding, Source
+from app.db.session import AsyncSessionLocal
 from app.graph.understanding import understand_query
 from app.graph.workflow import _policy_source_types
 from app.rag.retrieval import (
@@ -30,8 +32,6 @@ from app.retrieval import (
     lookup_registration_calendar,
     search_policy_docs,
 )
-from db.models import Chunk, Document, Embedding, Source
-from db.session import AsyncSessionLocal
 from eval.quality.evidence import GoldEvidence, evidence_rank, load_gold_evidence
 from eval.quality.metrics import (
     CaseResult,

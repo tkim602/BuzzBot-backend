@@ -13,7 +13,7 @@ from enum import StrEnum
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.orm import Session
 
-from db.models import IngestionRun, IngestionRunUnit
+from app.db.models import IngestionRun, IngestionRunUnit
 
 SessionFactory = Callable[[], AbstractContextManager[Session]]
 

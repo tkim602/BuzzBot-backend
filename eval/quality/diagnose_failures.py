@@ -10,7 +10,7 @@ from pathlib import Path
 
 from sqlalchemy import func, select
 
-from db.models import Chunk, Document, Source
+from app.db.models import Chunk, Document, Source
 from eval.quality.metrics import normalize_url
 from eval.quality.runner import MODES
 from eval.quality.schema import GoldCase, load_manifest_cases
@@ -421,7 +421,7 @@ async def run_diagnosis(
     chat_report: Path,
     report_dir: Path,
 ) -> dict[str, object]:
-    from db.session import AsyncSessionLocal
+    from app.db.session import AsyncSessionLocal
 
     cases = load_manifest_cases(manifest)
     retrieval, chat = validate_report_alignment(

@@ -89,7 +89,7 @@ Missing, unrelated, or contradictory evidence is not support. Do not use outside
 async def evaluate_case(case: GoldCase, client: httpx.AsyncClient) -> dict[str, object]:
     started = time.perf_counter()
     response = await client.post(
-        "/v2/chat",
+        "/chat",
         json={"query": case.question, "thread_id": f"eval-{case.id}"},
     )
     if (
@@ -309,7 +309,7 @@ def _write_reports(report_dir: Path, report: dict[str, object]) -> None:
     cost_label = f"${cost:.6f}" if isinstance(cost, int | float) else "unavailable"
     markdown = "\n".join(
         [
-            "# BuzzBot `/v2/chat` quality report",
+            "# BuzzBot `/chat` quality report",
             "",
             f"- Planned: {report['planned']}",
             f"- Completed: {report['completed']}",
@@ -394,7 +394,7 @@ async def run(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run BuzzBot /v2/chat quality evaluation")
+    parser = argparse.ArgumentParser(description="Run BuzzBot /chat quality evaluation")
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     parser.add_argument("--report-dir", type=Path, default=Path("eval/quality/reports_chat"))

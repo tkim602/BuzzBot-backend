@@ -6,9 +6,9 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from app.api.agent import router
-from app.schemas.chat import Citation
-from db.session import get_async_session
+from app.api.routes.chat import router
+from app.api.schemas.chat import Citation
+from app.db.session import get_async_session
 
 
 def test_pdf_citation_accepts_one_based_page_number():
@@ -17,7 +17,7 @@ def test_pdf_citation_accepts_one_based_page_number():
     assert citation.page == 4
 
 
-def test_only_v2_chat_route_is_registered():
+def test_only_neutral_chat_route_is_registered():
     from app.main import app
 
     chat_paths = {
@@ -26,11 +26,11 @@ def test_only_v2_chat_route_is_registered():
         if "post" in operations and path.endswith("/chat")
     }
 
-    assert chat_paths == {"/v2/chat"}
+    assert chat_paths == {"/chat"}
 
 
 @pytest.mark.asyncio
-async def test_v2_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
+async def test_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
     graph = SimpleNamespace(
         ainvoke=AsyncMock(
             return_value={
@@ -52,9 +52,9 @@ async def test_v2_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
         )
     )
     build = MagicMock(return_value=graph)
-    monkeypatch.setattr("app.api.agent.build_workflow", build)
+    monkeypatch.setattr("app.api.routes.chat.build_workflow", build)
     monkeypatch.setattr(
-        "app.api.agent.enforce_request_guardrails",
+        "app.api.routes.chat.enforce_request_guardrails",
         MagicMock(return_value=("client-a", "normalized-query")),
     )
 
@@ -62,7 +62,7 @@ async def test_v2_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
     async def free_slot():
         yield
 
-    monkeypatch.setattr("app.api.agent.acquire_chat_slot", free_slot)
+    monkeypatch.setattr("app.api.routes.chat.acquire_chat_slot", free_slot)
     app = FastAPI()
     app.include_router(router)
     app.state.checkpointer = object()
@@ -75,7 +75,7 @@ async def test_v2_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
         response = await client.post(
-            "/v2/chat",
+            "/chat",
             json={
                 "query": "When is Fall 2026 registration?",
                 "thread_id": "portfolio-demo-1",
@@ -95,20 +95,20 @@ async def test_v2_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
             "checkpoint_ns": "client:client-a",
         },
         "metadata": {"app": "buzzbot", "environment": "local", "thread_id": "portfolio-demo-1"},
-        "tags": ["buzzbot", "v2-chat"],
+        "tags": ["buzzbot", "chat"],
     }
     assert build.call_args.kwargs["checkpointer"] is app.state.checkpointer
 
 
 @pytest.mark.asyncio
-async def test_v2_chat_rejects_unbounded_or_unsafe_thread_id():
+async def test_chat_rejects_unbounded_or_unsafe_thread_id():
     app = FastAPI()
     app.include_router(router)
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
         response = await client.post(
-            "/v2/chat",
+            "/chat",
             json={"query": "CS 7650", "thread_id": "invalid thread/id"},
         )
 

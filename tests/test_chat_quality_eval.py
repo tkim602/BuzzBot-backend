@@ -28,9 +28,9 @@ def _case() -> GoldCase:
 
 
 @pytest.mark.asyncio
-async def test_evaluate_case_calls_v2_chat_and_records_gold_citation(monkeypatch):
+async def test_evaluate_case_calls_chat_and_records_gold_citation(monkeypatch):
     async def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/v2/chat"
+        assert request.url.path == "/chat"
         assert json.loads(request.content)["thread_id"] == "eval-gold-001-v3"
         return httpx.Response(
             200,
