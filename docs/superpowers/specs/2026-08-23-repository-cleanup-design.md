@@ -1,25 +1,25 @@
-# BuzzBot v2 Repository Cleanup Design
+# BuzzBot Repository Cleanup Design
 
 ## Goal
 
-Make the default repository tree represent the BuzzBot v2 product only. Preserve the working
+Make the default repository tree represent the BuzzBot product only. Preserve the working
 LangGraph API, controlled ingestion, database migrations, quality evaluation, and their tests while
-removing the retired v1 application and superseded development artifacts.
+removing the retired application and superseded development artifacts.
 
 Git history is not rewritten. The cleanup changes only the current tree.
 
 ## Source of truth
 
-The cleanup starts from `data/dev100-diagnosis`, which contains the latest verified v2 runtime and
+The cleanup starts from `data/dev100-diagnosis`, which contains the latest verified runtime and
 quality improvements. The dirty root checkout and its uncommitted crawler experiment are outside
 this change and must remain untouched. Untracked evaluation reports are local artifacts and must
 not be deleted or committed.
 
 ## Keep
 
-- FastAPI health endpoints and `POST /v2/chat`
+- FastAPI health endpoints and `POST /chat`
 - Controlled LangGraph workflow and checkpoint persistence
-- Shared RAG answer, grounding, routing, embedding, and retrieval code used by v2
+- Shared RAG answer, grounding, routing, embedding, and retrieval code used by BuzzBot
 - Structured OSCAR ingestion and controlled official-document ingestion
 - PostgreSQL models and Alembic migrations
 - Current deterministic and live quality evaluation package, frozen datasets, manifests, and
@@ -39,13 +39,13 @@ not be deleted or committed.
 - Claude-specific repository instructions and skills
 - Superseded implementation plans, study guides, UI documentation, and intermediate reports
 
-Shared modules are retained when v2 imports them even if they originated in v1. Removal is based on
+Shared modules are retained when BuzzBot imports them even if they originated in the retired app. Removal is based on
 the actual runtime/test dependency graph, not directory names.
 
 ## Required updates
 
 - Remove retired routers from the FastAPI application.
-- Narrow request/response schemas to the v2 contract without changing `/v2/chat` behavior.
+- Narrow request/response schemas to the chat contract without changing `/chat` behavior.
 - Remove stale Make targets, dependencies, Ruff exceptions, documentation links, and tests that
   exist only for deleted code.
 - Ignore local generated quality-report directories so future evaluations do not clutter Git status.
@@ -60,8 +60,8 @@ The cleaned tree must pass:
 3. PostgreSQL integration tests;
 4. Ruff lint and format checks;
 5. `git diff --check` and a secret scan of changed files;
-6. FastAPI route inspection proving `/v2/chat`, health, stats, and usage remain while legacy
-   `POST /chat` is absent.
+6. FastAPI route inspection proving `/chat`, health, stats, and usage remain while the retired
+   versioned endpoint is absent.
 
 No live ingestion, paid evaluation, database deletion, Git history rewrite, push, or merge is part
 of this cleanup implementation.

@@ -26,7 +26,7 @@ def test_cors_origins_reject_wildcards_with_credentials():
 
 def test_local_frontend_preflight_is_allowed():
     response = TestClient(app).options(
-        "/v2/chat",
+        "/chat",
         headers={
             "Origin": "http://localhost:3000",
             "Access-Control-Request-Method": "POST",

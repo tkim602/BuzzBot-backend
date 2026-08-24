@@ -1,4 +1,4 @@
-# Course Details v2 Baseline
+# BuzzBot Course Details Baseline
 
 - Evaluated code SHA: `9a66b98d540b55dd9a3e91664a47d4f01196c683`
 - Dataset: `course-details-120-v1`

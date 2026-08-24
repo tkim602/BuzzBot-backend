@@ -1,13 +1,13 @@
-# BuzzBot v2 clean-database verification
+# BuzzBot clean-database verification
 
 Date: 2026-08-20
 
 ## Scope
 
 - Switch every runtime and operational database consumer through one `DATABASE_URL`.
-- Apply all Alembic migrations to an empty `buzzbot_v2` PostgreSQL database.
+- Apply all Alembic migrations to an empty `buzzbot` PostgreSQL database.
 - Sync one controlled document source and one Fall 2026 OSCAR subject only.
-- Verify failed publication isolation, readiness, SQL retrieval, checkpointing, and the v2 API.
+- Verify failed publication isolation, readiness, SQL retrieval, checkpointing, and the API.
 - Do not collect all document sources and do not add term-wide subject orchestration.
 
 ## Results
@@ -24,14 +24,14 @@ Date: 2026-08-20
 - Offline replay of the saved OSCAR snapshot validated 1,779/1,779 sections with zero failures.
 - The controlled retry published 178 courses, 1,779 sections, and 1,779 meetings. The three arranged
   sections remain queryable with zero fabricated meeting rows.
-- `/live`, `/ready`, `/stats`, `/usage`, and `/v2/chat` all returned HTTP 200 against `buzzbot_v2`.
+- `/live`, `/ready`, `/stats`, `/usage`, and `/chat` all returned HTTP 200 against `buzzbot`.
   Readiness reported database, official documents, published schedule, current freshness, and the
   PostgreSQL LangGraph checkpointer as healthy.
 - The CS 7650 API query returned three Fall 2026 offerings with three citations and no LLM call.
 - Tracked OpenAI cost remained about `$0.0003` against the hard `$3.00` application ceiling.
 - PostgreSQL integration suite: 9 passed. Full suite: 182 passed, 9 skipped.
-- The old `buzzbot` database retained its 25,978 documents and still had zero schedule versions.
-  No integration-test versions remained in `buzzbot_v2`.
+- The retired database retained its 25,978 documents and still had zero schedule versions.
+  No integration-test versions remained in `buzzbot`.
 
 ## Configuration fix
 

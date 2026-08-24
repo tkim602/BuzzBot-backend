@@ -7,7 +7,7 @@ Frozen Fall 2026 CS structured-retrieval regression recovered from the verified
 - Term: `202608`
 - Data version: `bf5473f7-5d3f-4b3d-a2ba-eb8b84a54a60`
 - Manifest SHA-256: `006d740a1a29cbfba1d156ac4f45ece5e33a80f1d2631895d7d613e39d2edbcb`
-- Source: local published `buzzbot_v2` PostgreSQL snapshot; no network calls
+- Source: local published `buzzbot` PostgreSQL snapshot; no network calls
 
 Run from the repository root:
 

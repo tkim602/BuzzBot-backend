@@ -1,4 +1,4 @@
-# BuzzBot v2 Final Implementation Report
+# BuzzBot Final Implementation Report
 
 ## Delivered
 
@@ -12,7 +12,7 @@
 - Explicit LangGraph workflow: understand, retrieve, validate, one retry, answer, citation validate,
   abstain.
 - PostgreSQL checkpoint lifecycle with client namespace isolation.
-- FastAPI `/v2/chat`, `/live`, `/ready`, `/usage`, offline eval, Docker healthcheck, and current v2
+- FastAPI `/chat`, `/live`, `/ready`, `/usage`, offline eval, Docker healthcheck, and current
   documentation.
 
 ## Verification evidence
@@ -20,14 +20,14 @@
 - Full pytest: `175 passed, 9 skipped`.
 - PostgreSQL integration: `9 passed`.
 - Focused Ruff: clean for Phase 3-5 changed Python files.
-- Focused mypy: clean for graph, v2 API, health, retrieval tools, and eval.
-- Offline v2 golden set: 12 cases, routing `1.00`, required-field extraction `1.00`.
+- Focused mypy: clean for graph, API, health, retrieval tools, and eval.
+- Offline golden set: 12 cases, routing `1.00`, required-field extraction `1.00`.
 - FastAPI/PostgreSQL smoke:
   - `/live`: 200
   - `/ready`: honest 503 because no non-expired published schedule
   - checkpoint: available
   - controlled document chunks: available
-  - `/v2/chat` clarification path: 200, no paid API call
+  - `/chat` clarification path: 200, no paid API call
 - Tracked OpenAI total after bounded ingestion/retrieval: `$0.00034198 / $3.00`.
 - Secret-pattern scan: no pasted OpenAI or LangSmith keys in the worktree diff.
 

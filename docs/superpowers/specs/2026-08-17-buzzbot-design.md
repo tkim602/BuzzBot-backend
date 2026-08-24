@@ -1,4 +1,4 @@
-# BuzzBot v2 — Production-Oriented Controlled Agentic RAG Design
+# BuzzBot — Production-Oriented Controlled Agentic RAG Design
 
 **Date:** 2026-08-17
 
@@ -8,7 +8,7 @@
 
 ## 1. Scope
 
-BuzzBot v2 answers questions about:
+BuzzBot answers questions about:
 
 - Georgia Tech policies, academic calendars, registration dates, and student-facing procedures
 - course descriptions, credits, prerequisites, and program requirements

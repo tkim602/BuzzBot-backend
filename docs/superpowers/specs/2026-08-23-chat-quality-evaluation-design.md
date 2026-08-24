@@ -1,10 +1,10 @@
-# BuzzBot `/v2/chat` Quality Evaluation Design
+# BuzzBot `/chat` Quality Evaluation Design
 
 ## Goal
 
 Measure whether the production LangGraph chatbot is reliable enough for students without rerunning the full 1,000-query benchmark after every change.
 
-The legacy frontend and `POST /chat` endpoint are outside this evaluation. `POST /v2/chat` is the production contract under test.
+The retired frontend is outside this evaluation. `POST /chat` is the production contract under test.
 
 ## Existing assets
 
@@ -37,7 +37,7 @@ Reuse `eval.quality.runner`. It measures whether the verified official document 
 
 ### End-to-end chat evaluation
 
-Invoke the same LangGraph path used by `POST /v2/chat`. With the current environment this uses `gpt-4o-mini` for answer generation and for existing semantic checks when required.
+Invoke the same LangGraph path used by `POST /chat`. With the current environment this uses `gpt-4o-mini` for answer generation and for existing semantic checks when required.
 
 For each case, store:
 
@@ -51,7 +51,7 @@ The correctness judge uses the already configured model and returns a small fixe
 
 ## Execution semantics
 
-- Process cases sequentially with a bounded start rate so `/v2/chat` and judge usage can be attributed to one case without file-accounting races.
+- Process cases sequentially with a bounded start rate so `/chat` and judge usage can be attributed to one case without file-accounting races.
 - Append one JSONL result per completed case.
 - On restart, skip completed case IDs unless `--force` is supplied.
 - Stop cleanly when the existing usage limiter rejects further API calls.
@@ -78,12 +78,12 @@ Answer-quality rates use successfully judged cases, while cost and token totals 
 
 ## Initial quality policy
 
-The system remains fail-closed: a supported abstention is preferable to an unsupported confident answer. Initial runs establish the baseline. Before a confidence threshold is frozen, reports preserve raw confidence and set the threshold-dependent unsafe confident-answer rate to `null`. Abstention uses the production `/v2/chat` cite-or-abstain note, not an evaluation-only confidence cutoff. Release thresholds are frozen only after reviewing the 100-case end-to-end report.
+The system remains fail-closed: a supported abstention is preferable to an unsupported confident answer. Initial runs establish the baseline. Before a confidence threshold is frozen, reports preserve raw confidence and set the threshold-dependent unsafe confident-answer rate to `null`. Abstention uses the production `/chat` cite-or-abstain note, not an evaluation-only confidence cutoff. Release thresholds are frozen only after reviewing the 100-case end-to-end report.
 
 ## Scope exclusions
 
 - No frontend work.
-- No changes to the legacy `POST /chat` endpoint.
+- No changes to the production `POST /chat` endpoint.
 - No ingestion, crawler, OSCAR, chunking, or source-scope changes.
 - No new model, evaluation service, vector database, or framework.
 - No automatic full 1,000-case chat run during implementation.
@@ -95,6 +95,6 @@ Implementation is complete when:
 1. the fixed 100-case manifest contains one explicit case ID from every fact group with no duplicates;
 2. the 200-case manifest contains two explicit case IDs from every fact group with no duplicates and contains every 100-case ID;
 3. mocked focused tests separately verify chat budget rejection, judge budget rejection, ordinary errors, result recording, resume, metrics, and shared usage accounting;
-4. a bounded real smoke run of at most two cases reaches the `/v2/chat` LangGraph path;
+4. a bounded real smoke run of at most two cases reaches the `/chat` LangGraph path;
 5. the full existing test suite and lint pass;
 6. the 1,000-case live chat evaluation is not run automatically.

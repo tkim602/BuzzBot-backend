@@ -20,7 +20,7 @@ the unchanged downstream fusion budget.
 Acceptance gate (`Hit@5 >= 62%`, non-decreasing MRR, wins > regressions):
 **PASS**.
 
-## Live `/v2/chat` evaluation
+## Live `/chat` evaluation
 
 One sequential 100-case production-contract run was executed after the
 retrieval gate passed.
@@ -40,4 +40,3 @@ The 70% Policy task-success target is **NOT MET** by two cases. Failure
 diagnosis separates 20 retrieval misses from 21 answer/citation/validation
 failures; the latter is now the largest next workstream. The system remains
 fail-closed rather than weakening validation to inflate the score.
-

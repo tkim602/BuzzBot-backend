@@ -44,7 +44,7 @@
 - Create: `eval/quality/policy_hierarchical_retrieval_pr13_cases.jsonl`
 - Create: `docs/evals/policy_hierarchical_retrieval_pr13.md`
 
-- [x] Run exactly `N = 1, 2, 3, 5` against `buzzbot_v2` once.
+- [x] Run exactly `N = 1, 2, 3, 5` against `buzzbot` once.
 - [x] Record all required metrics and choose a candidate only through the predeclared gate.
 - [x] Keep the eight PR12 oracle misses unchanged and skip paid semantic answer evaluation.
 
