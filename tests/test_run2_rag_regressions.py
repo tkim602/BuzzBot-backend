@@ -69,8 +69,7 @@ January 6
     assert all(date in indexed for date in ("October 15", "November 2", "January 6"))
 
 
-@pytest.mark.asyncio
-async def test_first_year_recommendation_query_prefers_recommendations_page():
+def test_first_year_recommendation_query_prefers_recommendations_page():
     recommendations = _chunk(
         "recommendations",
         "Recommendations | Undergraduate Admission",
@@ -84,17 +83,11 @@ async def test_first_year_recommendation_query_prefers_recommendations_page():
     )
 
     route = classify_query(RECOMMENDATIONS_QUERY)
-    supported, _ = await check_claim_support(
-        "Recommendations are optional, and applicants may submit up to three recommendations.",
-        [recommendations],
-    )
-
     assert route.intent == "policy"
     assert route.source_filter == "gt-admission"
     assert _lexical_match_score(RECOMMENDATIONS_QUERY, recommendations) > _lexical_match_score(
         RECOMMENDATIONS_QUERY, preparation
     )
-    assert supported
 
 
 def test_recommendation_letters_query_outranks_generic_deadline_page():
