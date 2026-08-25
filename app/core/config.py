@@ -86,6 +86,9 @@ class Settings(BaseSettings):
     firebase_project_id: str = ""
     firebase_check_revoked: bool = False
     trust_proxy_headers: bool = False
+    readiness_strict: bool = False
+    readiness_min_official_documents: PositiveInt = 1
+    operator_api_token: str = ""
 
     # Ingestion
     ingest_max_urls_per_source: int = 200
