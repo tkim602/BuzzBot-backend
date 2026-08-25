@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from dotenv import load_dotenv
 from pydantic import Field, PositiveInt
 from pydantic_settings import BaseSettings
@@ -23,6 +25,9 @@ def sync_database_url(database_url: str) -> str:
 
 
 class Settings(BaseSettings):
+    app_environment: Literal["development", "test", "production"] = "development"
+    api_docs_enabled: bool = False
+
     # Web
     cors_origins: str = (
         "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3100,http://127.0.0.1:3100"
@@ -50,10 +55,10 @@ class Settings(BaseSettings):
 
     # LLM
     llm_provider: str = "openai"
-    openai_api_key: str = ""
+    openai_api_key: str = Field(default="", repr=False)
     openai_model: str = "gpt-4o-mini"
     openai_embed_model: str = "text-embedding-3-small"
-    anthropic_api_key: str = ""
+    anthropic_api_key: str = Field(default="", repr=False)
     anthropic_model: str = "claude-haiku-4-5-20251001"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
@@ -88,7 +93,7 @@ class Settings(BaseSettings):
     trust_proxy_headers: bool = False
     readiness_strict: bool = False
     readiness_min_official_documents: PositiveInt = 1
-    operator_api_token: str = ""
+    operator_api_token: str = Field(default="", repr=False)
 
     # Ingestion
     ingest_max_urls_per_source: int = 200

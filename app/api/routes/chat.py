@@ -55,7 +55,11 @@ async def chat(
                 "thread_id": thread_id,
                 "checkpoint_ns": f"client:{client_id}",
             },
-            "metadata": {"app": "buzzbot", "environment": "local", "thread_id": thread_id},
+            "metadata": {
+                "app": "buzzbot",
+                "environment": settings.app_environment,
+                "thread_id": thread_id,
+            },
             "tags": ["buzzbot", "chat"],
         }
         async with acquire_chat_slot():

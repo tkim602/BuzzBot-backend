@@ -138,6 +138,8 @@ def require_operator(
     x_operator_token: Annotated[str | None, Header(alias="X-Operator-Token")] = None,
 ) -> None:
     configured = settings.operator_api_token
+    if settings.app_environment == "production" and not configured:
+        raise HTTPException(status_code=404, detail="Not found")
     if configured and (
         x_operator_token is None or not secrets.compare_digest(x_operator_token, configured)
     ):

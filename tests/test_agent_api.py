@@ -108,7 +108,11 @@ async def test_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
             "thread_id": "portfolio-demo-1",
             "checkpoint_ns": "client:client-a",
         },
-        "metadata": {"app": "buzzbot", "environment": "local", "thread_id": "portfolio-demo-1"},
+        "metadata": {
+            "app": "buzzbot",
+            "environment": "development",
+            "thread_id": "portfolio-demo-1",
+        },
         "tags": ["buzzbot", "chat"],
     }
     assert build.call_args.kwargs["checkpointer"] is app.state.checkpointer
@@ -170,6 +174,19 @@ async def test_chat_rejects_unbounded_or_unsafe_thread_id():
         )
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_application_adds_request_id_to_response():
+    from app.main import app
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/live")
+
+    assert response.status_code == 200
+    assert len(response.headers["X-Request-ID"]) == 8
 
 
 @pytest.mark.asyncio

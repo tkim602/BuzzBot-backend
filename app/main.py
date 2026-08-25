@@ -56,11 +56,16 @@ async def lifespan(application: FastAPI):
                     await sync_task
 
 
+docs_enabled = settings.app_environment != "production" or settings.api_docs_enabled
+
 app = FastAPI(
     title="BuzzBot",
     description="RAG chatbot for Georgia Tech campus information",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url="/docs" if docs_enabled else None,
+    redoc_url="/redoc" if docs_enabled else None,
+    openapi_url="/openapi.json" if docs_enabled else None,
 )
 
 # CORS — allow frontend
@@ -81,6 +86,12 @@ async def add_request_id(request: Request, call_next):
     structlog.contextvars.bind_contextvars(request_id=request_id)
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "request completed",
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+    )
     return response
 
 
