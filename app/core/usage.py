@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
@@ -33,7 +34,9 @@ COST_PER_MILLION = {
     "claude-haiku-4-5-20251001-output": 1.25,
 }
 
-USAGE_FILE = Path(__file__).resolve().parent.parent / "artifacts" / "usage.json"
+USAGE_FILE = Path(
+    os.getenv("USAGE_FILE", Path(__file__).resolve().parent.parent / "artifacts" / "usage.json")
+)
 
 _lock = Lock()
 MAX_USAGE_LIMIT = 3.0
