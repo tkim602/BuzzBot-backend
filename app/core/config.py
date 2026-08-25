@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     chat_duplicate_cooldown_seconds: int = 20
     chat_max_concurrency: int = 12
     chat_queue_timeout_seconds: float = 5.0
+    chat_debug_responses: bool = False
 
     # Ingestion
     ingest_max_urls_per_source: int = 200

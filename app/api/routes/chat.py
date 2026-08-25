@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import UTC, datetime
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.freshness import evidence_freshness_as_of
 from app.api.schemas.chat import (
     ChatRequest,
     ChatResponse,
@@ -79,17 +79,21 @@ async def chat(
             confidence=result.get("confidence", 0.2),
             freshness=FreshnessInfo(
                 strategy="langgraph_controlled",
-                as_of=datetime.now(UTC).isoformat(),
+                as_of=evidence_freshness_as_of(evidence),
             ),
             notes=result.get("notes", []),
-            debug=DebugInfo(
-                intent=result.get("intent"),
-                source_filter=None,
-                retrieval_top_k=len(evidence),
-                top_sources=sources,
-                rewritten_query=payload.query,
-                current_term=result.get("term_code"),
-                stage_timings_ms={"total_ms": elapsed_ms},
+            debug=(
+                DebugInfo(
+                    intent=result.get("intent"),
+                    source_filter=None,
+                    retrieval_top_k=len(evidence),
+                    top_sources=sources,
+                    rewritten_query=payload.query,
+                    current_term=result.get("term_code"),
+                    stage_timings_ms={"total_ms": elapsed_ms},
+                )
+                if settings.chat_debug_responses
+                else None
             ),
         )
     except GuardrailViolation as exc:
