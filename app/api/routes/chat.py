@@ -15,6 +15,7 @@ from app.api.schemas.chat import (
     DebugInfo,
     FreshnessInfo,
 )
+from app.core.auth import RequestIdentity, get_request_identity
 from app.core.config import settings
 from app.core.guardrails import (
     GuardrailViolation,
@@ -34,11 +35,12 @@ async def chat(
     payload: ChatRequest,
     request: Request,
     session: Annotated[AsyncSession, Depends(get_async_session)],
+    identity: Annotated[RequestIdentity, Depends(get_request_identity)],
 ) -> ChatResponse:
     started = time.perf_counter()
     thread_id = payload.thread_id or str(uuid.uuid4())
     try:
-        client_id, _ = enforce_request_guardrails(request, payload.query)
+        client_id, _ = enforce_request_guardrails(request, payload.query, identity)
         checkpointer = getattr(request.app.state, "checkpointer", None)
         graph = build_workflow(WorkflowServices(session), checkpointer=checkpointer)
         user_term = payload.user_context.term if payload.user_context else None

@@ -81,6 +81,12 @@ class Settings(BaseSettings):
     chat_queue_timeout_seconds: float = 5.0
     chat_debug_responses: bool = False
 
+    # Optional Firebase bearer authentication
+    firebase_auth_enabled: bool = False
+    firebase_project_id: str = ""
+    firebase_check_revoked: bool = False
+    trust_proxy_headers: bool = False
+
     # Ingestion
     ingest_max_urls_per_source: int = 200
     ingest_concurrency: int = 5
