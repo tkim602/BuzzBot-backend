@@ -7,6 +7,11 @@ Local base URL: `http://localhost:8000`
 Runs the production LangGraph workflow. Content type is `application/json`; streaming is not
 currently implemented.
 
+Authentication is optional. Anonymous requests omit `Authorization`. Authenticated clients send a
+Firebase ID token as `Authorization: Bearer <id-token>`. The backend verifies the token and derives
+UID, email verification, and `@gatech.edu` eligibility from verified claims; request JSON is never
+trusted as identity.
+
 ### Request
 
 ```json
@@ -45,28 +50,24 @@ currently implemented.
   "confidence": 0.95,
   "freshness": {
     "strategy": "langgraph_controlled",
-    "as_of": "2026-08-24T00:00:00+00:00"
+    "as_of": "2026-08-20T00:00:00+00:00"
   },
   "notes": [],
-  "debug": {
-    "intent": "course_schedule",
-    "source_filter": null,
-    "retrieval_top_k": 1,
-    "top_sources": ["oscar"],
-    "rewritten_query": "Is CS 7650 offered in Fall 2026?",
-    "current_term": "202608",
-    "stage_timings_ms": {"total_ms": 125}
-  }
+  "debug": null
 }
 ```
 
-`freshness.as_of` is the response data timestamp. Each citation URL is its verification URL;
-`debug.top_sources` identifies the source used. An insufficient or ungrounded factual answer is
-replaced by a fail-closed abstention and explanation in `notes`.
+`freshness.as_of` is evidence-derived, never response time. Schedule evidence uses its published
+OSCAR snapshot timestamp and document evidence uses the retrieved chunk timestamp. Multiple
+evidence items use the oldest timestamp; if any used evidence lacks a valid timezone-aware
+timestamp, `as_of` is `null`. Citation-specific `fetched_at` remains unchanged. `debug` is optional
+and is returned only when `CHAT_DEBUG_RESPONSES=true`. An insufficient or ungrounded factual answer
+is replaced by a fail-closed abstention and explanation in `notes`.
 
 ### Errors
 
 - `422`: invalid request schema.
+- `401`: malformed, invalid, revoked (when configured), or expired Firebase bearer token.
 - `429`: request guardrail/rate limit or tracked API cost limit. JSON `detail.error` identifies
   `guardrail_violation` or `usage_limit_exceeded`; a retry delay may be present.
 - `500`: unexpected server failure. Retain the request ID response header when reporting it.
@@ -76,10 +77,14 @@ Successful responses include `X-Request-ID`.
 ## Health and operations
 
 - `GET /live`: dependency-free liveness; `200` while the API process responds.
-- `GET /ready`: `200` only when DB, official chunks, schedule freshness, and the configured
-  checkpoint store are ready; otherwise `503` with individual checks.
+- `GET /ready`: in local non-strict mode, checks DB, official documents, active-term schedule
+  freshness, and checkpoint availability. With `READINESS_STRICT=true`, it also requires the
+  configured minimum official-document count and a completed all-subject ingestion manifest for
+  `ACTIVE_TERM_CODE`; otherwise it returns `503` with structured checks.
 - `GET /usage`: tracked cost, configured limit, remaining budget, and usage percent.
 - `GET /stats`: source/document/chunk counts.
 - `GET /health`: retained liveness equivalent for existing operators.
 
-No endpoint mutates usage, registration, or authenticated student data.
+`/usage` and `/stats` require `X-Operator-Token` when `OPERATOR_API_TOKEN` is set and fail closed in
+production when it is unset. Interactive API docs are disabled in production unless
+`API_DOCS_ENABLED=true`. No endpoint mutates usage, registration, or authenticated student data.

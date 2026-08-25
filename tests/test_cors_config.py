@@ -35,3 +35,12 @@ def test_local_frontend_preflight_is_allowed():
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
+def test_browser_can_read_request_id_header():
+    response = TestClient(app).get(
+        "/health",
+        headers={"Origin": "http://localhost:3000"},
+    )
+
+    assert response.headers["access-control-expose-headers"] == "X-Request-ID"

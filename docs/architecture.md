@@ -102,8 +102,10 @@ application-scoped `AsyncPostgresSaver` is created during FastAPI lifespan. Its 
 Alembic migrations; application startup does not run schema DDL. A bounded client `thread_id` is
 passed through LangGraph configuration.
 
-The already-hashed request fingerprint is used as `checkpoint_ns`, so two unauthenticated clients
-that choose the same visible thread ID do not share checkpoint state.
+Verified Firebase requests use `firebase:<uid>` as the shared rate-limit, duplicate-cooldown, and
+`checkpoint_ns` identity. Anonymous requests use the existing bounded IP/User-Agent hash. Forwarded
+IP headers are ignored unless `TRUST_PROXY_HEADERS=true`, and malformed chains fall back to the
+direct peer. A client-provided `thread_id` or JSON UID can never authenticate a request.
 
 Checkpoint startup is best-effort: a failure is logged by exception type without printing the
 connection URL. The process remains live, while `/ready` reports checkpoint failure. No in-process
@@ -114,8 +116,8 @@ memory saver is substituted in production.
 | Endpoint | Meaning |
 |---|---|
 | `/live` | FastAPI process can respond |
-| `/ready` | DB works, official chunks exist, published schedule is not expired, checkpoint is available when enabled |
-| `/usage` | tracked cost, `$3` cap, remaining budget |
+| `/ready` | dependency checks plus optional strict document coverage and completed active-term manifest |
+| `/usage` | tracked cost and remaining budget; operator-token protected when configured |
 
 LangSmith tracing is optional observability and is not part of readiness.
 
@@ -144,3 +146,6 @@ evidence and cannot be selected as a production retrieval path.
 - No registration/drop actions, student records, BuzzPort session, or SSO credential handling.
 - RateMyProfessors is unsupported and never crawled.
 - `.env`, safe snapshots, and usage artifacts are ignored and never included in checkpoints.
+- Firebase Admin uses Application Default Credentials only when bearer verification is enabled;
+  credentials are never committed or accepted from request JSON.
+- Production debug responses and interactive API docs are off unless explicitly enabled.
