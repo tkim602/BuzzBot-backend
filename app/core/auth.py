@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, Request, status
 
@@ -62,7 +62,10 @@ def _verify_with_firebase(token: str) -> Mapping[str, object]:
             {"projectId": settings.firebase_project_id} if settings.firebase_project_id else None
         )
         firebase_admin.initialize_app(options=options)
-    return auth.verify_id_token(token, check_revoked=settings.firebase_check_revoked)
+    return cast(
+        Mapping[str, object],
+        auth.verify_id_token(token, check_revoked=settings.firebase_check_revoked),
+    )
 
 
 async def verify_firebase_token(token: str) -> Mapping[str, object]:

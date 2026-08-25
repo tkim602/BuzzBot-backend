@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 
 
-def evidence_freshness_as_of(evidence: list[Mapping[str, object]]) -> str | None:
+def evidence_freshness_as_of(evidence: Sequence[Mapping[str, object]]) -> str | None:
     """Return the oldest evidence timestamp, or None when the set is not fully dated."""
     if not evidence:
         return None
