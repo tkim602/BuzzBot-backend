@@ -39,7 +39,7 @@ experiments remain reproducible, but production modules must not import them.
 
 ## Compatibility
 
-`/v2/chat` has no retained external consumer in this repository. It is removed rather than kept as
+The retired versioned chat endpoint has no retained external consumer in this repository. It is removed rather than kept as
 an undocumented alias. Active evaluation tooling is updated to call `/chat`; historical reports and
 frozen identifiers remain unchanged.
 
@@ -50,4 +50,3 @@ frozen identifiers remain unchanged.
 - Frozen Schedule SQL/NLU/renderer, Course Details, Calendar, and Policy retrieval checks using the
   repository's canonical commands; no paid chat/semantic evaluation.
 - Ruff, format check, and `git diff --check`.
-

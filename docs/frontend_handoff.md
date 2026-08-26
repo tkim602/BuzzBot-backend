@@ -10,14 +10,20 @@
 `thread_id` is an optional conversation key, not authentication. The web client may generate a
 bounded opaque ID matching `^[A-Za-z0-9_.:-]+$` and retain it for a browser conversation.
 
+Firebase authentication is optional. Immediately before each authenticated request, obtain the
+current Firebase ID token and send `Authorization: Bearer <id-token>`. Anonymous requests send no
+Authorization header. On an authenticated `401`, force-refresh once and retry once; never store,
+log, or place the token in conversation state.
+
 ## Rendering
 
 - Render `answer` as untrusted text.
 - Render every citation from `citations[]` with its exact `title`, `url`, `quote`, optional `page`,
   and `fetched_at`. Do not synthesize citation URLs client-side.
-- Use `freshness.as_of` as the displayed data timestamp.
+- Use non-null `freshness.as_of` as the conservative evidence timestamp; do not replace null with
+  the current time.
 - Treat non-empty `notes` as abstention/qualification messages, not hidden diagnostics.
-- `debug` is useful during MVP integration but is not a stable presentation model.
+- `debug` is optional and normally null outside explicitly enabled development diagnostics.
 
 ## Errors
 
@@ -26,26 +32,21 @@ bounded opaque ID matching `^[A-Za-z0-9_.:-]+$` and retain it for a browser conv
 - `503` from `/ready`: backend dependencies are unavailable; do not send chat requests.
 - Other failures: show a retry action and retain `X-Request-ID` for diagnostics.
 
-## Local browser integration
+## Browser integration
 
-The backend does not currently install permissive CORS middleware. Prefer a same-origin web proxy
-during local and production deployment. If separate browser origins are required later, add an
-explicit environment-driven allowlist; never use wildcard credentials.
+The backend uses the explicit `CORS_ORIGINS` allowlist and never accepts wildcard origins with
+credentials. `Authorization` is allowed through the existing CORS middleware.
 
-Expected future web environment variable:
+Web environment variable:
 
 ```text
-BUZZBOT_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_BUZZBOT_API_URL=http://localhost:8000
 ```
 
 Use the web framework's public/server variable naming rules when that repository is implemented.
 
-## Intentionally missing product work
+## Current persistence boundary
 
-1. Authentication and user identity
-2. Conversation/message persistence
-3. Streaming chat transport and UI
-4. Citation presentation
-5. Course/schedule result components
-6. Backend and web deployment
-7. External scheduled-ingestion deployment
+Firebase provides browser identity, while conversations remain same-browser localStorage scoped by
+Firebase UID. Authentication does not provide cross-device history or server-side message storage.
+Cloud deployment and an external production ingestion scheduler remain separate operational work.

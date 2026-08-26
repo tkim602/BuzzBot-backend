@@ -47,7 +47,17 @@ async def test_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
                 ],
                 "confidence": 0.8,
                 "notes": [],
-                "evidence": [{"source": "gt-academic-calendar"}],
+                "evidence": [
+                    {
+                        "kind": "document",
+                        "text": "Official registration date",
+                        "url": "https://registrar.gatech.edu/current-academic-calendar",
+                        "title": "Academic Calendar",
+                        "fetched_at": "2026-08-20T00:00:00+00:00",
+                        "source": "gt-academic-calendar",
+                        "metadata": {},
+                    }
+                ],
                 "term_code": "202608",
             }
         )
@@ -88,6 +98,8 @@ async def test_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
     body = response.json()
     assert body["thread_id"] == "portfolio-demo-1"
     assert body["citations"][0]["url"].startswith("https://registrar.gatech.edu/")
+    assert body["freshness"]["as_of"] == "2026-08-20T00:00:00+00:00"
+    assert body["debug"] is None
     state, config = graph.ainvoke.await_args.args
     assert state["user_term"] == "Fall 2026"
     assert state["active_term"] == "202608"
@@ -96,10 +108,57 @@ async def test_chat_invokes_graph_with_thread_and_maps_response(monkeypatch):
             "thread_id": "portfolio-demo-1",
             "checkpoint_ns": "client:client-a",
         },
-        "metadata": {"app": "buzzbot", "environment": "local", "thread_id": "portfolio-demo-1"},
+        "metadata": {
+            "app": "buzzbot",
+            "environment": "development",
+            "thread_id": "portfolio-demo-1",
+        },
         "tags": ["buzzbot", "chat"],
     }
     assert build.call_args.kwargs["checkpointer"] is app.state.checkpointer
+
+
+@pytest.mark.asyncio
+async def test_chat_debug_payload_is_opt_in(monkeypatch):
+    graph = SimpleNamespace(
+        ainvoke=AsyncMock(
+            return_value={
+                "intent": "policy",
+                "answer": "Grounded answer.",
+                "citations": [],
+                "confidence": 0.8,
+                "notes": [],
+                "evidence": [],
+            }
+        )
+    )
+    monkeypatch.setattr("app.api.routes.chat.build_workflow", MagicMock(return_value=graph))
+    monkeypatch.setattr(
+        "app.api.routes.chat.enforce_request_guardrails",
+        MagicMock(return_value=("client-a", "query")),
+    )
+    monkeypatch.setattr("app.api.routes.chat.settings.chat_debug_responses", True)
+
+    @asynccontextmanager
+    async def free_slot():
+        yield
+
+    monkeypatch.setattr("app.api.routes.chat.acquire_chat_slot", free_slot)
+    app = FastAPI()
+    app.include_router(router)
+    app.state.checkpointer = None
+
+    async def session_override():
+        yield object()
+
+    app.dependency_overrides[get_async_session] = session_override
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post("/chat", json={"query": "A policy question"})
+
+    assert response.status_code == 200
+    assert response.json()["debug"]["intent"] == "policy"
 
 
 @pytest.mark.asyncio
@@ -115,6 +174,19 @@ async def test_chat_rejects_unbounded_or_unsafe_thread_id():
         )
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_application_adds_request_id_to_response():
+    from app.main import app
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/live")
+
+    assert response.status_code == 200
+    assert len(response.headers["X-Request-ID"]) == 8
 
 
 @pytest.mark.asyncio

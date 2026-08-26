@@ -48,3 +48,16 @@ def test_active_term_must_be_a_six_digit_banner_code():
             database_url="postgresql+asyncpg://buzzbot:secret@db:5432/buzzbot",
             active_term_code="Fall 2026",
         )
+
+
+def test_settings_repr_never_exposes_provider_secrets():
+    configured = Settings(
+        _env_file=None,
+        database_url="postgresql+asyncpg://test:test@localhost/test",
+        openai_api_key="openai-secret-value",
+        anthropic_api_key="anthropic-secret-value",
+    )
+
+    rendered = repr(configured)
+    assert "openai-secret-value" not in rendered
+    assert "anthropic-secret-value" not in rendered

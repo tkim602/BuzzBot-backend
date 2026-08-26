@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
+import secrets
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.usage import get_usage
-from app.db.models import Chunk, DataVersion, Document, Source, SourceSnapshot
+from app.db.models import Chunk, DataVersion, Document, IngestionRun, Source, SourceSnapshot
 from app.db.session import get_async_session
 from app.retrieval.documents import OFFICIAL_SOURCE_NAMES
 from ingestion.schedule.validate import FreshnessState, freshness_state
@@ -36,19 +37,25 @@ async def readiness_status(
     checkpoint_enabled: bool,
     checkpoint_available: bool,
     now: datetime | None = None,
+    strict: bool = False,
+    active_term: str = "",
+    min_official_documents: int = 1,
 ) -> tuple[bool, dict[str, object]]:
     checked_at = now or datetime.now(UTC)
     database_ok = (await session.scalar(text("SELECT 1"))) == 1
-    document_chunks = await session.scalar(
-        select(func.count())
-        .select_from(Chunk)
-        .join(Source, Source.id == Chunk.source_id)
+    document_count = await session.scalar(
+        select(func.count(Document.doc_id))
+        .select_from(Document)
+        .join(Source, Source.id == Document.source_id)
         .where(Source.name.in_(OFFICIAL_SOURCE_NAMES))
     )
     latest_schedule = await session.scalar(
         select(func.max(SourceSnapshot.fetched_at))
         .join(DataVersion, DataVersion.id == SourceSnapshot.data_version_id)
-        .where(DataVersion.status == "PUBLISHED")
+        .where(
+            DataVersion.status == "PUBLISHED",
+            DataVersion.requested_unit.like(f"{active_term or settings.active_term_code}:%"),
+        )
     )
     schedule_freshness = (
         freshness_state(latest_schedule, checked_at)
@@ -57,16 +64,42 @@ async def readiness_status(
     )
     schedule_ok = latest_schedule is not None and schedule_freshness is not FreshnessState.EXPIRED
     checkpoint_ok = not checkpoint_enabled or checkpoint_available
+    official_document_completeness = bool(document_count) and (
+        not strict or int(document_count or 0) >= min_official_documents
+    )
+    completed_manifest = None
+    if strict:
+        completed_manifest = await session.scalar(
+            select(IngestionRun.id)
+            .where(
+                IngestionRun.provider == "public-oscar",
+                IngestionRun.status == "COMPLETED",
+                IngestionRun.scope_json["term"].as_string() == active_term,
+                IngestionRun.scope_json["selection"].as_string() == "all",
+            )
+            .order_by(IngestionRun.completed_at.desc())
+            .limit(1)
+        )
+    schedule_completeness = not strict or completed_manifest is not None
     checks: dict[str, object] = {
         "database": database_ok,
-        "official_documents": bool(document_chunks),
+        "official_documents": bool(document_count),
+        "official_document_count": int(document_count or 0),
+        "official_document_completeness": official_document_completeness,
         "published_schedule": schedule_ok,
+        "schedule_completeness": schedule_completeness,
         "schedule_freshness": schedule_freshness.value,
         "checkpoint": checkpoint_ok,
     }
-    return all(
-        value is True for key, value in checks.items() if key != "schedule_freshness"
-    ), checks
+    required = (
+        "database",
+        "official_documents",
+        "official_document_completeness",
+        "published_schedule",
+        "schedule_completeness",
+        "checkpoint",
+    )
+    return all(checks[key] is True for key in required), checks
 
 
 @router.get("/ready")
@@ -79,13 +112,19 @@ async def ready(
             session,
             checkpoint_enabled=settings.langgraph_checkpoint_enabled,
             checkpoint_available=getattr(request.app.state, "checkpointer", None) is not None,
+            strict=settings.readiness_strict,
+            active_term=settings.active_term_code,
+            min_official_documents=settings.readiness_min_official_documents,
         )
     except Exception:
         is_ready = False
         checks = {
             "database": False,
             "official_documents": False,
+            "official_document_count": 0,
+            "official_document_completeness": False,
             "published_schedule": False,
+            "schedule_completeness": False,
             "schedule_freshness": "UNKNOWN",
             "checkpoint": not settings.langgraph_checkpoint_enabled,
         }
@@ -95,7 +134,19 @@ async def ready(
     )
 
 
-@router.get("/stats")
+def require_operator(
+    x_operator_token: Annotated[str | None, Header(alias="X-Operator-Token")] = None,
+) -> None:
+    configured = settings.operator_api_token
+    if settings.app_environment == "production" and not configured:
+        raise HTTPException(status_code=404, detail="Not found")
+    if configured and (
+        x_operator_token is None or not secrets.compare_digest(x_operator_token, configured)
+    ):
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+@router.get("/stats", dependencies=[Depends(require_operator)])
 async def stats(session: Annotated[AsyncSession, Depends(get_async_session)]):
     """Basic ingestion and index stats."""
     try:
@@ -112,7 +163,7 @@ async def stats(session: Annotated[AsyncSession, Depends(get_async_session)]):
         return {"sources": 0, "documents": 0, "chunks": 0, "note": "database not initialized"}
 
 
-@router.get("/usage")
+@router.get("/usage", dependencies=[Depends(require_operator)])
 async def usage():
     """Get current API usage stats."""
     data = get_usage()

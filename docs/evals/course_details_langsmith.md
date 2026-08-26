@@ -1,4 +1,4 @@
-# Course Details v2 LangSmith Candidate
+# BuzzBot Course Details LangSmith Candidate
 
 - Evaluated code SHA: `52f8c01678f02ac63183a44ed7a297a42d739e29`
 - Dataset: `buzzbot-course-details-20-full-domain-v1`

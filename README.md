@@ -29,9 +29,9 @@ flowchart LR
     Graph -. checkpoints .-> DB[(PostgreSQL + pgvector)]
 ```
 
-The API process and ingestion jobs are independent. FastAPI never runs a periodic ingestion loop.
-An external scheduler invokes explicit ingestion commands, and validated updates publish
-transactionally without replacing the last trusted version on failure.
+Validated updates publish transactionally without replacing the last trusted version on failure.
+The optional in-process sync loop is disabled by default; an external scheduler should invoke the
+explicit ingestion commands in production so scheduling and API lifecycle remain independent.
 
 See [architecture](docs/architecture.md), [API contract](docs/api.md), and
 [frontend handoff](docs/frontend_handoff.md).
@@ -60,6 +60,10 @@ curl -s http://localhost:8000/chat \
   -H 'Content-Type: application/json' \
   -d '{"query":"Is CS 7650 offered in Fall 2026?","thread_id":"portfolio-demo"}'
 ```
+
+Firebase bearer verification is optional. Set `FIREBASE_AUTH_ENABLED=true` and
+`FIREBASE_PROJECT_ID` in production and provide Application Default Credentials to the container or
+runtime; no Firebase service-account file belongs in this repository.
 
 ## Database requirements
 
@@ -152,6 +156,22 @@ make eval-routing
 make lint
 git diff --check
 ```
+
+CI runs the same Ruff/unit gates, migrates an empty pgvector PostgreSQL database, and runs the
+PostgreSQL integration suite. Build the non-root runtime image with `docker build -t buzzbot .`;
+the image reserves writable model and usage-cache paths for the `buzzbot` user.
+
+The smallest provider-free API/database contract check is:
+
+```bash
+docker compose up -d db
+alembic upgrade head
+RUN_DB_TESTS=1 pytest -q tests/integration/test_api_contract.py
+```
+
+It uses the real FastAPI and PostgreSQL paths with a stubbed workflow and test token verifier. The
+web Playwright suite remains mocked and deterministic; a deployed Next.js-to-FastAPI smoke test is
+still an operator step because no production Firebase credentials or model calls belong in CI.
 
 `make quality-chat-dev` performs paid production and judge calls. Run it only intentionally under
 the shared `$3` application limit; repository productization does not require it.

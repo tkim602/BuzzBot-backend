@@ -41,7 +41,7 @@
 - Create: `eval/quality/policy_oracle_retrieval_pr12_cases.jsonl`
 - Create: `docs/evals/policy_oracle_retrieval_pr12.md`
 
-- [x] Run the evaluator against `dev_100.json`, `gold_evidence/dev_100.json`, and the current `buzzbot_v2` database.
+- [x] Run the evaluator against `dev_100.json`, `gold_evidence/dev_100.json`, and the current `buzzbot` database.
 - [x] Record global and oracle Evidence Hit@1/3/5, oracle MRR@5, mean/p95 latency, and unresolved PR11 category results.
 - [x] Apply the predeclared 90% oracle Hit@5 architectural decision rule without changing retrieval code.
 

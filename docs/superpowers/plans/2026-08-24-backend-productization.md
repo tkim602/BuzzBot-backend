@@ -30,8 +30,8 @@
 **Interfaces:**
 - Produces: `POST /chat`, `ChatRequest`, `ChatResponse`, and unchanged response fields.
 
-- [ ] Add assertions that `/chat` exists, `/v2/chat` does not, and active evaluation calls `/chat`.
-- [ ] Run focused tests and confirm they fail on the current V2 route.
+- [ ] Add assertions that `/chat` exists, the retired versioned endpoint does not, and active evaluation calls `/chat`.
+- [ ] Run focused tests and confirm they fail on the retired route.
 - [ ] Move/rename the minimum active API files and symbols; update imports and tracing tag.
 - [ ] Run focused tests and confirm they pass.
 
@@ -78,4 +78,3 @@
 - [ ] Run canonical frozen Schedule SQL/NLU/renderer, Course Details, Calendar, and current Policy retrieval checks.
 - [ ] Run Ruff, Ruff format check, and `git diff --check`.
 - [ ] Inspect diff/stat, confirm frozen artifact hashes and retrieval production files are unchanged, then commit and push.
-

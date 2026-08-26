@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import UTC, datetime
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.freshness import evidence_freshness_as_of
 from app.api.schemas.chat import (
     ChatRequest,
     ChatResponse,
@@ -15,6 +15,7 @@ from app.api.schemas.chat import (
     DebugInfo,
     FreshnessInfo,
 )
+from app.core.auth import RequestIdentity, get_request_identity
 from app.core.config import settings
 from app.core.guardrails import (
     GuardrailViolation,
@@ -34,11 +35,12 @@ async def chat(
     payload: ChatRequest,
     request: Request,
     session: Annotated[AsyncSession, Depends(get_async_session)],
+    identity: Annotated[RequestIdentity, Depends(get_request_identity)],
 ) -> ChatResponse:
     started = time.perf_counter()
     thread_id = payload.thread_id or str(uuid.uuid4())
     try:
-        client_id, _ = enforce_request_guardrails(request, payload.query)
+        client_id, _ = enforce_request_guardrails(request, payload.query, identity)
         checkpointer = getattr(request.app.state, "checkpointer", None)
         graph = build_workflow(WorkflowServices(session), checkpointer=checkpointer)
         user_term = payload.user_context.term if payload.user_context else None
@@ -53,7 +55,11 @@ async def chat(
                 "thread_id": thread_id,
                 "checkpoint_ns": f"client:{client_id}",
             },
-            "metadata": {"app": "buzzbot", "environment": "local", "thread_id": thread_id},
+            "metadata": {
+                "app": "buzzbot",
+                "environment": settings.app_environment,
+                "thread_id": thread_id,
+            },
             "tags": ["buzzbot", "chat"],
         }
         async with acquire_chat_slot():
@@ -79,17 +85,21 @@ async def chat(
             confidence=result.get("confidence", 0.2),
             freshness=FreshnessInfo(
                 strategy="langgraph_controlled",
-                as_of=datetime.now(UTC).isoformat(),
+                as_of=evidence_freshness_as_of(evidence),
             ),
             notes=result.get("notes", []),
-            debug=DebugInfo(
-                intent=result.get("intent"),
-                source_filter=None,
-                retrieval_top_k=len(evidence),
-                top_sources=sources,
-                rewritten_query=payload.query,
-                current_term=result.get("term_code"),
-                stage_timings_ms={"total_ms": elapsed_ms},
+            debug=(
+                DebugInfo(
+                    intent=result.get("intent"),
+                    source_filter=None,
+                    retrieval_top_k=len(evidence),
+                    top_sources=sources,
+                    rewritten_query=payload.query,
+                    current_term=result.get("term_code"),
+                    stage_timings_ms={"total_ms": elapsed_ms},
+                )
+                if settings.chat_debug_responses
+                else None
             ),
         )
     except GuardrailViolation as exc:

@@ -59,7 +59,7 @@ class ChatResponseBase(BaseModel):
     confidence: float = Field(0.0, ge=0.0, le=1.0)
     freshness: FreshnessInfo = FreshnessInfo()
     notes: list[str] = []
-    debug: DebugInfo = DebugInfo()
+    debug: DebugInfo | None = None
 
 
 class ChatResponse(ChatResponseBase):
