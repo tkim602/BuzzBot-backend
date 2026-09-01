@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "manifest": "eval/quality/manifests/dev_100.json",
+  "manifest_sha256": "58c343d37902a4bbbf4f281509413b701d55cca6cbeab8001404111de6c59562",
+  "cases": 100,
+  "facts": 100,
+  "before": {
+    "code_point": "81e0ea1",
+    "evaluated_at": "2026-08-22T18:02:39.602197+00:00",
+    "hit_at_1": 0.22,
+    "hit_at_5": 0.42,
+    "mrr_at_5": 0.2971666666666667
+  },
+  "after": {
+    "code_point": "5d5b927",
+    "evaluated_at": "2026-08-22T18:14:47.066074+00:00",
+    "hit_at_1": 0.28,
+    "hit_at_5": 0.57,
+    "mrr_at_5": 0.40016666666666667
+  },
+  "changes": [
+    "calendar routing no longer treats generic policy timing language as calendar-only",
+    "policy retrieval considers deeper candidates and caps one result per document before final selection"
+  ],
+  "case_delta": {
+    "wins": 17,
+    "regressions": 2,
+    "net": 15
+  },
+  "win_case_ids": [
+    "gold-004-v10",
+    "gold-005-v7",
+    "gold-006-v7",
+    "gold-007-v10",
+    "gold-023-v10",
+    "gold-024-v3",
+    "gold-031-v10",
+    "gold-039-v10",
+    "gold-041-v10",
+    "gold-045-v10",
+    "gold-051-v7",
+    "gold-055-v3",
+    "gold-056-v3",
+    "gold-076-v10",
+    "gold-082-v10",
+    "gold-089-v10",
+    "gold-099-v3"
+  ],
+  "regression_case_ids": [
+    "gold-029-v3",
+    "gold-091-v3"
+  ],
+  "after_failure_boundary": {
+    "gold_not_returned": 37,
+    "rank_gt_5": 6
+  },
+  "interpretation": "The net +15 Hit@5 cases are the combined measured effect of the two listed retrieval changes. Their individual causal contributions were not isolated. The remaining dominant boundary is candidate generation: 37 of 43 production misses never return the gold URL."
+}

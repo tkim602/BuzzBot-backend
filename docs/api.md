@@ -1,62 +1,90 @@
-# API Reference
+# BuzzBot Backend API
 
-Base URL: `http://localhost:8000`
+Local base URL: `http://localhost:8000`
 
-## `POST /v2/chat`
+## `POST /chat`
 
-Runs the controlled LangGraph workflow.
+Runs the production LangGraph workflow. Content type is `application/json`; streaming is not
+currently implemented.
+
+Authentication is optional. Anonymous requests omit `Authorization`. Authenticated clients send a
+Firebase ID token as `Authorization: Bearer <id-token>`. The backend verifies the token and derives
+UID, email verification, and `@gatech.edu` eligibility from verified claims; request JSON is never
+trusted as identity.
+
+### Request
 
 ```json
 {
   "query": "Is CS 7650 offered in Fall 2026?",
   "thread_id": "portfolio-demo",
-  "user_context": {"term": "Fall 2026"},
-  "history": []
+  "user_context": {"term": "Fall 2026", "major": null},
+  "history": [
+    {"role": "user", "content": "Tell me about CS 7650."},
+    {"role": "assistant", "content": "What term are you interested in?"}
+  ]
 }
 ```
 
-`query` is required and limited to 2,000 characters. `thread_id` is optional, limited to 100
-characters, and accepts only letters, numbers, `.`, `_`, `:`, and `-`. It is a conversation key, not
-a GT user identity.
+- `query`: required, 1–2,000 characters.
+- `thread_id`: optional conversation key, 1–100 characters, limited to letters, numbers, `.`, `_`,
+  `:`, and `-`. It is not a Georgia Tech identity.
+- `user_context`: optional current `term` and `major` hints.
+- `history`: optional, at most 20 non-empty user/assistant turns.
+
+### Response
 
 ```json
 {
   "thread_id": "portfolio-demo",
-  "answer": "CS 7650 ... section A; CRN 12345 ...",
+  "answer": "CS 7650 is offered in Fall 2026 ...",
   "citations": [
     {
       "url": "https://oscar.gatech.edu/...",
       "title": "CS 7650 schedule",
       "fetched_at": "2026-08-20T00:00:00+00:00",
-      "quote": "CS 7650 ... CRN 12345 ..."
+      "quote": "CS 7650 ... CRN 12345 ...",
+      "page": null
     }
   ],
   "confidence": 0.95,
-  "freshness": {"strategy": "langgraph_controlled", "as_of": "..."},
+  "freshness": {
+    "strategy": "langgraph_controlled",
+    "as_of": "2026-08-20T00:00:00+00:00"
+  },
   "notes": [],
-  "debug": {
-    "intent": "course_schedule",
-    "live_fetch_used": false,
-    "retrieval_top_k": 1,
-    "top_sources": ["oscar"]
-  }
+  "debug": null
 }
 ```
 
-Factual output without a grounded official citation is replaced by an abstention. The endpoint may
-return `429` for request guardrails or the tracked API cost limit, and `422` for invalid input.
+`freshness.as_of` is evidence-derived, never response time. Schedule evidence uses its published
+OSCAR snapshot timestamp and document evidence uses the retrieved chunk timestamp. Multiple
+evidence items use the oldest timestamp; if any used evidence lacks a valid timezone-aware
+timestamp, `as_of` is `null`. Citation-specific `fetched_at` remains unchanged. `debug` is optional
+and is returned only when `CHAT_DEBUG_RESPONSES=true`. An insufficient or ungrounded factual answer
+is replaced by a fail-closed abstention and explanation in `notes`.
 
-## Legacy `POST /chat`
+### Errors
 
-The original endpoint remains temporarily available for comparison and rollback. New development
-should target `/v2/chat`.
+- `422`: invalid request schema.
+- `401`: malformed, invalid, revoked (when configured), or expired Firebase bearer token.
+- `429`: request guardrail/rate limit or tracked API cost limit. JSON `detail.error` identifies
+  `guardrail_violation` or `usage_limit_exceeded`; a retry delay may be present.
+- `500`: unexpected server failure. Retain the request ID response header when reporting it.
+
+Successful responses include `X-Request-ID`.
 
 ## Health and operations
 
-- `GET /live`: dependency-free process liveness.
-- `GET /ready`: DB, official chunks, published schedule freshness, and configured checkpoint status.
+- `GET /live`: dependency-free liveness; `200` while the API process responds.
+- `GET /ready`: in local non-strict mode, checks DB, official documents, active-term schedule
+  freshness, and checkpoint availability. With `READINESS_STRICT=true`, it also requires the
+  configured minimum official-document count and a completed all-subject ingestion manifest for
+  `ACTIVE_TERM_CODE`; otherwise it returns `503` with structured checks.
+- `GET /usage`: tracked cost, configured limit, remaining budget, and usage percent.
 - `GET /stats`: source/document/chunk counts.
-- `GET /usage`: tracked API cost, fixed maximum limit, and remaining budget.
+- `GET /health`: retained liveness equivalent for existing operators.
 
-`/ready` returns `200` when ready and `503` with individual check results otherwise. Usage mutation
-is intentionally not exposed through the public API.
+`/usage` and `/stats` require `X-Operator-Token` when `OPERATOR_API_TOKEN` is set and fail closed in
+production when it is unset. Interactive API docs are disabled in production unless
+`API_DOCS_ENABLED=true`. No endpoint mutates usage, registration, or authenticated student data.

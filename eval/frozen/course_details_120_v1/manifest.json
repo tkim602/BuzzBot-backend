@@ -1,0 +1,493 @@
+{
+  "version": 1,
+  "name": "course-details-120-v1",
+  "source_dataset_sha256": "8241477b0f886353cd28a1a2c645fccfe9b3ebf8fe29e9f861b5e40d19efb2c3",
+  "base_cases": [
+    {
+      "id": "fd-course-001",
+      "question": "What is CS 6035, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 6035 is Introduction to Information Security, a 3-credit-hour course. A broad spectrum of information security, including threats, cryptography, software vulnerabilities, operating-system protections, network security, privacy, data mining, and computer crime.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 6035",
+        "title": "Introduction to Information Security",
+        "credits": 3,
+        "description_summary": "A broad spectrum of information security, including threats, cryptography, software vulnerabilities, operating-system protections, network security, privacy, data mining, and computer crime.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-002",
+      "question": "What is CS 6200, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 6200 is Graduate Introduction to Operating Systems, a 3-credit-hour course. Operating-system abstractions, mechanisms, and implementations, including concurrency, synchronization, resource management, and distributed services.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 6200",
+        "title": "Graduate Introduction to Operating Systems",
+        "credits": 3,
+        "description_summary": "Operating-system abstractions, mechanisms, and implementations, including concurrency, synchronization, resource management, and distributed services.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-003",
+      "question": "What is CS 6300, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 6300 is Software Development Process, a 3-credit-hour course. Software development processes, their assessment and instantiation, and techniques for ensuring software quality.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 6300",
+        "title": "Software Development Process",
+        "credits": 3,
+        "description_summary": "Software development processes, their assessment and instantiation, and techniques for ensuring software quality.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-004",
+      "question": "What is CS 6310, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 6310 is Software Architecture and Design, a 3-credit-hour course. Principles and concepts involved in the design and analysis of large software systems.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 6310",
+        "title": "Software Architecture and Design",
+        "credits": 3,
+        "description_summary": "Principles and concepts involved in the design and analysis of large software systems.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-005",
+      "question": "What is CS 6340, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 6340 is Advanced Topics in Software Analysis and Testing, a 3-credit-hour course. Static and dynamic program analysis, software testing, reliability, resilience, and trustworthiness.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 6340",
+        "title": "Advanced Topics in Software Analysis and Testing",
+        "credits": 3,
+        "description_summary": "Static and dynamic program analysis, software testing, reliability, resilience, and trustworthiness.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-006",
+      "question": "What is CS 6515, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 6515 is Introduction to Graduate Algorithms, a 3-credit-hour course. Graduate-level design and analysis of algorithms, including dynamic programming, divide and conquer, FFT, graph and flow algorithms, RSA, linear programming, and NP-completeness.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 6515",
+        "title": "Introduction to Graduate Algorithms",
+        "credits": 3,
+        "description_summary": "Graduate-level design and analysis of algorithms, including dynamic programming, divide and conquer, FFT, graph and flow algorithms, RSA, linear programming, and NP-completeness.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-007",
+      "question": "What is CS 6601, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 6601 is Artificial Intelligence, a 3-credit-hour course. Basic concepts and methods of artificial intelligence, including symbolic/conceptual and numerical/probabilistic techniques.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 6601",
+        "title": "Artificial Intelligence",
+        "credits": 3,
+        "description_summary": "Basic concepts and methods of artificial intelligence, including symbolic/conceptual and numerical/probabilistic techniques.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-008",
+      "question": "What is CS 6603, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 6603 is AI, Ethics, and Society, a 3-credit-hour course. Artificial-intelligence and bias-mitigation techniques used to counter potential misuse and abuse of learning from data.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 6603",
+        "title": "AI, Ethics, and Society",
+        "credits": 3,
+        "description_summary": "Artificial-intelligence and bias-mitigation techniques used to counter potential misuse and abuse of learning from data.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-009",
+      "question": "What is CS 6604, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 6604 is Conversational Artificial Intelligence, a 3-credit-hour course. Current state-of-the-art in Conversational AI, with an emphasis on deep learning and natural-language processing.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 6604",
+        "title": "Conversational Artificial Intelligence",
+        "credits": 3,
+        "description_summary": "Current state-of-the-art in Conversational AI, with an emphasis on deep learning and natural-language processing.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-010",
+      "question": "What is CS 6750, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 6750 is Human-Computer Interaction, a 3-credit-hour course. Characteristics of human-computer interaction and techniques for evaluating user-centered systems.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 6750",
+        "title": "Human-Computer Interaction",
+        "credits": 3,
+        "description_summary": "Characteristics of human-computer interaction and techniques for evaluating user-centered systems.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-011",
+      "question": "What is CS 7637, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 7637 is Knowledge-Based AI, a 3-credit-hour course. Structured knowledge representation and knowledge-based reasoning, learning, problem-solving, modeling, and design.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 7637",
+        "title": "Knowledge-Based AI",
+        "credits": 3,
+        "description_summary": "Structured knowledge representation and knowledge-based reasoning, learning, problem-solving, modeling, and design.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-012",
+      "question": "What is CS 7638, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 7638 is Artificial Intelligence Techniques for Robotics, a 3-credit-hour course. AI techniques for autonomous vehicles, including probabilistic inference, filters, planning/search, PID control, and SLAM.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 7638",
+        "title": "Artificial Intelligence Techniques for Robotics",
+        "credits": 3,
+        "description_summary": "AI techniques for autonomous vehicles, including probabilistic inference, filters, planning/search, PID control, and SLAM.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-013",
+      "question": "What is CS 7641, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 7641 is Machine Learning, a 3-credit-hour course. Machine-learning techniques and applications, including inductive, analytical, numerical, theoretical, and real-world approaches.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 7641",
+        "title": "Machine Learning",
+        "credits": 3,
+        "description_summary": "Machine-learning techniques and applications, including inductive, analytical, numerical, theoretical, and real-world approaches.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-014",
+      "question": "What is CS 7642, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 7642 is Reinforcement Learning and Decision Making, a 3-credit-hour course. Multiagent planning and learning near-optimal decisions using stochastic, repeated-game, partially observable, and reinforcement-learning methods.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 7642",
+        "title": "Reinforcement Learning and Decision Making",
+        "credits": 3,
+        "description_summary": "Multiagent planning and learning near-optimal decisions using stochastic, repeated-game, partially observable, and reinforcement-learning methods.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-015",
+      "question": "What is CS 7643, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 7643 is Deep Learning, a 3-credit-hour course. Theory and practice of deep learning, including neural and structured models, optimization, and AI/perception applications.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 7643",
+        "title": "Deep Learning",
+        "credits": 3,
+        "description_summary": "Theory and practice of deep learning, including neural and structured models, optimization, and AI/perception applications.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-016",
+      "question": "What is CS 7646, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 7646 is Machine Learning for Trading, a 3-credit-hour course. Machine-learning-based trading strategies including probabilistic analysis, portfolio construction, market orders, KNN, and random forests.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 7646",
+        "title": "Machine Learning for Trading",
+        "credits": 3,
+        "description_summary": "Machine-learning-based trading strategies including probabilistic analysis, portfolio construction, market orders, KNN, and random forests.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-017",
+      "question": "What is CS 7650, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 7650 is Natural Language, a 3-credit-hour course. Lexical analysis, parsing, sentence interpretation, semantic representation, knowledge organization, inference, statistical language processing, and information retrieval.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 7650",
+        "title": "Natural Language",
+        "credits": 3,
+        "description_summary": "Lexical analysis, parsing, sentence interpretation, semantic representation, knowledge organization, inference, statistical language processing, and information retrieval.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-018",
+      "question": "What is CS 7651, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 7651 is Human and Machine Learning, a 3-credit-hour course. The gap between empirical research on human learning and machine-learning models, including symbolic, statistical, semantic-space, neural, and unsupervised approaches.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 7651",
+        "title": "Human and Machine Learning",
+        "credits": 3,
+        "description_summary": "The gap between empirical research on human learning and machine-learning models, including symbolic, statistical, semantic-space, neural, and unsupervised approaches.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-019",
+      "question": "What is CS 7652, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 7652 is Large Language Models, a 3-credit-hour course. Research topics around pretrained language models, including foundations, pretraining/post-training, efficiency, fine-tuning, and adaptation.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 7652",
+        "title": "Large Language Models",
+        "credits": 3,
+        "description_summary": "Research topics around pretrained language models, including foundations, pretraining/post-training, efficiency, fine-tuning, and adaptation.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    },
+    {
+      "id": "fd-course-020",
+      "question": "What is CS 7750, how many credits is it, and what does the official catalog say it covers?",
+      "gold_answer": "CS 7750 is Mathematical Foundations of Machine Learning, a 3-credit-hour course. Mathematical background for modern data science, with emphasis on linear algebra and applied probability.",
+      "gold_urls": [
+        "https://catalog.gatech.edu/coursesaz/cs/"
+      ],
+      "gold_sources": [
+        "gt-catalog"
+      ],
+      "expected": {
+        "course_code": "CS 7750",
+        "title": "Mathematical Foundations of Machine Learning",
+        "credits": 3,
+        "description_summary": "Mathematical background for modern data science, with emphasis on linear algebra and applied probability.",
+        "gold_urls": [
+          "https://catalog.gatech.edu/coursesaz/cs/"
+        ],
+        "gold_sources": [
+          "gt-catalog"
+        ]
+      }
+    }
+  ],
+  "variant_templates": [
+    {
+      "id": "direct",
+      "question": "{original}"
+    },
+    {
+      "id": "official-details",
+      "question": "Give me the official catalog details for {course}: title, credits, and coverage."
+    },
+    {
+      "id": "compact",
+      "question": "How many credits is {compact}, and what is the course about?"
+    },
+    {
+      "id": "coverage",
+      "question": "What does the Georgia Tech catalog say {dashed} covers?"
+    },
+    {
+      "id": "summary",
+      "question": "Summarize {course} from the official catalog, including credits."
+    },
+    {
+      "id": "considering",
+      "question": "I'm considering {course}. What's its official title, credit count, and description?"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from db.models import IngestionRun, IngestionRunUnit
+from app.db.models import IngestionRun, IngestionRunUnit
 from ingestion.documents.registry import DocumentSource
 from ingestion.documents.sync import DocumentSyncOutcome, DocumentSyncResult
 

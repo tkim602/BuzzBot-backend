@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "buzzbot_user_shadow_8",
+  "master_dataset": "../data_user_shadow",
+  "expected_fact_count": 8,
+  "cases_per_fact": 1,
+  "case_ids": [
+    "shadow-001-v1",
+    "shadow-002-v1",
+    "shadow-003-v1",
+    "shadow-004-v1",
+    "shadow-005-v1",
+    "shadow-006-v1",
+    "shadow-007-v1",
+    "shadow-008-v1"
+  ]
+}

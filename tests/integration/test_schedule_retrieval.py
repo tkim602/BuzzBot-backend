@@ -12,8 +12,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.db.models import DataVersion
 from app.retrieval.schedule import CourseQuery, lookup_course_offerings
-from db.models import DataVersion
 from ingestion.probes.oscar import parse_schedule_listing
 from ingestion.schedule.normalize import normalize_sections
 from ingestion.schedule.repository import SafeSnapshot, publish_collection

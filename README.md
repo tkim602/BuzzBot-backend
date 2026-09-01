@@ -1,71 +1,121 @@
-# BuzzBot v2
+# BuzzBot Backend
 
-BuzzBot is a citation-first, controlled Agentic RAG assistant for Georgia Tech students. It combines
-validated OSCAR schedule data with a small registry of official GT documents, then orchestrates the
-retrieval paths through an explicit LangGraph workflow.
+> Evidence-first retrieval backend for a Georgia Tech student assistant.
 
-The project is designed to answer questions such as:
+BuzzBot Backend is the FastAPI service behind BuzzBot. It combines structured OSCAR schedule data with a controlled corpus of official Georgia Tech documents and returns grounded answers with citations, source metadata, and freshness context.
 
-- Is `CS 7650` offered in Fall 2026? What are its CRN, instructor, meeting time, and room?
-- What does the official Catalog say about a course's credits or prerequisites?
-- What is the official registration, add/drop, or withdrawal date for a term?
-- What do official GT or OMSCS admissions pages require?
+The core design goal is reliability over autonomy: LangGraph orchestrates a bounded retrieval workflow, evidence is validated before generation, recovery is limited, and the system abstains when it cannot support an answer from trusted sources.
 
-It does not register, add, or drop courses and never accesses a student's authenticated account.
+## Highlights
+
+- **Two retrieval paths for two kinds of facts** — deterministic SQL handles course offerings and section data; document retrieval handles Catalog, Academic Calendar, policy, admissions, finance, housing, and other official sources.
+- **Hybrid document retrieval** — combines pgvector similarity, PostgreSQL full-text search, reciprocal-rank fusion, URL diversification, and cross-encoder reranking.
+- **Citation-first validation** — answers are checked against retrieved official URLs and supporting evidence before they are returned.
+- **Versioned data ingestion** — bounded source discovery, immutable manifests, content hashing, and transactional publication keep the last trusted dataset available when a refresh fails.
+- **Typed conversation workflow** — normalized intents and fields drive explicit retrieval tools, with one bounded recovery path instead of an open-ended model loop.
+- **Production trust boundaries** — optional Firebase bearer verification, request identity isolation, configurable proxy trust, readiness checks, and non-root container execution.
+- **Evaluation-driven development** — fixed schedule, retrieval, citation, and answer-quality gates make regressions measurable rather than subjective.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    User --> API[FastAPI /v2/chat]
-    API --> Graph[Controlled LangGraph]
-    Graph --> Understand[Understand + validate fields]
-    Understand -->|schedule| SQL[Published OSCAR SQL]
-    Understand -->|catalog/calendar/policy| Hybrid[pgvector + FTS + RRF]
-    SQL --> Evidence[Typed evidence]
-    Hybrid --> Evidence
-    Evidence --> Gate{Evidence valid?}
-    Gate -->|no| Retry[One bounded retry]
-    Retry --> Gate
-    Gate -->|yes| Answer[Deterministic or gpt-4o-mini answer]
-    Answer --> Citation{Citation grounded?}
-    Citation -->|yes| Response[Answer + official citations]
-    Citation -->|no| Abstain[Transparent abstention]
-    Graph -. optional checkpoints .-> Postgres[(PostgreSQL + pgvector)]
+    Client[Web client] --> API[FastAPI /chat]
+    API --> Flow[LangGraph workflow]
+    Flow -->|schedule| SQL[Published OSCAR SQL]
+    Flow -->|catalog / calendar / policy| Retrieval[Hybrid document retrieval]
+    SQL --> Evidence[Typed official evidence]
+    Retrieval --> Evidence
+    Evidence --> Validate[Evidence + answer validation]
+    Validate -->|supported| Response[Answer + citations + freshness]
+    Validate -->|insufficient| Abstain[Abstain]
+    Flow -. conversation checkpoints .-> DB[(PostgreSQL + pgvector)]
 ```
 
-Two data planes are intentionally separate:
+Schedule answers can be rendered deterministically from structured data. Document questions retrieve official evidence first and only then use the configured model for synthesis.
 
-1. Schedule facts are normalized from public OSCAR pages, validated, and atomically published as a
-   version. Queries read only the latest `PUBLISHED` version.
-2. Policies and course descriptions come from a controlled official-source registry. Retrieval uses
-   vector search and PostgreSQL full-text search fused with RRF.
+## Retrieval and data pipeline
 
-See [docs/architecture.md](docs/architecture.md) for the detailed flow and failure gates.
+### Structured schedule data
 
-## Safety and cost boundaries
+Published OSCAR data is normalized into versioned course, section, and meeting records. A refresh is validated before publication; failed validation does not replace the previous trusted version.
 
-- Probe one representative URL before any source sync.
-- Initial document sync fetches at most one configured seed per source.
-- No wildcard Georgia Tech crawl, Common Crawl fallback, or authenticated OSCAR flow in v2.
-- Auth redirects, 429 responses, external redirects, and incompatible bodies stop that source.
-- Identical document hashes skip re-embedding; authority changes update metadata only.
-- The application clamps tracked API usage to `$3.00` and blocks new calls after the cap.
-- `LANGSMITH_TRACING=false` by default, so development tracing has no LangSmith usage.
-- The default models are `gpt-4o-mini` and `text-embedding-3-small`.
+### Official documents
 
-The `$3` guard is application-level. Configure an account/project budget in the provider dashboard as
-an additional account-wide billing boundary.
+Document sources are drawn from a controlled registry of Georgia Tech domains and seed URLs. The ingestion pipeline:
 
-## Quickstart
+1. discovers and canonicalizes bounded URLs,
+2. stores an immutable run manifest,
+3. fetches and extracts changed content,
+4. chunks and embeds new content,
+5. publishes searchable metadata and vectors to PostgreSQL.
 
-Requirements: Python 3.11+, Docker, and an OpenAI API key for embedding/document-answer operations.
-Schedule SQL queries and the offline evaluation do not call OpenAI.
+Conditional requests and content hashes avoid unnecessary reprocessing.
+
+### Hybrid retrieval
+
+Document search combines:
+
+1. pgvector cosine similarity,
+2. PostgreSQL full-text search,
+3. reciprocal-rank fusion,
+4. source diversification,
+5. cross-encoder reranking,
+6. stable deduplication into typed evidence.
+
+There is no unrestricted web-search fallback in the production path.
+
+## Evaluation snapshot
+
+The current backend includes fixed regression gates for schedule, retrieval, and grounded-answer quality.
+
+| Evaluation | Result |
+| --- | ---: |
+| Schedule SQL | 150 / 150 |
+| Schedule NLU | 150 / 150 |
+| Schedule renderer | 140 / 140 |
+| Course-details retrieval Hit@1 / Hit@5 | 120 / 120 |
+| Academic Calendar route / Hit@5 | 20 / 20 |
+| Policy answer correctness | 71% |
+| Policy answer support | 92% |
+| Aggregate citation entailment | 78% |
+| Unsupported-confident policy answers | 0% |
+| Policy decisive-evidence Hit@5 | 70% |
+
+The main remaining retrieval limitation is policy evidence recall: decisive-evidence Hit@5 is **70%** against an 85% target. An oracle-document experiment reaches 92%, while a tested hierarchical approximation regressed to 62%, so that experiment remains outside the production path.
+
+## API surface
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /chat` | Grounded conversational query |
+| `GET /live` | Dependency-free process liveness |
+| `GET /ready` | Database, corpus, schedule, and checkpoint readiness |
+| `GET /usage` | Tracked model/API usage and remaining budget |
+| `GET /stats` | Source, document, and chunk counts |
+
+The current chat contract returns one JSON response per request; streaming is not implemented.
+
+## Tech stack
+
+| Area | Technology |
+| --- | --- |
+| API | FastAPI, Pydantic |
+| Workflow | LangGraph |
+| Database | PostgreSQL, SQLAlchemy, asyncpg, Alembic |
+| Retrieval | pgvector, PostgreSQL FTS, RRF, sentence-transformers |
+| Models | OpenAI / Anthropic-compatible provider layer |
+| Authentication | Firebase Admin SDK (optional) |
+| Observability | structured logging, optional LangSmith tracing |
+| Packaging | Docker, Docker Compose |
+| Quality | pytest, Ruff, mypy, PostgreSQL integration tests |
+
+## Local development
+
+Requirements: **Python 3.11+**, Docker, and an OpenAI API key for embedding or document-answer calls.
 
 ```bash
 cp .env.example .env
-# Add OPENAI_API_KEY only in .env
-
 make setup
 make db-up
 make migrate
@@ -76,125 +126,35 @@ make run-backend
 
 The API starts at `http://localhost:8000`.
 
-```bash
-curl -s http://localhost:8000/live
-curl -s http://localhost:8000/ready
-
-curl -s http://localhost:8000/v2/chat \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "query": "Is CS 7650 offered in Fall 2026?",
-    "thread_id": "portfolio-demo"
-  }'
-```
-
-`thread_id` is optional. When supplied, LangGraph checkpoints compact graph state in PostgreSQL; it
-is not a GT identity and must contain only letters, numbers, `.`, `_`, `:`, or `-`.
-
-## Controlled data collection
-
-The official document registry currently contains Registrar policy, Academic Calendar, Catalog,
-OMSCS, and Undergraduate Admissions seeds. Probe first, then sync only a READY source:
-
-```bash
-make probe-doc source=gt-catalog
-make sync-doc source=gt-catalog
-```
-
-Sync one OSCAR subject only after choosing one representative course for the gate probe:
-
-```bash
-make sync-oscar term=202608 subject=CS course=7650
-```
-
-The sync saves a safe snapshot, normalizes courses/sections/meetings, checks completeness and
-freshness, and publishes atomically. A failed collection never replaces the last good version.
-
-### Clean `buzzbot_v2` database
-
-`DATABASE_URL` is the only database setting. The application, Alembic, document ingestion,
-OSCAR ingestion, LangGraph checkpoints, and audit scripts derive their async or sync driver from
-that one URL.
-
-For a first clean setup:
+A minimal provider-free API/database contract check is:
 
 ```bash
 docker compose up -d db
-docker compose exec db createdb -U buzzbot buzzbot_v2
-# Set DATABASE_URL=postgresql+asyncpg://buzzbot:buzzbot_dev@localhost:5432/buzzbot_v2 in .env
-make migrate
-
-make probe-doc source=gt-registrar
-make sync-doc source=gt-registrar
-make sync-oscar term=202608 subject=CS course=7650
-
-make run-backend
-curl -s http://localhost:8000/ready
+alembic upgrade head
+RUN_DB_TESTS=1 pytest -q tests/integration/test_api_contract.py
 ```
 
-Probe each additional controlled document source before syncing it. Do not run a term-wide subject
-loop until one representative subject has published successfully and the API is ready.
-
-## Health semantics
-
-- `GET /live`: process liveness only; it has no database or external dependency.
-- `GET /ready`: requires the database, controlled official document chunks, a non-expired published
-  schedule, and the PostgreSQL checkpointer when checkpointing is enabled.
-- `GET /usage`: tracked OpenAI usage and remaining application budget.
-
-LangSmith is deliberately not a readiness dependency.
-
-## Evaluation
-
-The default v2 evaluation is deterministic and budget-free:
-
-```bash
-make eval-v2
-```
-
-It measures routing accuracy and required-field extraction across schedule, Catalog, Calendar, and
-policy questions. Citation grounding, bounded retry, abstention, persistence state reset, atomic
-publication, and retrieval source pinning are covered by unit and PostgreSQL integration tests.
-
-Current verified baseline:
-
-- 12 offline cases
-- routing accuracy: 1.00
-- required-field accuracy: 1.00
-
-These are pipeline-gate metrics, not a claim of end-user answer correctness. A live golden-answer
-evaluation should be run only after representative schedule data has been published.
-
-## Project layout
+## Repository layout
 
 ```text
-app/graph/                 LangGraph state, understanding, workflow, checkpoint adapter
-app/retrieval/             Typed schedule and official-document retrieval tools
-app/api/                   Legacy API, v2 agent API, live/ready/usage endpoints
-ingestion/schedule/        OSCAR probe, normalization, validation, atomic publication
-ingestion/documents/       Controlled registry, probe, changed-only document sync
-db/                        SQLAlchemy models and Alembic migrations
-eval/                      Offline v2 golden set and evaluation runner
-tests/                     Unit and PostgreSQL integration tests
-docs/superpowers/          Implementation plans, reviews, and bounded smoke reports
+app/api/                    FastAPI routes and typed request/response schemas
+app/graph/                  LangGraph workflow, state, and persistence
+app/rag/                    Retrieval orchestration, synthesis, grounding
+app/retrieval/              Structured schedule and document data access
+app/db/                     SQLAlchemy models and sessions
+ingestion/                  Document and schedule ingestion jobs
+eval/                       Fixed evaluation gates and experiments
+migrations/                 Alembic schema history
+tests/                      Unit and PostgreSQL integration tests
+docs/                       Architecture, API, source, and ingestion notes
 ```
 
-## Current data limitation
+## Trust boundaries
 
-The first bounded Fall 2026 OSCAR subject sync returned no sections because the initial public Banner
-request omitted its course wildcard. That request-shape bug is fixed and regression-tested, but the
-source was not retried in the same bounded run. Therefore `/ready` correctly remains `503` until a
-representative subject is successfully collected and published. The document retrieval plane and
-PostgreSQL checkpointing are available independently.
+- Uses public Georgia Tech sources only; it does not sign into student accounts or perform registration, add, or drop actions.
+- A client-provided thread ID or user ID is never treated as authentication.
+- Firebase Admin credentials are supplied through the runtime environment and are not committed.
+- Failed ingestion or stale evidence does not silently become trusted current data.
+- Unsupported answers fail closed instead of being presented as confident facts.
 
-## Verification
-
-```bash
-PYTHONPATH=$PWD pytest -q
-RUN_DB_TESTS=1 PYTHONPATH=$PWD pytest -q tests/integration
-ruff check app/graph app/retrieval app/api/agent.py
-mypy --follow-imports=skip app/graph app/retrieval/tools.py app/api/agent.py
-git diff --check
-```
-
-Implementation decisions and smoke evidence are recorded under `docs/superpowers/`.
+For deeper implementation details, see `docs/architecture.md`, `docs/api.md`, and `docs/ingestion.md`.

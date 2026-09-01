@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import ipaddress
 import re
 import time
 from collections import defaultdict, deque
@@ -12,6 +13,7 @@ from threading import Lock
 
 from fastapi import Request
 
+from app.core.auth import RequestIdentity
 from app.core.config import settings
 
 _WS_RE = re.compile(r"\s+")
@@ -109,21 +111,45 @@ def normalize_query(query: str) -> str:
     return _WS_RE.sub(" ", query.strip().lower())
 
 
-def get_client_fingerprint(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        ip = forwarded.split(",")[0].strip()
-    elif request.client:
-        ip = request.client.host
-    else:
-        ip = "unknown"
+def get_client_fingerprint(
+    request: Request,
+    identity: RequestIdentity | None = None,
+    *,
+    trust_proxy_headers: bool | None = None,
+) -> str:
+    if identity and identity.uid:
+        return f"firebase:{identity.uid}"
+    ip = _client_ip(
+        request,
+        settings.trust_proxy_headers if trust_proxy_headers is None else trust_proxy_headers,
+    )
     ua = request.headers.get("user-agent", "")[:160]
     raw = f"{ip}|{ua}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
 
 
-def enforce_request_guardrails(request: Request, query: str) -> tuple[str, str]:
-    client_id = get_client_fingerprint(request)
+def _client_ip(request: Request, trust_proxy_headers: bool) -> str:
+    direct = request.client.host if request.client else "unknown"
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if not trust_proxy_headers or not forwarded:
+        return direct
+    chain = [part.strip() for part in forwarded.split(",")]
+    if not chain or len(chain) > 10:
+        return direct
+    try:
+        for address in chain:
+            ipaddress.ip_address(address)
+    except ValueError:
+        return direct
+    return chain[0]
+
+
+def enforce_request_guardrails(
+    request: Request,
+    query: str,
+    identity: RequestIdentity | None = None,
+) -> tuple[str, str]:
+    client_id = get_client_fingerprint(request, identity)
     normalized_query = normalize_query(query)
     _limiter.enforce(client_id, normalized_query)
     return client_id, normalized_query

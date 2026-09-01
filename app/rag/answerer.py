@@ -8,6 +8,7 @@ from pathlib import Path
 
 import structlog
 
+from app.core.clients import get_openai_client
 from app.core.config import settings
 from app.core.usage import check_limit_or_raise, record_usage
 from app.rag.retrieval import RetrievedChunk, _lexical_match_score, _lexical_terms
@@ -23,11 +24,22 @@ FACTUAL_INTENTS = {
     "policy",
 }
 _BINARY_QUESTION_RE = re.compile(
-    r"^\s*(?:am|are|can|could|did|do|does|has|have|is|must|should|was|were|will|would)\b",
+    r"(?:(?:^\s*|(?<=[.!?])\s+)(?:am|are|can|could|did|do|does|has|have|is|must|should|was|were|will|would)\b|\bwhether\b)",
     re.I,
 )
 _LEADING_ANSWER_RE = re.compile(r"^\s*(?:yes|no)\b\s*[,.;:—–-]?\s*", re.I)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
+_CITATION_CLAIM_SPLIT_RE = re.compile(
+    r"(?:\n+|[!?;](?:\s+|$)|\.(?!\d)(?:\s+|$)|,\s+|\s+(?:and|but)\s+)", re.I
+)
+_NEGATION_RE = re.compile(r"\b(?:no|not|never)\b", re.I)
+_EXPLICIT_NEGATION_RE = re.compile(r"\b(?:cannot|no|not|never|without)\b|n['’]t\b", re.I)
+_INVENTED_NEGATION_RE = re.compile(r"\b(?:not|never)\b\s*|\bno\b\s+|n['’]t\b\s*", re.I)
+_GUIDANCE_LOCATION_RE = re.compile(
+    r"^\s*where can i find (?:the )?(?:official )?(?:georgia tech )?guidance on "
+    r"(?P<topic>.+?)\??\s*$",
+    re.I,
+)
 
 
 def _load_prompt(name: str) -> str:
@@ -94,16 +106,82 @@ def _format_history(history: list[dict] | None) -> str:
     return "\n".join(lines) if lines else "none"
 
 
+def _generation_query(query: str) -> str:
+    match = _GUIDANCE_LOCATION_RE.match(query)
+    if not match:
+        return query
+    return f"What does the official guidance say about {match.group('topic')}?"
+
+
 def _ground_citation_quotes(
-    citations: object, chunks: list[RetrievedChunk], answer: str
+    citations: object,
+    chunks: list[RetrievedChunk],
+    answer: str,
+    *,
+    query: str | None = None,
 ) -> list[dict]:
+    if not isinstance(citations, list) or not citations or not chunks:
+        return []
+
+    from app.rag.grounding import split_factual_claims
+
     grounded: list[dict] = []
-    for citation in citations if isinstance(citations, list) else []:
-        if not isinstance(citation, dict) or not chunks:
+    seen: set[tuple[str | None, str]] = set()
+    claims = list(
+        dict.fromkeys(
+            [
+                *split_factual_claims(answer),
+                *(part.strip() for part in _CITATION_CLAIM_SPLIT_RE.split(answer)),
+            ]
+        )
+    )
+    for claim in claims:
+        if claim.casefold() in {"yes", "no"}:
             continue
-        chunk = max(chunks, key=lambda item: _lexical_match_score(answer, item))
-        if _lexical_match_score(answer, chunk) <= 0:
+        claim_words = _lexical_terms(claim)
+        if not claim_words:
             continue
+        claim_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", claim))
+        candidates: list[tuple[tuple[int, int, int, int, float, float], RetrievedChunk, str]] = []
+        for chunk in chunks:
+            sentences = [
+                part.strip() for part in _SENTENCE_SPLIT_RE.split(chunk.chunk_text) if part.strip()
+            ]
+            spans = [
+                *sentences,
+                *split_factual_claims(chunk.chunk_text),
+                *(
+                    part.strip()
+                    for part in _CITATION_CLAIM_SPLIT_RE.split(chunk.chunk_text)
+                    if part.strip()
+                ),
+            ]
+            spans.extend(
+                f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
+            )
+            for span in spans:
+                span_words = _lexical_terms(span)
+                overlap = claim_words & span_words
+                if not overlap:
+                    continue
+                span_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", span))
+                candidates.append(
+                    (
+                        (
+                            len(claim_numbers & span_numbers),
+                            int(not _NEGATION_RE.search(claim) or bool(_NEGATION_RE.search(span))),
+                            sum(len(term) for term in overlap),
+                            len(overlap),
+                            len(overlap) / max(len(claim_words), 1),
+                            _lexical_match_score(f"{query or ''} {claim}", chunk),
+                        ),
+                        chunk,
+                        span,
+                    )
+                )
+        if not candidates:
+            continue
+        _, chunk, best = max(candidates, key=lambda candidate: candidate[0])
         grounded_citation: dict[str, object] = {
             "url": chunk.url,
             "title": chunk.title,
@@ -112,20 +190,9 @@ def _ground_citation_quotes(
         page = (chunk.metadata_json or {}).get("page_start")
         if isinstance(page, int):
             grounded_citation["page"] = page
-        claim_words = _lexical_terms(answer)
-        sentences = [
-            part.strip() for part in _SENTENCE_SPLIT_RE.split(chunk.chunk_text) if part.strip()
-        ]
-        candidates = [*sentences]
-        candidates.extend(
-            f"{left} {right}" for left, right in zip(sentences, sentences[1:], strict=False)
-        )
-        best = max(
-            candidates,
-            key=lambda candidate: len(claim_words & _lexical_terms(candidate)),
-            default="",
-        )
-        if best and claim_words & _lexical_terms(best):
+        key = (chunk.url, best)
+        if key not in seen:
+            seen.add(key)
             grounded.append({**grounded_citation, "quote": best})
     return grounded
 
@@ -149,6 +216,8 @@ async def _binary_proposition_verdict(query: str, evidence: str) -> str:
     proposition = proposition.strip()
     if not proposition:
         return "UNKNOWN"
+    if not _EXPLICIT_NEGATION_RE.search(query):
+        proposition = _INVENTED_NEGATION_RE.sub("", proposition, count=1)
 
     from app.rag.grounding import semantic_claim_verdict
 
@@ -165,7 +234,6 @@ async def generate_answer(
     query: str,
     chunks: list[RetrievedChunk],
     intent: str = "general",
-    rmp_excerpt: str | None = None,
     user_context: dict | None = None,
     current_date: str | None = None,
     current_term: str | None = None,
@@ -179,13 +247,6 @@ async def generate_answer(
     user_template = _load_prompt("chat_user_template.txt")
 
     context_str = _build_context(chunks, max_tokens=settings.rag_max_context_tokens)
-
-    # Add RMP excerpt if provided
-    if rmp_excerpt:
-        context_str += (
-            "\n\n---\n\n[Source: user-provided:rmp] [Type: User-provided RateMyProfessors excerpt — unofficial]\n"
-            + rmp_excerpt
-        )
 
     binary_verdict: str | None = None
     polarity: str | None = None
@@ -206,8 +267,16 @@ async def generate_answer(
             f"explain why the proposition is {proposition_truth}. You must not restate the "
             "proposition with the opposite truth value. Do not choose or write a leading Yes or No."
         )
+        if binary_verdict == "FALSE":
+            system_prompt += (
+                " For a false proposition, state the decisive positive evidence or controlling "
+                "requirement instead. "
+                "Do not repeat the proposition as a negated sentence."
+            )
 
-    user_msg = user_template.replace("{{QUERY}}", query).replace("{{CONTEXT}}", context_str)
+    user_msg = user_template.replace("{{QUERY}}", _generation_query(query)).replace(
+        "{{CONTEXT}}", context_str
+    )
     if user_context:
         user_msg = user_msg.replace("{{USER_CONTEXT}}", json.dumps(user_context))
     else:
@@ -234,7 +303,10 @@ async def generate_answer(
         }
 
     parsed["citations"] = _ground_citation_quotes(
-        parsed.get("citations"), chunks, str(parsed.get("answer", ""))
+        parsed.get("citations"),
+        chunks,
+        str(parsed.get("answer", "")),
+        query=query,
     )
     if binary_verdict and polarity:
         body = _LEADING_ANSWER_RE.sub("", str(parsed.get("answer", "")), count=1)
@@ -254,9 +326,7 @@ async def _call_llm(
     provider = settings.llm_provider
 
     if provider == "openai":
-        import openai
-
-        client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+        client = get_openai_client(settings.openai_api_key)
         resp = await client.chat.completions.create(
             model=settings.openai_model,
             messages=[

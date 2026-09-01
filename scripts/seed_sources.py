@@ -9,8 +9,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from db.models import Source
-from db.session import SyncSessionLocal
+from app.db.models import Source
+from app.db.session import SyncSessionLocal
 
 
 def seed():

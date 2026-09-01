@@ -13,7 +13,7 @@ from pathlib import Path
 import httpx
 from sqlalchemy.orm import Session
 
-from db.session import SyncSessionLocal
+from app.db.session import SyncSessionLocal
 from ingestion.orchestration import (
     RunSummary,
     UnitOutcome,

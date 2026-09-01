@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "name": "buzzbot_unseen_user_20",
+  "master_dataset": "../data_user",
+  "expected_fact_count": 20,
+  "cases_per_fact": 1,
+  "case_ids": [
+    "user-001-v1",
+    "user-002-v1",
+    "user-003-v1",
+    "user-004-v1",
+    "user-005-v1",
+    "user-006-v1",
+    "user-007-v1",
+    "user-008-v1",
+    "user-009-v1",
+    "user-010-v1",
+    "user-011-v1",
+    "user-012-v1",
+    "user-013-v1",
+    "user-014-v1",
+    "user-015-v1",
+    "user-016-v1",
+    "user-017-v1",
+    "user-018-v1",
+    "user-019-v1",
+    "user-020-v1"
+  ]
+}

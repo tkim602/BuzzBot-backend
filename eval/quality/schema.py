@@ -1,0 +1,203 @@
+from __future__ import annotations
+
+import json
+from collections import Counter
+from dataclasses import dataclass
+from pathlib import Path
+
+
+@dataclass(frozen=True)
+class GoldCase:
+    id: str
+    variant_group: str
+    question: str
+    gold_answer: str
+    gold_urls: tuple[str, ...]
+    gold_sources: tuple[str, ...]
+    gold_vertical: str
+    gold_locator: str
+    question_type: str
+    time_sensitive: bool
+    difficulty: str
+    style: str
+
+
+_STYLES = (
+    ("direct", lambda topic, direct: direct),
+    ("keyword", lambda topic, direct: f"GT {topic}"),
+    ("search_bar", lambda topic, direct: f"Georgia Tech {topic} official policy"),
+    ("fragment", lambda topic, direct: f"{topic.capitalize()} — what's the rule?"),
+    (
+        "casual",
+        lambda topic, direct: (
+            f"Quick question: what do I actually need to know about {topic} at Tech?"
+        ),
+    ),
+    (
+        "formal",
+        lambda topic, direct: (
+            f"What is Georgia Tech's official rule or procedure regarding {topic}?"
+        ),
+    ),
+    (
+        "scenario",
+        lambda topic, direct: (
+            f"I'm dealing with {topic} right now. What's the Georgia Tech rule I should follow?"
+        ),
+    ),
+    (
+        "confirmation",
+        lambda topic, direct: (
+            f"Just to confirm, what does Georgia Tech officially say about {topic}?"
+        ),
+    ),
+    ("minimal", lambda topic, direct: f"{topic} at GT?"),
+    (
+        "support_desk",
+        lambda topic, direct: f"Where can I find the official Georgia Tech guidance on {topic}?",
+    ),
+)
+
+
+def _expand_fact(raw: dict[str, object]) -> list[GoldCase]:
+    group = str(raw["fact_id"])
+    topic = str(raw["gold_locator"]).strip().rstrip(".?")
+    direct = str(raw["direct_question"])
+    common = dict(
+        variant_group=group,
+        gold_answer=str(raw.get("gold_answer", "")),
+        gold_urls=tuple(str(url) for url in raw.get("gold_urls", [])),
+        gold_sources=tuple(str(source) for source in raw.get("gold_sources", [])),
+        gold_vertical=str(raw.get("gold_vertical", "unknown")),
+        gold_locator=topic,
+        question_type=str(raw.get("question_type", "unknown")),
+        time_sensitive=bool(raw.get("time_sensitive", False)),
+    )
+    if not common["gold_urls"]:
+        raise ValueError(f"{group}: gold_urls is required")
+    if not common["gold_sources"]:
+        raise ValueError(f"{group}: gold_sources is required")
+    return [
+        GoldCase(
+            id=f"{group}-v{index}",
+            question=builder(topic, direct),
+            difficulty="generated",
+            style=style,
+            **common,
+        )
+        for index, (style, builder) in enumerate(_STYLES, start=1)
+    ]
+
+
+def _load_query_level_json(file_path: Path) -> list[GoldCase]:
+    payload = json.loads(file_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
+        raise ValueError(f"{file_path}: expected JSON object with an items list")
+
+    cases: list[GoldCase] = []
+    for index, raw in enumerate(payload["items"], start=1):
+        if not isinstance(raw, dict):
+            raise ValueError(f"{file_path}:items[{index}] must be an object")
+
+        gold_urls = tuple(str(url) for url in raw.get("gold_urls", []))
+        gold_sources = tuple(str(source) for source in raw.get("gold_sources", []))
+
+        if not gold_urls:
+            raise ValueError(f"{file_path}:items[{index}]: gold_urls is required")
+        if not gold_sources:
+            raise ValueError(f"{file_path}:items[{index}]: gold_sources is required")
+
+        cases.append(
+            GoldCase(
+                id=str(raw["id"]),
+                variant_group=str(raw["variant_group"]),
+                question=str(raw["question"]),
+                gold_answer=str(raw.get("gold_answer", "")),
+                gold_urls=gold_urls,
+                gold_sources=gold_sources,
+                gold_vertical=str(raw.get("gold_vertical", "unknown")),
+                gold_locator=str(raw.get("gold_locator", "")),
+                question_type=str(raw.get("question_type", "unknown")),
+                time_sensitive=bool(raw.get("time_sensitive", False)),
+                difficulty=str(raw.get("difficulty") or "unknown"),
+                style=str(raw.get("style") or "unknown"),
+            )
+        )
+
+    return cases
+
+
+def load_cases(path: Path) -> list[GoldCase]:
+    if path.is_file() and path.suffix == ".json":
+        cases = _load_query_level_json(path)
+        if len({case.id for case in cases}) != len(cases):
+            raise ValueError("duplicate case ids detected")
+        return cases
+
+    if path.is_dir():
+        query_files = sorted(path.glob("*.json"))
+        fact_files = sorted(path.glob("gold_facts_part*.jsonl"))
+
+        if query_files and not fact_files:
+            cases: list[GoldCase] = []
+            for file_path in query_files:
+                cases.extend(_load_query_level_json(file_path))
+
+            if not cases:
+                raise ValueError("dataset is empty")
+            if len({case.id for case in cases}) != len(cases):
+                raise ValueError("duplicate case ids detected")
+
+            return cases
+
+    cases: list[GoldCase] = []
+    groups: set[str] = set()
+    files = sorted(path.glob("gold_facts_part*.jsonl")) if path.is_dir() else [path]
+    if not files:
+        raise ValueError(f"no gold fact files found at {path}")
+    for file_path in files:
+        with file_path.open("r", encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                if not line.strip():
+                    continue
+                raw = json.loads(line)
+                group = str(raw.get("fact_id", ""))
+                if not group:
+                    raise ValueError(f"{file_path}:{line_number}: fact_id is required")
+                if group in groups:
+                    raise ValueError(f"{file_path}:{line_number}: duplicate fact_id {group}")
+                groups.add(group)
+                cases.extend(_expand_fact(raw))
+    if not cases:
+        raise ValueError("dataset is empty")
+    if len({case.id for case in cases}) != len(cases):
+        raise ValueError("duplicate case ids detected")
+    return cases
+
+
+def load_manifest_cases(path: Path) -> list[GoldCase]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    case_ids = tuple(str(value) for value in payload.get("case_ids", []))
+    expected_facts = int(payload.get("expected_fact_count", 0))
+    cases_per_fact = int(payload.get("cases_per_fact", 0))
+    master_value = payload.get("master_dataset")
+    if (
+        payload.get("version") != 1
+        or not isinstance(master_value, str)
+        or not case_ids
+        or expected_facts < 1
+        or cases_per_fact < 1
+    ):
+        raise ValueError(f"{path}: invalid evaluation manifest")
+    if len(set(case_ids)) != len(case_ids):
+        raise ValueError(f"{path}: duplicate case id")
+
+    master = (path.parent / master_value).resolve()
+    by_id = {case.id: case for case in load_cases(master)}
+    if unknown := sorted(set(case_ids) - set(by_id)):
+        raise ValueError(f"{path}: unknown case ids: {', '.join(unknown)}")
+    selected = [by_id[case_id] for case_id in case_ids]
+    counts = Counter(case.variant_group for case in selected)
+    if len(counts) != expected_facts or set(counts.values()) != {cases_per_fact}:
+        raise ValueError(f"{path}: manifest selection is incomplete")
+    return selected

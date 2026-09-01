@@ -1,11 +1,14 @@
 from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import MagicMock
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
 
+from ingestion.documents.admission import accepts_path as accepts_admission_path
 from ingestion.documents.discovery import _declared_path_allowed
+from ingestion.documents.omscs import accepts_path as accepts_omscs_path
 from ingestion.documents.pdf import ExtractedPage, ExtractedPdf
 from ingestion.documents.registry import DocumentSource, load_document_sources
 from ingestion.documents.sync import DocumentSyncOutcome, FetchedDocument, sync_document_url
@@ -42,6 +45,47 @@ def test_run3_registry_refreshes_known_stale_and_moved_paths():
     assert _declared_path_allowed(academic_support, "/pre-graduate-advising")
     assert _declared_path_allowed(academic_support, "/pre-health")
     assert _declared_path_allowed(academic_support, "/pre-teaching")
+
+
+def test_gold_recovery_urls_are_explicit_seeds_in_adapter_scope():
+    sources = {
+        source.name: source for source in load_document_sources(Path("ingestion/sources.yaml"))
+    }
+    expected = {
+        "gt-admission": (
+            "https://admission.gatech.edu/first-year/decision-outcomes",
+            "https://admission.gatech.edu/first-year/defer-enrollment-gap-year",
+            "https://admission.gatech.edu/first-year/standardized-tests",
+            "https://admission.gatech.edu/first-year/waitlist",
+        ),
+        "gt-catalog-programs": (
+            "https://catalog.gatech.edu/academics/undergraduate/bs-ms-degree-programs",
+        ),
+        "gt-graduate-admission": (
+            "https://grad.gatech.edu/admissions/domestic/before-you-apply",
+            "https://grad.gatech.edu/admissions/international/before-you-apply",
+        ),
+        "gt-international": (
+            "https://isss.oie.gatech.edu/content/curricular-practical-training-cpt-georgia-tech",
+            "https://isss.oie.gatech.edu/content/international-student-scholar-services-advising",
+            "https://isss.oie.gatech.edu/isss-check-in",
+        ),
+        "gt-omscs": ("https://omscs.gatech.edu/deadlines-decisions-requirements-and-guidelines",),
+        "gt-student-support": ("https://studentlife.gatech.edu/services/mental-health-well-being",),
+    }
+
+    for source_name, urls in expected.items():
+        source = sources[source_name]
+        for url in urls:
+            path = urlsplit(url).path
+            assert url in source.seed_urls
+            assert source.allows(url)
+            if source.adapter == "admissions":
+                assert accepts_admission_path(path)
+            elif source.adapter == "omscs":
+                assert accepts_omscs_path(path)
+            else:
+                assert _declared_path_allowed(source, path)
 
 
 def test_health_registry_allows_only_declared_public_cdn_redirect_root():

@@ -1,0 +1,923 @@
+{
+  "cases": 20,
+  "answer_correctness": 1.0,
+  "answer_support": 1.0,
+  "citation_present": 1.0,
+  "citation_entails_claim": 1.0,
+  "citation_source_correct": 1.0,
+  "abstention_correct": 1.0,
+  "unsupported_confident": 0.0,
+  "failure_categories": {
+    "PASS": 20
+  },
+  "validator_outcomes": {
+    "PASS": 20
+  },
+  "by_evidence_hit": {
+    "false": {
+      "cases": 0,
+      "answer_correctness": 0.0,
+      "answer_support": 0.0,
+      "citation_entails_claim": 0.0,
+      "unsupported_confident": 0.0
+    },
+    "true": {
+      "cases": 20,
+      "answer_correctness": 1.0,
+      "answer_support": 1.0,
+      "citation_entails_claim": 1.0,
+      "unsupported_confident": 0.0
+    }
+  },
+  "cost_usd": 0.00179265,
+  "records": [
+    {
+      "case_id": "calendar-447",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer is correct, supported by the citations, and complete.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "Fall 2026 Phase I registration closes on May 22, 2026, at 11:59 PM Eastern Time.",
+      "answer": "Fall 2026 Phase I registration closes on May 22, 2026, at 11:59 PM Eastern Time.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: May 22 (Fri), 2026 Event: Fall 2026 Phase I registration closes at 11:59 PM Eastern Time"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Fall 2026"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Event: Fall 2026 Phase I registration closes at 11:59 PM Eastern Time"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "7a52e9649ae91a58"
+      ],
+      "cost_usd": 8.835e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-a1a8-70d3-8af5-71dd545b5329/run/01a032b7-a1a8-70d3-8af5-71dd545b5329?start_time=2026-08-24T07%3A41%3A30.408634%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-454",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer is correct, supported by the citations, and complete.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "The first day of classes for Fall 2026 is August 24, 2026.",
+      "answer": "The first day of classes for Fall 2026 is August 24, 2026.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: August 24 (Mon), 2026 Event: First day of classes for Fall 2026"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Fall 2026"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "21026a841b0b8fdd"
+      ],
+      "cost_usd": 8.235e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-882a-7811-bdef-a3888af8d552/run/01a032b7-882a-7811-bdef-a3888af8d552?start_time=2026-08-24T07%3A41%3A23.882854%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-457",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the deadline and is fully supported by the provided citations.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "The deadline to register or drop without a W for Fall 2026 is August 28, 2026, by 11:59 PM Eastern Time.",
+      "answer": "The deadline to register or drop without a W for Fall 2026 is August 28, 2026, by 11:59 PM Eastern Time.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: August 28 (Fri), 2026 Event: Fall 2026 Phase II registration closes at 11:59 PM Eastern Time."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Fall 2026"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Last day to register, make schedule changes, and/or drop without a W grade by 11:59 pm Eastern Time."
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "0d21db13e54c4558"
+      ],
+      "cost_usd": 9.779999999999999e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-4a87-7b92-85cb-71d32326eaec/run/01a032b7-4a87-7b92-85cb-71d32326eaec?start_time=2026-08-24T07%3A41%3A08.103924%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-460",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the payment deadline and is fully supported by the citation quotes.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "The payment deadline for Fall 2026 is August 31, 2026, at 4:00 PM Eastern Time.",
+      "answer": "The payment deadline for Fall 2026 is August 31, 2026, at 4:00 PM Eastern Time.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: August 31 (Mon), 2026 Event: Payment deadline 4:00 PM Eastern Time"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Fall 2026"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Event: Payment deadline 4:00 PM Eastern Time"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "0a9dd21d8d2d94b1"
+      ],
+      "cost_usd": 8.685e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-6788-7c42-a9f2-4c6aab651412/run/01a032b7-6788-7c42-a9f2-4c6aab651412?start_time=2026-08-24T07%3A41%3A15.528477%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-462",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer is correct, supported by the citation, and complete.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "The Labor Day holiday in Fall 2026 is on September 7, 2026.",
+      "answer": "The Labor Day holiday in Fall 2026 is on September 7, 2026.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: September 7 (Mon), 2026 Event: Official institute holiday -- Labor Day"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Fall 2026"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "99fcd5d41c35a5be"
+      ],
+      "cost_usd": 8.145e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b6-bce0-71d1-a96b-941d18ae0a61/run/01a032b6-bce0-71d1-a96b-941d18ae0a61?start_time=2026-08-24T07%3A40%3A31.840534%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-473",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the dates for final exams for Fall 2026, is fully supported by the citation quotes, and is complete.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "Final exams for Fall 2026 are scheduled from December 10 (Thursday) to December 17 (Thursday), 2026.",
+      "answer": "Final exams for Fall 2026 are scheduled from December 10 (Thursday) to December 17 (Thursday), 2026.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: December 10 (Thu) - 17 (Thu), 2026 Event: Final exams."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Fall 2026"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "cb54ea83e64fb9b7"
+      ],
+      "cost_usd": 9.495e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-0fe4-7ec1-934e-ed78c06ce79a/run/01a032b7-0fe4-7ec1-934e-ed78c06ce79a?start_time=2026-08-24T07%3A40%3A53.092716%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-479",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the dates for Fall 2026 commencement and is fully supported by the citation quotes.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "Fall 2026 commencement is scheduled for December 17 (Thursday) to December 19 (Saturday), 2026.",
+      "answer": "Fall 2026 commencement is scheduled for December 17 (Thursday) to December 19 (Saturday), 2026.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: December 17 (Thu) - 19 (Sat), 2026 Event: Commencement"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Fall 2026"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "539e76e040483429"
+      ],
+      "cost_usd": 8.715e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b6-f456-7e01-bacc-fd7cc8734595/run/01a032b6-f456-7e01-bacc-fd7cc8734595?start_time=2026-08-24T07%3A40%3A46.038148%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-481",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer is correct, supported by the citations, and complete.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "Final grades for Fall 2026 will be available online after 6:00 PM Eastern Time on December 22, 2026.",
+      "answer": "Final grades for Fall 2026 will be available online after 6:00 PM Eastern Time on December 22, 2026.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: December 22 (Tue), 2026 Event: Final grades available online after 6:00 PM Eastern Time"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Fall 2026"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "1bf58b8842edf503"
+      ],
+      "cost_usd": 8.444999999999999e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b6-e793-7570-a751-8f7a54405f1a/run/01a032b6-e793-7570-a751-8f7a54405f1a?start_time=2026-08-24T07%3A40%3A42.771712%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-488",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the withdrawal deadline and is fully supported by the provided citations.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "The withdrawal deadline for Fall 2026 is October 31, 2026, by 11:59 PM Eastern Time.",
+      "answer": "The withdrawal deadline for Fall 2026 is October 31, 2026, by 11:59 PM Eastern Time.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Event: Withdrawal deadline. Last day to withdraw from a single course or from school with W grades for Fall Semester 2026 by 11:59 PM Eastern Time."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: October 31 (Sat), 2026 Event: Withdrawal deadline."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Fall 2026"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Last day to withdraw from a single course or from school with W grades for Fall Semester 2026 by 11:59 PM Eastern Time."
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "7f321e83d9507a73"
+      ],
+      "cost_usd": 9.9e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-2a2a-7882-b9a3-aeb127bee052/run/01a032b7-2a2a-7882-b9a3-aeb127bee052?start_time=2026-08-24T07%3A40%3A59.818738%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-489",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the dates for Fall Break in Fall 2026 and is fully supported by the citation provided.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "Fall Break in Fall 2026 is from October 5 (Monday) to October 6 (Tuesday).",
+      "answer": "Fall Break in Fall 2026 is from October 5 (Monday) to October 6 (Tuesday).",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: October 5 (Mon) - 6 (Tue), 2026 Event: Fall break."
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "97f07eaac8dd3f66"
+      ],
+      "cost_usd": 8.835e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-5955-78f3-bb35-1d2ef5f25de6/run/01a032b7-5955-78f3-bb35-1d2ef5f25de6?start_time=2026-08-24T07%3A41%3A11.893953%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-506",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer is correct, supported by the citations, and complete.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "The first day of classes for Spring 2027 is January 11, 2027.",
+      "answer": "The first day of classes for Spring 2027 is January 11, 2027.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: January 11 (Mon), 2027 Event: First day of classes for Spring 2027"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Spring 2027"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "e91783c34483e580"
+      ],
+      "cost_usd": 8.235e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b6-cbef-7573-9110-8c6c00049b59/run/01a032b6-cbef-7573-9110-8c6c00049b59?start_time=2026-08-24T07%3A40%3A35.695211%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-509",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer accurately reflects the information provided in the gold answer and is fully supported by the citation quotes.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "The deadline to register or drop without a W for Spring 2027 is January 15, 2027, by 11:59 PM Eastern Time.",
+      "answer": "The deadline to register or drop without a W for Spring 2027 is January 15, 2027, by 11:59 PM Eastern Time.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: January 15 (Fri), 2027 Event: Phase II registration for Spring 2027 closes at 11:59 PM Eastern Time."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Spring 2027"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Last day to register, make schedule changes, and/or drop without a W grade by 11:59 pm Eastern Time."
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "a498f6d483e90072"
+      ],
+      "cost_usd": 0.00010109999999999999,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b6-d7a8-7030-b733-7c75c6b671ba/run/01a032b6-d7a8-7030-b733-7c75c6b671ba?start_time=2026-08-24T07%3A40%3A38.696754%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-511",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly identifies the date of the Martin Luther King Jr. holiday in Spring 2027, and the citation quotes support this claim.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "The Martin Luther King Jr. holiday in Spring 2027 is on January 18, 2027.",
+      "answer": "The Martin Luther King Jr. holiday in Spring 2027 is on January 18, 2027.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Event: Official institute holiday -- Martin Luther King, Jr."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Category: Holiday Date: January 18 (Mon), 2027"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Spring 2027"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "f0ab9e3243fb480b"
+      ],
+      "cost_usd": 9.329999999999999e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-78f2-7572-99b5-8abc69551eaf/run/01a032b7-78f2-7572-99b5-8abc69551eaf?start_time=2026-08-24T07%3A41%3A19.986181%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-512",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the payment deadline and is fully supported by the citation.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "The payment deadline for Spring 2027 is January 19, 2027, at 4:00 PM Eastern Time.",
+      "answer": "The payment deadline for Spring 2027 is January 19, 2027, at 4:00 PM Eastern Time.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: January 19 (Tue), 2027 Event: Payment deadline 4:00 PM Eastern Time"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Spring 2027"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Event: Payment deadline 4:00 PM Eastern Time"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "8b243909e083929d"
+      ],
+      "cost_usd": 8.625000000000001e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-00a8-7961-8dbf-312d1b8d6cdb/run/01a032b7-00a8-7961-8dbf-312d1b8d6cdb?start_time=2026-08-24T07%3A40%3A49.192856%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-521",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the Spring 2027 grade mode change deadline and is fully supported by the provided citations.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "The Spring 2027 grade mode change deadline is March 17, 2027.",
+      "answer": "The Spring 2027 grade mode change deadline is March 17, 2027.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: March 17 (Wed), 2027 Event: Grade mode change deadline."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Spring 2027"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "a8e2aaac73b8543d"
+      ],
+      "cost_usd": 9.42e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-3b4d-7d02-9220-a0687480b235/run/01a032b7-3b4d-7d02-9220-a0687480b235?start_time=2026-08-24T07%3A41%3A04.205476%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-523",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the dates for Spring Break in Spring 2027 and is fully supported by the citation provided.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "Spring Break in Spring 2027 is from March 8 (Monday) to March 12 (Friday).",
+      "answer": "Spring Break in Spring 2027 is from March 8 (Monday) to March 12 (Friday).",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: March 8 (Mon) - 12 (Fri), 2027 Event: Spring Break"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "dee8b2b4f66f8fd6"
+      ],
+      "cost_usd": 8.714999999999999e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b6-ac06-7d01-97bb-20b57f6c6bb8/run/01a032b6-ac06-7d01-97bb-20b57f6c6bb8?start_time=2026-08-24T07%3A40%3A27.526076%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-524",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer is correct, supported by the citations, and complete.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "Master's thesis forms are due on April 23, 2027, by 12:00 PM Eastern Time.",
+      "answer": "Master's thesis forms are due on April 23, 2027, by 12:00 PM Eastern Time.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: April 23 (Fri), 2027 Event: Thesis and required master's thesis forms due no later than 12:00 PM Eastern Time"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Spring 2027"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Event: Thesis and required master's thesis forms due no later than 12:00 PM Eastern Time"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "c1f83f8ca7a49593"
+      ],
+      "cost_usd": 8.865e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-ae27-7601-b76e-fc1e83fa6349/run/01a032b7-ae27-7601-b76e-fc1e83fa6349?start_time=2026-08-24T07%3A41%3A33.607236%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-527",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer is correct, supported by the citations, and complete.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "Final exams for Spring 2027 are scheduled from April 29 (Thursday) to May 6 (Thursday), 2027.",
+      "answer": "Final exams for Spring 2027 are scheduled from April 29 (Thursday) to May 6 (Thursday), 2027.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: April 29 (Thu) - May 6 (Thu), 2027 Event: Final exams."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Spring 2027"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "ce26f86fa6831c09"
+      ],
+      "cost_usd": 8.685e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-bc17-7600-b155-6c0f89af43cc/run/01a032b7-bc17-7600-b155-6c0f89af43cc?start_time=2026-08-24T07%3A41%3A37.175838%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-531",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the dates for Spring 2027 commencement and is fully supported by the provided citations.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "Spring 2027 commencement is scheduled for May 6 (Thu) - 8 (Sat), 2027.",
+      "answer": "Spring 2027 commencement is scheduled for May 6 (Thu) - 8 (Sat), 2027.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: May 6 (Thu) - 8 (Sat), 2027 Event: Commencement"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Spring 2027"
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "2119075157505549"
+      ],
+      "cost_usd": 8.7e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-9550-7443-a886-43f481af7559/run/01a032b7-9550-7443-a886-43f481af7559?start_time=2026-08-24T07%3A41%3A27.248567%2B00%3A00"
+    },
+    {
+      "case_id": "calendar-533",
+      "correct": true,
+      "supported": true,
+      "citation_present": true,
+      "citation_entails_claim": true,
+      "citation_source_correct": true,
+      "abstention_correct": true,
+      "unsupported_confident": false,
+      "failure_category": "PASS",
+      "failure_reason": "The answer correctly states the date and time for the availability of final grades, and the citations support this information.",
+      "validator_outcome": "PASS",
+      "document_hit": true,
+      "evidence_hit": true,
+      "raw_answer": "Final grades for Spring 2027 will be available online on May 11, 2027, after 6:00 PM Eastern Time.",
+      "answer": "Final grades for Spring 2027 will be available online on May 11, 2027, after 6:00 PM Eastern Time.",
+      "answer_valid": true,
+      "citations": [
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Date: May 11 (Tue), 2027 Event: Final grades available online after 6:00 PM Eastern Time."
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Semester: Spring 2027"
+        },
+        {
+          "url": "https://registrar.gatech.edu/current-academic-calendar",
+          "title": "gt-academic-calendar",
+          "fetched_at": null,
+          "quote": "Event: Final grades available online after 6:00 PM Eastern Time."
+        }
+      ],
+      "notes": [],
+      "grounding_valid": true,
+      "claims_supported": true,
+      "polarity_consistent": true,
+      "retrieved_doc_ids": [
+        "7d43adcc337ebc55"
+      ],
+      "cost_usd": 9.510000000000001e-05,
+      "latency_ms": 0.0,
+      "trace_url": "https://smith.langchain.com/o/bf3ea726-f9cc-4c04-84f2-0ee66ced13e2/projects/p/829e8390-9b4c-4008-99fe-5adc4fe7c3d0/trace/01a032b7-1cdf-7e11-942c-78a9a2a0d9d3/run/01a032b7-1cdf-7e11-942c-78a9a2a0d9d3?start_time=2026-08-24T07%3A40%3A56.415736%2B00%3A00"
+    }
+  ]
+}

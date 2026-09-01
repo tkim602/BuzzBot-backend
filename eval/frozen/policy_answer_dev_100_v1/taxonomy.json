@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "source_diagnosis_sha256": "ae3f6382afb7a5be36c1e6805b99b3450302bb7bb2452a56199ac74ec1d2280a",
+  "items": [
+    {"case_id": "gold-002-v7", "category": "EVIDENCE_CONFLICT_HANDLING", "rationale": "The answer selected the older OSCAR-unofficial-transcript passage over the conflicting current transcript policy."},
+    {"case_id": "gold-004-v10", "category": "SYNTHESIS_ERROR", "rationale": "The answer used the final-grade certification rule instead of the retrieved post-Commencement award date."},
+    {"case_id": "gold-007-v10", "category": "VALIDATOR_FALSE_REJECTION", "rationale": "Validation rejected a fragment about other course types although the requested 15–18 hour minor evidence was retrieved."},
+    {"case_id": "gold-015-v10", "category": "UNSUPPORTED_CLAIM", "rationale": "The answer added the separate nine-hour rule while its returned citation only supported the requested six-hour limit."},
+    {"case_id": "gold-017-v10", "category": "SYNTHESIS_ERROR", "rationale": "The generated navigation claim did not answer that Common Application is the exclusive first-year platform."},
+    {"case_id": "gold-020-v10", "category": "UNSUPPORTED_CLAIM", "rationale": "The generated applicant test-submission claim did not establish the requested admitted-student timing rule."},
+    {"case_id": "gold-022-v3", "category": "UNNECESSARY_ABSTENTION", "rationale": "The decisive same-year Early Action denial rule was retrieved but the final response abstained."},
+    {"case_id": "gold-023-v10", "category": "SYNTHESIS_ERROR", "rationale": "The answer discussed major selection even though the recommendations-optional evidence was present and cited."},
+    {"case_id": "gold-029-v3", "category": "SYNTHESIS_ERROR", "rationale": "The generated answer focused on GPA requirements instead of the requested transfer application window."},
+    {"case_id": "gold-030-v10", "category": "SYNTHESIS_ERROR", "rationale": "The generated May 30 deadline contradicted the requested Fall document deadline evidence."},
+    {"case_id": "gold-038-v5", "category": "SYNTHESIS_ERROR", "rationale": "The answer confused Summer course availability with the absence of Summer admissions."},
+    {"case_id": "gold-041-v10", "category": "INCOMPLETE_ANSWER", "rationale": "The answer stated 30 credit hours but omitted the explicitly requested equivalent of 10 courses."},
+    {"case_id": "gold-046-v3", "category": "UNSUPPORTED_CLAIM", "rationale": "The generated deadline answer added an all-materials condition that its citation did not establish."},
+    {"case_id": "gold-051-v7", "category": "EVIDENCE_CONFLICT_HANDLING", "rationale": "The answer selected the returned-check penalty over the directly relevant WebCheck FREE statement."},
+    {"case_id": "gold-053-v3", "category": "SYNTHESIS_ERROR", "rationale": "The answer substituted payment-plan details for the requested Student Payment Portal tasks."},
+    {"case_id": "gold-063-v7", "category": "INCOMPLETE_ANSWER", "rationale": "The answer described transition eligibility but omitted both requested numeric loan limits."},
+    {"case_id": "gold-077-v10", "category": "UNNECESSARY_ABSTENTION", "rationale": "The retrieved housing-accommodation steps were answerable, but the final response abstained."},
+    {"case_id": "gold-080-v10", "category": "VALIDATOR_FALSE_REJECTION", "rationale": "A faithful temporary-disability documentation paraphrase was rejected despite the decisive evidence being retrieved."},
+    {"case_id": "gold-084-v10", "category": "VALIDATOR_FALSE_REJECTION", "rationale": "The generated online-credit rule was rejected even though the retrieved evidence states the controlling three-credit limit."},
+    {"case_id": "gold-092-v10", "category": "UNSUPPORTED_CLAIM", "rationale": "The generated navigation statement did not positively establish the academic-course requirement during CPT."},
+    {"case_id": "gold-096-v10", "category": "CITATION_MISMATCH", "rationale": "The answer cited generic wellness and emergency services instead of the evidence for Student Life advocacy, resources, and referrals."}
+  ]
+}

@@ -2,10 +2,18 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.rag.retrieval import hybrid_retrieve
+from app.rag.retrieval import (
+    COURSE_CODE_RE,
+    RetrievedChunk,
+    _cap_chunks_per_url,
+    _lexical_match_score,
+    hybrid_retrieve,
+    vector_search,
+)
 from ingestion.documents.registry import load_document_sources
 
 _SOURCES = load_document_sources()
@@ -13,8 +21,234 @@ SOURCE_NAMES_BY_TYPE = {
     source_type: tuple(source.name for source in _SOURCES if source.source_type == source_type)
     for source_type in {source.source_type for source in _SOURCES}
 }
+SOURCE_TYPES_BY_VERTICAL = {
+    vertical: tuple(
+        dict.fromkeys(source.source_type for source in _SOURCES if source.vertical == vertical)
+    )
+    for vertical in {source.vertical for source in _SOURCES}
+}
 OFFICIAL_SOURCE_NAMES = [source.name for source in _SOURCES]
-DEADLINE_RE = re.compile(r"\b(exact|deadline|last day|academic calendar|what date|when)\b", re.I)
+_SLASH_COMPOUND_RE = re.compile(r"\b([a-z0-9]+)/([a-z0-9]+)\b", re.I)
+_TITLE_COMPOUND_RE = re.compile(r"\b([a-z0-9]+)[/-]([a-z0-9]+)\b", re.I)
+_DURATION_QUESTION_RE = re.compile(
+    r"\bhow long\b|\bhow many\s+(?:calendar\s+|business\s+)?"
+    r"(?:days?|weeks?|months?|years?)\b|\bwithin how many\b",
+    re.I,
+)
+
+
+def _is_strong_lexical_anchor(query: str, chunk: RetrievedChunk) -> bool:
+    title_path = f"{chunk.title or ''} {urlsplit(chunk.url or '').path}"
+    course = COURSE_CODE_RE.search(query)
+    if course and re.search(
+        rf"\b{re.escape(course.group(1))}\s*-?\s*{re.escape(course.group(2))}\b",
+        f"{chunk.title or ''}\n{chunk.chunk_text}",
+        re.I,
+    ):
+        return True
+    compounds = {
+        tuple(part.lower() for part in match) for match in _SLASH_COMPOUND_RE.findall(query)
+    }
+    return bool(
+        compounds
+        & {
+            tuple(part.lower() for part in match)
+            for match in _TITLE_COMPOUND_RE.findall(title_path)
+        }
+    )
+
+
+def policy_source_types(query: str) -> tuple[str, ...]:
+    lowered = query.lower()
+    if "omscs" in lowered:
+        return ("omscs_policy",)
+    if any(
+        cue in lowered
+        for cue in (
+            "enrollment deferral",
+            "deferred first-year",
+            "deferred first year",
+        )
+    ):
+        return ("admissions",)
+    if re.search(r"\b(?:sat|act)\b", lowered):
+        return ("admissions",)
+    if "registration hold" in lowered:
+        return ("official_policy",)
+    if re.search(r"\bpass[-/ ]fail\b", lowered):
+        return ("academic_policy",)
+    if "careerbuzz" in lowered or (
+        "graduate internship" in lowered and re.search(r"\bregister(?:ed|ing)?\b", lowered)
+    ):
+        return ("career",)
+    if "waitlist" in lowered:
+        if any(
+            cue in lowered
+            for cue in (
+                "admission",
+                "application",
+                "first-year",
+                "first year",
+                "waitlist spot",
+                "commit",
+            )
+        ):
+            return ("admissions",)
+        return ("official_policy",)
+    if "time ticket" in lowered and not any(
+        cue in lowered for cue in ("room selection", "room-selection", "housing")
+    ):
+        return ("official_policy",)
+    if "refund" in lowered and any(cue in lowered for cue in ("student account", "bursar")):
+        return ("finance",)
+    if (
+        any(cue in lowered for cue in ("full-time", "part-time", "enrollment status"))
+        and "credit" in lowered
+        and not any(cue in lowered for cue in ("f-1", "j-1", "international student"))
+    ):
+        return ("official_policy",)
+    if re.search(r"\b(?:ap|ib)\b", lowered) and any(cue in lowered for cue in ("exam", "credit")):
+        return ("academic_lifecycle",)
+    if any(cue in lowered for cue in ("junior", "senior", "undergraduate")) and any(
+        cue in lowered
+        for cue in ("graduate course", "graduate-level course", "graduate level course")
+    ):
+        return ("official_policy",)
+    if (
+        "summer" in lowered
+        and "credit" in lowered
+        and any(cue in lowered for cue in ("maximum", "more than", "exceed", "limit"))
+    ):
+        return ("official_policy",)
+    if re.search(r"\baudit(?:ing)?\b", lowered) and any(
+        cue in lowered for cue in ("class", "course", "academic credit")
+    ):
+        return ("academic_policy",)
+    vertical_cues = (
+        (
+            "health_support",
+            (
+                "immunization",
+                "igra",
+                "vaccine",
+                "disability",
+                "accommodation",
+                "emotional support animal",
+                "temporary injur",
+                "documented emergency",
+                "student emergency",
+                "emergency on-call",
+                "mental health",
+                "well-being",
+                "wellbeing",
+                "paratransit",
+            ),
+        ),
+        (
+            "housing_dining",
+            (
+                "housing",
+                "room selection",
+                "room-selection",
+                "meal plan",
+                "meal-plan",
+                "dining dollar",
+                "meal swipe",
+                "grubhub",
+                "live on campus",
+            ),
+        ),
+        (
+            "finance",
+            (
+                "financial aid",
+                "financial-aid",
+                "tuition",
+                "payment",
+                "pay a bill",
+                "cost of attendance",
+                "loan",
+                "webcheck",
+                "bursar",
+                "fafsa",
+                "scholarship",
+                "disbursement",
+                "graduate plus",
+            ),
+        ),
+        (
+            "international",
+            (
+                "f-1",
+                "j-1",
+                "istart",
+                "international student",
+                "cpt",
+                "sevis",
+                "i-20",
+                "ds-2019",
+            ),
+        ),
+        (
+            "campus_operations",
+            (
+                "stinger",
+                "parking",
+                "transportation",
+                "transit",
+                "shuttle",
+                "charter",
+                "campus bus",
+            ),
+        ),
+        (
+            "student_life",
+            ("knack", "tutoring", "tutor", "student engagement", "academic support"),
+        ),
+        (
+            "admissions",
+            (
+                "first-year",
+                "first year",
+                "early action",
+                "regular decision",
+                "common app",
+                "recommendation",
+                "transfer applicant",
+                "transfer application",
+                "transfer document",
+                "transfer english proficiency",
+                "graduate applicant",
+                "graduate application",
+                "admission",
+            ),
+        ),
+        (
+            "academics",
+            (
+                "transcript",
+                "graduation status",
+                "degree",
+                "minor",
+                "gpa",
+                "residency requirement",
+                "course load",
+                "schedule load",
+                "transfer credit",
+                "transfer-credit",
+                "double-counting",
+                "credits shared",
+                "bs/ms",
+                "master's completion",
+                "total credits",
+                "academic credit",
+            ),
+        ),
+    )
+    for vertical, cues in vertical_cues:
+        if any(cue in lowered for cue in cues):
+            return SOURCE_TYPES_BY_VERTICAL[vertical]
+    return ()
 
 
 @dataclass(frozen=True)
@@ -59,8 +293,6 @@ async def search_policy_docs(
         source_filter = [
             name for source_type in query.source_types for name in _source_names(source_type)
         ]
-    elif DEADLINE_RE.search(query.text):
-        source_filter = list(_source_names("academic_calendar"))
     else:
         source_filter = OFFICIAL_SOURCE_NAMES
 
@@ -71,7 +303,56 @@ async def search_policy_docs(
         top_k=query.top_k,
         source_filter=source_filter,
         force_fts=True,
+        max_chunks_per_url=1,
     )
+    lexical_anchor = max(
+        chunks, key=lambda chunk: _lexical_match_score(query.text, chunk), default=None
+    )
+    duration_anchor = chunks[0] if chunks and _DURATION_QUESTION_RE.search(query.text) else None
+    urls = list(dict.fromkeys(chunk.url for chunk in chunks if chunk.url))
+    atomic_calendar_events = query.source_types == ("academic_calendar",)
+    if urls and query_embedding and not atomic_calendar_events:
+        url_rank = {url: rank for rank, url in enumerate(urls)}
+        children = await vector_search(
+            session,
+            query_embedding,
+            top_k=query.top_k * 12,
+            source_filter=source_filter,
+            url_filter=urls,
+            similarity_threshold=-1.0,
+        )
+        if children:
+            children.sort(
+                key=lambda chunk: (
+                    chunk.score,
+                    _lexical_match_score(query.text, chunk),
+                    -url_rank.get(chunk.url, len(url_rank)),
+                ),
+                reverse=True,
+            )
+            child_ids = {chunk.chunk_id for chunk in children}
+            chunks = _cap_chunks_per_url(
+                [*children, *(chunk for chunk in chunks if chunk.chunk_id not in child_ids)],
+                max_chunks_per_url=2,
+                top_k=query.top_k,
+            )
+            if lexical_anchor is not None and _is_strong_lexical_anchor(query.text, lexical_anchor):
+                chunks = _cap_chunks_per_url(
+                    [lexical_anchor, *(c for c in chunks if c.chunk_id != lexical_anchor.chunk_id)],
+                    max_chunks_per_url=2,
+                    top_k=query.top_k,
+                )
+            if duration_anchor is not None:
+                chunks = _cap_chunks_per_url(
+                    [
+                        duration_anchor,
+                        *(c for c in chunks if c.chunk_id != duration_anchor.chunk_id),
+                    ],
+                    max_chunks_per_url=2,
+                    top_k=query.top_k,
+                )
+            for chunk in chunks:
+                chunk.method = "parent_child_vector"
     seen: set[str] = set()
     evidence: list[DocumentEvidence] = []
     for chunk in chunks:

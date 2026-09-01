@@ -9,8 +9,8 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from db.models import Chunk, Document, FetchState, Source
-from db.session import sync_engine
+from app.db.models import Chunk, Document, FetchState, Source
+from app.db.session import sync_engine
 from ingestion.documents.registry import DocumentSource
 from ingestion.documents.sync import (
     DocumentSyncOutcome,

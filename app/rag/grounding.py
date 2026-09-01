@@ -13,7 +13,7 @@ _WORD_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)?", re.I)
 _NUMBER_RE = re.compile(r"\b\d+(?:\.\d+)?\b")
 _LEADING_POLARITY_RE = re.compile(r"^\s*(?:yes|no)\b", re.I)
 _LEADING_ANSWER_TOKEN_RE = re.compile(r"^\s*(?:yes|no)\s*[,.;:—–-]\s*", re.I)
-_CLAIM_SPLIT_RE = re.compile(r"(?:\n+|[!?;](?:\s+|$)|\.(?!\d)(?:\s+|$)|\s+(?:and|but)\s+)", re.I)
+_CLAIM_SPLIT_RE = re.compile(r"(?:\n+|[!?;](?:\s+|$)|\.(?!\d)(?:\s+|$))", re.I)
 _STOPWORDS = {
     "a",
     "an",
@@ -194,14 +194,11 @@ async def check_claim_support(
     )
     semantic_evidence = "\n\n".join(evidence_texts)
     evidence_sentences = [
-        sentence
-        for evidence in evidence_texts
-        for sentence in _CLAIM_SPLIT_RE.split(evidence)
-        if sentence.strip()
+        sentence for evidence in evidence_texts for sentence in split_factual_claims(evidence)
     ]
     notes: list[str] = []
     normalized_answer = _LEADING_ANSWER_TOKEN_RE.sub("", answer, count=1)
-    for claim in _CLAIM_SPLIT_RE.split(normalized_answer):
+    for claim in split_factual_claims(normalized_answer):
         claim_tokens = _content_tokens(claim)
         if len(claim_tokens) < 2:
             continue
@@ -226,6 +223,10 @@ async def check_claim_support(
             )
             notes.append(f"{verdict} factual claim: '{claim.strip()[:100]}'")
     return not notes, notes
+
+
+def split_factual_claims(text: str) -> list[str]:
+    return [claim.strip() for claim in _CLAIM_SPLIT_RE.split(text) if claim.strip()]
 
 
 def _content_tokens(text: str) -> set[str]:

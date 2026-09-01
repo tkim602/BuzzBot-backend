@@ -2,6 +2,7 @@ import uuid
 
 from ingestion.documents import cli
 from ingestion.documents.registry import DocumentSource
+from ingestion.documents.sync import DocumentSyncOutcome, DocumentSyncResult
 from ingestion.orchestration import RunSummary
 
 
@@ -86,3 +87,30 @@ def test_sync_many_cli_resume_never_sets_verification_limit(monkeypatch):
     assert captured["resume"] is True
     assert captured["run_id"] == run_id
     assert captured["verification_limit"] is None
+
+
+def test_sync_url_cli_uses_existing_single_url_pipeline(monkeypatch, capsys):
+    url = "https://registrar.gatech.edu/registration/holds"
+    captured: dict[str, object] = {}
+
+    async def fake_sync(source, requested_url, session_factory, embed_fn):
+        captured["source"] = source.name
+        captured["url"] = requested_url
+        return DocumentSyncResult(
+            source.name,
+            DocumentSyncOutcome.INDEXED,
+            requests_used=1,
+            fetched=1,
+            changed=1,
+            chunks_indexed=2,
+        )
+
+    monkeypatch.setattr(cli, "load_document_sources", lambda: (_source(),))
+    monkeypatch.setattr("ingestion.documents.sync.sync_document_url", fake_sync)
+    monkeypatch.setattr("ingestion.index.get_embedding_function", lambda: object())
+
+    exit_code = cli.main(["sync-url", "--source", "gt-registrar", "--url", url])
+
+    assert exit_code == 0
+    assert captured == {"source": "gt-registrar", "url": url}
+    assert '"outcome":"INDEXED"' in capsys.readouterr().out

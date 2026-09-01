@@ -4,7 +4,7 @@ import importlib
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, UniqueConstraint, inspect
 
-from db import models
+from app.db import models
 
 SCHEDULE_TABLES = {
     "data_versions",
@@ -109,7 +109,7 @@ def test_model_and_migration_enforce_the_same_version_states(monkeypatch):
     }
     assert "ck_data_versions_status" in model_checks
 
-    migration = importlib.import_module("db.migrations.versions.003_structured_schedule")
+    migration = importlib.import_module("migrations.versions.003_structured_schedule")
     migration_checks: dict[str | None, str] = {}
 
     def capture_table(name, *items):
@@ -204,7 +204,7 @@ def test_ingestion_run_manifest_constraints_match_migration(monkeypatch):
     assert run_fk.target_fullname == "ingestion_runs.id"
     assert run_fk.ondelete == "CASCADE"
 
-    migration = importlib.import_module("db.migrations.versions.004_ingestion_runs")
+    migration = importlib.import_module("migrations.versions.004_ingestion_runs")
     migration_checks: dict[str, str] = {}
 
     def capture_table(name, *items):

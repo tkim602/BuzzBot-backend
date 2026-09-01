@@ -6,21 +6,24 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.core.clients import get_openai_client
 from app.core.config import settings
 from app.rag.retrieval import (
     FTS_DOCUMENT_EXPRESSION,
     RetrievedChunk,
+    _cap_chunks_per_url,
     _compact_query_for_fts,
     _extract_query_hints,
     _rrf_fuse_results,
     _signal_match_count,
     get_text_embeddings,
     hybrid_retrieve,
+    preload_cross_encoder,
 )
 
 
 def test_fts_query_expression_matches_migration_index():
-    migration = Path("db/migrations/versions/005_document_fts_metadata.py").read_text()
+    migration = Path("migrations/versions/005_document_fts_metadata.py").read_text()
 
     assert FTS_DOCUMENT_EXPRESSION == (
         "coalesce(title, '') || ' ' || coalesce(headings, '') || ' ' || chunk_text"
@@ -37,6 +40,30 @@ def _chunk(chunk_id: str, score: float, method: str) -> RetrievedChunk:
         score=score,
         method=method,
     )
+
+
+def test_preloaded_cross_encoder_is_reused(monkeypatch):
+    import sentence_transformers
+
+    import app.rag.retrieval as retrieval
+
+    created = []
+
+    class Model:
+        def __init__(self, name):
+            created.append(name)
+
+        def predict(self, pairs):
+            return [1.0] * len(pairs)
+
+    monkeypatch.setattr(sentence_transformers, "CrossEncoder", Model)
+    monkeypatch.setattr(retrieval, "_cross_encoder_model", None)
+    monkeypatch.setattr(retrieval, "_cross_encoder_model_name", None)
+
+    assert preload_cross_encoder() is preload_cross_encoder()
+    retrieval.rerank_with_cross_encoder("query", [_chunk("one", 0.1, "vector")])
+
+    assert created == [settings.rag_rerank_model]
 
 
 def test_extract_query_hints_for_course_and_term():
@@ -79,6 +106,20 @@ def test_rrf_fusion_promotes_consensus_results():
     assert merged[0].chunk_id == "b"
     assert merged[0].method == "hybrid_rrf"
     assert {m.chunk_id for m in merged} == {"a", "b", "c"}
+
+
+def test_candidate_cap_preserves_order_and_treats_missing_urls_independently():
+    chunks = [
+        RetrievedChunk("a-1", "https://example.com/a", None, "a1", 1.0),
+        RetrievedChunk("a-2", "https://example.com/a/", None, "a2", 0.9),
+        RetrievedChunk("b-1", "https://example.com/b", None, "b1", 0.8),
+        RetrievedChunk("none-1", None, None, "n1", 0.7),
+        RetrievedChunk("none-2", None, None, "n2", 0.6),
+    ]
+
+    capped = _cap_chunks_per_url(chunks, max_chunks_per_url=1, top_k=10)
+
+    assert [chunk.chunk_id for chunk in capped] == ["a-1", "b-1", "none-1", "none-2"]
 
 
 def test_compact_query_for_fts_limits_tokens():
@@ -154,8 +195,112 @@ async def test_reranker_receives_candidates_beyond_final_top_k(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_document_cap_backfills_fts_candidates_before_reranking(monkeypatch):
+    duplicate_chunks = [
+        RetrievedChunk(
+            chunk_id=f"duplicate-{index}",
+            url="https://example.com/duplicate",
+            title="Duplicate",
+            chunk_text=f"Duplicate chunk {index}",
+            score=1.0 - index / 100,
+            method="fts",
+        )
+        for index in range(16)
+    ]
+    relevant = RetrievedChunk(
+        chunk_id="relevant",
+        url="https://example.com/relevant",
+        title="Relevant",
+        chunk_text="The decisive answer.",
+        score=0.1,
+        method="fts",
+    )
+    requested: dict[str, int] = {}
+
+    async def search_fts(*args, top_k, **kwargs):
+        requested["top_k"] = top_k
+        return [*duplicate_chunks, relevant][:top_k]
+
+    monkeypatch.setattr("app.rag.retrieval.vector_search", AsyncMock(return_value=[]))
+    monkeypatch.setattr("app.rag.retrieval.fts_search", search_fts)
+    monkeypatch.setattr(settings, "rag_enable_reranking", True)
+
+    def rerank(query, chunks, top_k):
+        assert relevant in chunks
+        return [relevant, *[chunk for chunk in chunks if chunk is not relevant]][:top_k]
+
+    monkeypatch.setattr("app.rag.retrieval.rerank_with_cross_encoder", rerank)
+
+    results = await hybrid_retrieve(
+        object(),
+        "decisive answer",
+        [0.1],
+        top_k=5,
+        force_fts=True,
+        max_chunks_per_url=1,
+    )
+
+    assert requested["top_k"] == 45
+    assert results[0] is relevant
+
+
+@pytest.mark.asyncio
+async def test_policy_deep_lexical_pool_is_reranked_before_existing_fusion_budget(monkeypatch):
+    generic = [
+        RetrievedChunk(
+            chunk_id=f"generic-{index}",
+            url=f"https://example.com/generic-{index}",
+            title="Official Policy",
+            chunk_text="General Georgia Tech policy information.",
+            score=1 - index / 1000,
+            method="fts",
+        )
+        for index in range(100)
+    ]
+    relevant = RetrievedChunk(
+        chunk_id="returning-housing",
+        url="https://example.com/returning-housing",
+        title="Returning Student Housing",
+        chunk_text="Housing is not guaranteed for returning students.",
+        score=0.01,
+        method="fts",
+    )
+    requested = {}
+
+    async def search_fts(*args, top_k, **kwargs):
+        requested["top_k"] = top_k
+        return [*generic, relevant][:top_k]
+
+    monkeypatch.setattr("app.rag.retrieval.vector_search", AsyncMock(return_value=[]))
+    monkeypatch.setattr("app.rag.retrieval.fts_search", search_fts)
+    monkeypatch.setattr(settings, "rag_enable_reranking", True)
+
+    def rerank(query, chunks, top_k):
+        assert len(chunks) <= 15
+        assert relevant in chunks
+        return [relevant, *[chunk for chunk in chunks if chunk is not relevant]][:top_k]
+
+    monkeypatch.setattr("app.rag.retrieval.rerank_with_cross_encoder", rerank)
+
+    results = await hybrid_retrieve(
+        object(),
+        "Is housing guaranteed for returning students?",
+        [0.1],
+        top_k=5,
+        source_filter=["gt-housing"],
+        force_fts=True,
+        max_chunks_per_url=1,
+    )
+
+    assert requested["top_k"] == 200
+    assert results[0] is relevant
+
+
+@pytest.mark.asyncio
 async def test_async_embedding_client_receives_key_loaded_by_settings(monkeypatch):
     captured: dict[str, str] = {}
+    monkeypatch.setenv("LANGSMITH_TRACING", "false")
+    get_openai_client.cache_clear()
 
     class Embeddings:
         async def create(self, **kwargs):
@@ -175,3 +320,4 @@ async def test_async_embedding_client_receives_key_loaded_by_settings(monkeypatc
 
     assert await get_text_embeddings(["test query"]) == [[0.1]]
     assert captured == {"api_key": "test-key"}
+    get_openai_client.cache_clear()

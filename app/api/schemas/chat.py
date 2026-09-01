@@ -1,0 +1,66 @@
+"""Request/response schemas for the chat API."""
+
+from __future__ import annotations
+
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, Field
+
+
+class UserContext(BaseModel):
+    term: str | None = None
+    major: str | None = None
+
+
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=2000)
+    user_context: UserContext | None = None
+    history: list[ChatTurn] = Field(default_factory=list, max_length=20)
+    thread_id: str | None = Field(
+        None,
+        min_length=1,
+        max_length=100,
+        pattern=r"^[A-Za-z0-9_.:-]+$",
+    )
+
+
+class Citation(BaseModel):
+    url: str
+    title: str | None = None
+    fetched_at: str | None = None
+    quote: str
+    page: Annotated[int, Field(ge=1)] | None = None
+
+
+class FreshnessInfo(BaseModel):
+    strategy: str = "langgraph_controlled"
+    as_of: str | None = None
+
+
+class DebugInfo(BaseModel):
+    intent: str | None = None
+    source_filter: str | list[str] | None = None
+    retrieval_top_k: int = 0
+    top_sources: list[str] = []
+    rewritten_query: str | None = None
+    current_date: str | None = None
+    current_term: str | None = None
+    stage_timings_ms: dict[str, int] = {}
+
+
+class ChatResponseBase(BaseModel):
+    answer: str
+    citations: list[Citation] = []
+    confidence: float = Field(0.0, ge=0.0, le=1.0)
+    freshness: FreshnessInfo = FreshnessInfo()
+    notes: list[str] = []
+    debug: DebugInfo | None = None
+
+
+class ChatResponse(ChatResponseBase):
+    thread_id: str

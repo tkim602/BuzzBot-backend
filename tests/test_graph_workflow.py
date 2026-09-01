@@ -8,9 +8,88 @@ from unittest.mock import AsyncMock
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
-from app.graph.workflow import WorkflowServices, build_workflow
+from app.graph.workflow import WorkflowServices, _policy_source_types, build_workflow
 from app.retrieval.documents import DocumentEvidence
 from ingestion.schedule.validate import FreshnessState
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("How do financial-aid appeals work?", ("finance",)),
+        ("How do I cancel my housing contract?", ("housing", "dining")),
+        ("How do I request disability accommodations?", ("health_support",)),
+        ("What counts as full-time enrollment for F-1 students?", ("international",)),
+        ("Does the Stinger bus require a fare?", ("campus_operations",)),
+        ("Who is eligible to become a Knack tutor?", ("student_support",)),
+        (
+            "What is the undergraduate minor credit-hour requirement?",
+            (
+                "official_policy",
+                "academic_calendar",
+                "course_catalog",
+                "omscs_policy",
+                "degree_programs",
+                "academic_policy",
+                "academic_lifecycle",
+            ),
+        ),
+        ("What are first-year recommendation requirements?", ("admissions",)),
+        (
+            "I got a course waitlist notification. How long do I have to register?",
+            ("official_policy",),
+        ),
+        ("What are the first-year admission waitlist rules?", ("admissions",)),
+        ("Does accepting a waitlist spot commit me to enroll?", ("admissions",)),
+        (
+            "What determines Georgia Tech registration time tickets?",
+            ("official_policy",),
+        ),
+        (
+            "Why can my roommate register before me? What determines Georgia Tech time tickets?",
+            ("official_policy",),
+        ),
+        ("When is my housing room-selection time ticket?", ("housing", "dining")),
+        (
+            "Can I take more than 16 total credits over summer?",
+            ("official_policy",),
+        ),
+        (
+            "Do I receive academic credit when auditing a class?",
+            ("academic_policy",),
+        ),
+        ("Can I use paratransit for personal trips?", ("health_support",)),
+        ("Do first-year students have to live on campus?", ("housing", "dining")),
+        ("What does a registration hold prevent?", ("official_policy",)),
+        ("How many pass/fail credits count toward my degree?", ("academic_policy",)),
+        ("What can I do in CareerBuzz?", ("career",)),
+        ("Does registering a graduate internship charge tuition?", ("career",)),
+        ("Can financial aid pay for my internship?", ("finance",)),
+        ("What are the CPT internship rules for F-1 students?", ("international",)),
+        ("Where does a refund from my student account go?", ("finance",)),
+        ("Can a student organization charter a campus bus?", ("campus_operations",)),
+        (
+            "How many credits count as full-time, part-time, and less-than-part-time?",
+            ("official_policy",),
+        ),
+        ("Can I take an AP or IB exam for credit after enrolling?", ("academic_lifecycle",)),
+        (
+            "I'm a junior with a 3.0 GPA. Can I take a graduate-level course?",
+            ("official_policy",),
+        ),
+    ],
+)
+def test_policy_source_routing_uses_domain_verticals(query, expected):
+    assert _policy_source_types(query) == expected
+
+
+def test_policy_source_routing_preserves_cross_domain_precedence():
+    assert _policy_source_types("Does OMSCS offer financial aid?") == ("omscs_policy",)
+    assert _policy_source_types("Are first-year meal plans required?") == ("housing", "dining")
+    assert _policy_source_types("How do I request disability housing accommodations?") == (
+        "health_support",
+    )
+    assert _policy_source_types("What is the minimum satisfactory GPA?") != ("admissions",)
 
 
 @pytest.mark.asyncio
@@ -36,18 +115,48 @@ async def test_schedule_path_is_deterministic_and_cited(monkeypatch):
     )
     lookup = AsyncMock(return_value=[offering])
     monkeypatch.setattr("app.graph.workflow.lookup_course_offerings", lookup)
+    semantic_validation = AsyncMock(
+        side_effect=AssertionError("schedule answer must not call semantic validation")
+    )
+    monkeypatch.setattr("app.graph.workflow.check_claim_support", semantic_validation)
     embed = AsyncMock(side_effect=AssertionError("schedule SQL must not embed"))
     answer = AsyncMock(side_effect=AssertionError("schedule answer must not call an LLM"))
     graph = build_workflow(WorkflowServices(object(), embed, answer))
 
     result = await graph.ainvoke({"query": "Is CS 7650 offered in Fall 2026?"})
 
-    assert "CRN 12345" in result["answer"]
+    assert result["answer"] == (
+        "Yes. CS 7650 (Natural Language) is offered in Fall 2026 with 1 section: A (Atlanta)."
+    )
+    assert "CRN" not in result["answer"]
+    assert ";" not in result["answer"]
     assert result["citations"][0]["url"].startswith("https://oscar.gatech.edu/")
     assert result["answer_valid"] is True
+    assert result["schedule_query_type"] == "offering"
+    assert result["grounding_valid"] is True
+    assert result["claims_supported"] is True
     assert result["retry_count"] == 0
+    assert result["evidence"][0]["metadata"] == {
+        "term_code": "202608",
+        "subject": "CS",
+        "course_number": "7650",
+        "title": "Natural Language",
+        "section_code": "A",
+        "crn": "12345",
+        "campus": "Atlanta",
+        "schedule_type": "Lecture",
+        "instructional_method": "In Person",
+        "instructors": ["Ada Lovelace"],
+        "notes": None,
+        "meetings": [],
+        "source_url": offering.source_url,
+        "data_version_id": str(offering.data_version_id),
+        "freshness": "CURRENT",
+        "data_as_of": "2026-08-20T00:00:00+00:00",
+    }
     embed.assert_not_awaited()
     answer.assert_not_awaited()
+    semantic_validation.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -78,6 +187,8 @@ async def test_missing_document_evidence_retries_once_then_abstains(monkeypatch)
     assert result["citations"] == []
     assert result["confidence"] == 0.2
     assert "enough official evidence" in result["answer"].lower()
+    assert result["evidence_validation_reason"] == "NO_EVIDENCE"
+    assert result["abstain_reason"] == "NO_VALID_EVIDENCE"
 
 
 @pytest.mark.asyncio
@@ -127,6 +238,11 @@ async def test_grounded_document_answer_keeps_official_citation(monkeypatch):
     assert result["answer_valid"] is True
     assert result["citations"][0]["url"] == evidence.canonical_url
     assert result["confidence"] == 0.8
+    assert result["grounding_valid"] is True
+    assert result["claims_supported"] is True
+    assert result["polarity_consistent"] is True
+    assert result["answer_nonempty"] is True
+    assert result["evidence"][0]["metadata"]["chunk_id"] == evidence.chunk_id
 
 
 @pytest.mark.asyncio
@@ -252,3 +368,42 @@ async def test_checkpointed_thread_clears_optional_fields_between_queries(monkey
     assert second["subject"] is None
     assert second["course_number"] is None
     assert second["term_code"] is None
+
+
+@pytest.mark.asyncio
+async def test_checkpointed_schedule_follow_up_reuses_resolved_course_and_term(monkeypatch):
+    offering = SimpleNamespace(
+        term_code="202608",
+        subject="CS",
+        course_number="7650",
+        title="Natural Language",
+        credits=3.0,
+        crn="12345",
+        section_code="A",
+        campus="Atlanta",
+        schedule_type="Lecture",
+        instructional_method="In Person",
+        instructors=("Ada Lovelace",),
+        notes=None,
+        meetings=(),
+        source_url="https://oscar.gatech.edu/schedule",
+        data_as_of=datetime(2026, 8, 20, tzinfo=UTC),
+        data_version_id=uuid.uuid4(),
+        freshness=FreshnessState.CURRENT,
+    )
+    lookup = AsyncMock(return_value=[offering])
+    monkeypatch.setattr("app.graph.workflow.lookup_course_offerings", lookup)
+    graph = build_workflow(
+        WorkflowServices(object(), AsyncMock(), AsyncMock()), checkpointer=InMemorySaver()
+    )
+    config = {"configurable": {"thread_id": "schedule-thread"}}
+
+    await graph.ainvoke({"query": "Is CS 7650 offered in Fall 2026?"}, config)
+    follow_up = await graph.ainvoke({"query": "Who teaches it?"}, config)
+
+    assert follow_up["intent"] == "course_schedule"
+    assert follow_up["subject"] == "CS"
+    assert follow_up["course_number"] == "7650"
+    assert follow_up["term_code"] == "202608"
+    assert follow_up["schedule_query_type"] == "instructors"
+    assert "Ada Lovelace" in follow_up["answer"]

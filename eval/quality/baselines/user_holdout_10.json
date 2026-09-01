@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "manifest": "eval/quality/manifests/user_holdout_10.json",
+  "manifest_sha256": "f0906d09440167b5f364eef621ed3ace2bda05783ce64cb182fcf0209c35e5b5",
+  "evaluated_at": "2026-08-23",
+  "status": "FOCUSED_FIX_VERIFIED_PENDING_FULL_RERUN",
+  "blind_run": {
+    "correct_and_supported": 7,
+    "answer_correctness": 0.7,
+    "evidence_support_rate": 0.7,
+    "abstention_rate": 0.3,
+    "latency_ms": {
+      "p50": 5520.25,
+      "p95": 16585.0
+    },
+    "cost_usd": 0.00604007,
+    "failed_case_ids": [
+      "holdout-001-v1",
+      "holdout-004-v1",
+      "holdout-008-v1"
+    ]
+  },
+  "focused_verification": {
+    "full_manifest_rerun": false,
+    "passed_case_ids": [
+      "holdout-001-v1",
+      "holdout-004-v1",
+      "holdout-008-v1"
+    ],
+    "notes_empty": true,
+    "exact_official_citations": true
+  },
+  "limitations": [
+    "The blind run is the release-quality baseline; the holdout is no longer untouched after diagnosis.",
+    "Only the three original failures were rerun after the fix to bound model cost and runtime.",
+    "The focused result does not claim a new full-manifest percentage or real production-traffic coverage."
+  ]
+}

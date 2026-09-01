@@ -14,7 +14,7 @@ from lxml.etree import ParserError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from db.models import Chunk, Document, FetchState
+from app.db.models import Chunk, Document, FetchState
 from ingestion.chunk import chunk_text
 from ingestion.documents.admission import accepts_path as accepts_admission_path
 from ingestion.documents.calendar import (
@@ -50,7 +50,7 @@ class DocumentQualityError(ValueError):
     pass
 
 
-CHUNKING_VERSION = 2
+CHUNKING_VERSION = 3
 
 
 _REDIRECT_SCOPES = {

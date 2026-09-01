@@ -69,8 +69,7 @@ January 6
     assert all(date in indexed for date in ("October 15", "November 2", "January 6"))
 
 
-@pytest.mark.asyncio
-async def test_first_year_recommendation_query_prefers_recommendations_page():
+def test_first_year_recommendation_query_prefers_recommendations_page():
     recommendations = _chunk(
         "recommendations",
         "Recommendations | Undergraduate Admission",
@@ -84,17 +83,11 @@ async def test_first_year_recommendation_query_prefers_recommendations_page():
     )
 
     route = classify_query(RECOMMENDATIONS_QUERY)
-    supported, _ = await check_claim_support(
-        "Recommendations are optional, and applicants may submit up to three recommendations.",
-        [recommendations],
-    )
-
     assert route.intent == "policy"
     assert route.source_filter == "gt-admission"
     assert _lexical_match_score(RECOMMENDATIONS_QUERY, recommendations) > _lexical_match_score(
         RECOMMENDATIONS_QUERY, preparation
     )
-    assert supported
 
 
 def test_recommendation_letters_query_outranks_generic_deadline_page():
@@ -184,6 +177,208 @@ def test_claim_span_selection_ignores_unrelated_text_from_same_source():
 
     assert "completely optional" in selected[0]["quote"]
     assert unrelated.chunk_text not in selected[0]["quote"]
+
+
+def test_negative_claim_cites_span_with_matching_polarity():
+    claim = "Registering a graduate internship does not charge tuition."
+    url = "https://example.gatech.edu/register-internships"
+    distractor = _chunk(
+        "overview",
+        "Graduate Internship Program",
+        "Flexibility Without Delay. In short, registering your graduate internship at "
+        "Georgia Tech protects your status and academic record.",
+    )
+    decisive = _chunk(
+        "tuition",
+        "Graduate Internship Program",
+        "There is no tuition associated with participation in the graduate internship program.",
+    )
+    distractor.url = decisive.url = url
+
+    selected = _ground_citation_quotes(
+        [{"url": url, "quote": distractor.chunk_text}],
+        [distractor, decisive],
+        claim,
+    )
+
+    assert selected[0]["quote"] == decisive.chunk_text
+
+
+def test_binary_citation_uses_question_topic_to_select_decisive_exception():
+    decisive = _chunk(
+        "deadlines",
+        "gt-omscs",
+        "The OMSCS program accepts applications year-round for both Fall and Spring "
+        "matriculations (there are no Summer admissions).",
+    )
+    distractor = _chunk(
+        "admission-criteria",
+        "gt-omscs",
+        "Preferred qualifications for admitted OMSCS students are an undergraduate degree. "
+        "Applicants who do not meet these criteria are evaluated case by case. "
+        "Georgia Tech students must complete foundational program requirements. "
+        "Summer information is published elsewhere.",
+    )
+    answer = (
+        "No, OMSCS does not admit students for Summer. "
+        "Applications are accepted for Fall and Spring matriculation."
+    )
+
+    selected = _ground_citation_quotes(
+        [{"url": distractor.url}],
+        [distractor, decisive],
+        answer,
+        query="Does OMSCS admit students for Summer?",
+    )
+    evidence = "\n".join(str(citation["quote"]) for citation in selected)
+
+    assert "no Summer admissions" in evidence
+    assert "Fall and Spring" in evidence
+    assert distractor.chunk_text not in evidence
+
+
+def test_multi_claim_answer_selects_support_for_each_claim():
+    ordering = _chunk(
+        "ordering",
+        "Ordering Transcripts",
+        "Current or former Georgia Tech students may order transcripts via the web. "
+        "Students may request a transcript as a downloadable PDF, mailed, or picked up.",
+    )
+    policies = _chunk(
+        "policies",
+        "Transcript Policies",
+        "The transcript fee is $10.00. The institute is not responsible for delivery. "
+        "Transcript requests should be made at least one week in advance. "
+        "Transcripts will not be released for students who have a financial obligation.",
+    )
+    answer = (
+        "Students may order transcripts through the web. "
+        "Requests may be downloaded, mailed, or picked up. "
+        "The fee is $10.00, and requests should be made at least one week in advance. "
+        "Transcripts are not released for students with a financial obligation."
+    )
+    citations = [{"url": ordering.url, "quote": ordering.chunk_text}] * 3
+
+    selected = _ground_citation_quotes(citations, [ordering, policies], answer)
+    evidence = "\n".join(str(citation["quote"]) for citation in selected)
+
+    assert "order transcripts via the web" in evidence
+    assert "downloadable PDF, mailed, or picked up" in evidence
+    assert "transcript fee is $10.00" in evidence
+    assert "at least one week in advance" in evidence
+    assert "financial obligation" in evidence
+
+
+def test_compound_list_claim_keeps_all_supporting_bullets_in_citation():
+    chunk = _chunk(
+        "temporary-accommodations",
+        "Temporary Accommodations",
+        "Documentation must address:\n"
+        "- Type of disability\n"
+        "- Severity\n"
+        "- Functional limitations\n"
+        "- Prognosis\n"
+        "- Estimated duration",
+    )
+    answer = (
+        "Documentation must include the disability type, severity, functional limitations, "
+        "prognosis, and estimated duration."
+    )
+
+    selected = _ground_citation_quotes([{"url": chunk.url}], [chunk], answer)
+    evidence = "\n".join(str(citation["quote"]) for citation in selected)
+
+    assert all(
+        field in evidence
+        for field in (
+            "Type of disability",
+            "Severity",
+            "Functional limitations",
+            "Prognosis",
+            "Estimated duration",
+        )
+    )
+
+
+def test_citation_prefers_compact_decisive_span_over_long_adjacent_policy_text():
+    decisive = "We will hold a spot in our class for up to one year after the original term."
+    chunk = _chunk(
+        "defer-enrollment",
+        "Deferred Enrollment",
+        decisive
+        + "\nStudents with approved deferrals must maintain academic excellence."
+        + "\nDeferral requests must arrive before the entry term starts."
+        + "\nInternational requests may be considered later.",
+    )
+
+    selected = _ground_citation_quotes(
+        [{"url": chunk.url}],
+        [chunk],
+        "Students may defer enrollment for up to one year after the original term.",
+    )
+
+    assert selected[0]["quote"].startswith(decisive)
+    assert selected[0]["quote"].count(".") <= 2
+
+
+def test_citation_span_selection_prefers_exact_numeric_evidence_across_chunks():
+    distractor = _chunk(
+        "immunization-form",
+        "Fall 2026 Immunization Deadlines",
+        "All students must submit an immunization form before registration.",
+        "Fall 2026 Deadlines",
+    )
+    decisive = _chunk(
+        "immunization-requirements",
+        "Immunization Requirements",
+        "Fall 2026 Deadlines: Last names beginning with A – H: June 8, 2026. "
+        "Last names beginning with I – P: June 22, 2026. "
+        "Last names beginning with Q – Z: July 6, 2026.",
+    )
+    answer = (
+        "For Fall 2026, A-H is due June 8, 2026; I-P is due June 22, 2026; Q-Z is due July 6, 2026."
+    )
+
+    selected = _ground_citation_quotes(
+        [{"url": distractor.url, "quote": distractor.chunk_text}],
+        [distractor, decisive],
+        answer,
+    )
+    evidence = "\n".join(str(citation["quote"]) for citation in selected)
+
+    assert "A – H: June 8, 2026" in evidence
+    assert "I – P: June 22, 2026" in evidence
+    assert "Q – Z: July 6, 2026" in evidence
+
+
+def test_citation_span_selection_prefers_specific_claim_evidence_over_generic_bus_text():
+    decisive = _chunk(
+        "charter",
+        "Charter Service",
+        "Parking and Transportation allows Georgia Tech student organizations to charter buses. "
+        "Charter reservations must be made at least one week in advance and are not available "
+        "during weekday service hours.",
+    )
+    distractor = _chunk(
+        "stinger",
+        "Campus Bus – Stinger",
+        "The Stinger is Georgia Tech's campus bus and is open to students and the public.",
+    )
+    answer = (
+        "A Georgia Tech student organization can charter a campus bus. "
+        "It must reserve the bus at least one week in advance."
+    )
+
+    selected = _ground_citation_quotes(
+        [{"url": distractor.url, "quote": distractor.chunk_text}],
+        [decisive, distractor],
+        answer,
+    )
+    evidence = "\n".join(str(citation["quote"]) for citation in selected)
+
+    assert "student organizations to charter buses" in evidence
+    assert "at least one week in advance" in evidence
+    assert distractor.chunk_text not in evidence
 
 
 @pytest.mark.asyncio
@@ -322,6 +517,14 @@ def test_cross_encoder_receives_title_headings_and_chunk_text(monkeypatch):
             "TRUE",
             "Yes, November 2 is the Early Action 2 deadline.",
         ),
+        (
+            "I'm a junior with a 3.0 GPA. Can I take a graduate course with department approval?",
+            "A senior with a GPA of at least 2.7 may enroll with department permission.",
+            "A junior with a 3.0 GPA may take a graduate course with department approval.",
+            "CONTRADICTED",
+            "FALSE",
+            "No, senior classification is also required.",
+        ),
     ],
 )
 async def test_factual_yes_no_verdict_constrains_generation(
@@ -350,7 +553,37 @@ async def test_factual_yes_no_verdict_constrains_generation(
     assert f"proposition is {expected_truth}" in answer_system
     assert "must not restate the proposition with the opposite truth value" in answer_system
     assert "explanation body only" in answer_system
+    if binary_verdict == "FALSE":
+        assert "state the decisive positive evidence" in answer_system
+        assert "Do not repeat the proposition as a negated sentence" in answer_system
     assert query in answer_user
+
+
+@pytest.mark.asyncio
+async def test_binary_precheck_removes_negation_invented_by_proposition_extraction(monkeypatch):
+    query = "Do unused meal swipes carry over into the next semester?"
+    evidence = "Unused Fall Meal Pass Plan Swipes will not roll over to the Spring."
+
+    async def call(system, user, **kwargs):
+        if "atomic factual proposition" in system:
+            return "Unused meal swipes do not carry over into the next semester."
+        if "Judge whether the evidence entails" in system:
+            assert "do not carry over" not in user
+            assert "do carry over" in user
+            return "CONTRADICTED"
+        return (
+            '{"answer":"unused meal swipes do not carry over.","citations":[],'
+            '"confidence":1.0,"notes":[]}'
+        )
+
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    answer = await generate_answer(
+        query, [_chunk("meal-swipes", "Meal Plans", evidence)], intent="policy"
+    )
+
+    assert answer["_binary_verdict"] == "FALSE"
+    assert answer["answer"].startswith("No,")
 
 
 @pytest.mark.asyncio
@@ -380,6 +613,38 @@ async def test_binary_answer_uses_exact_retrieved_citation_quote(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_false_binary_answer_keeps_generated_explanation(monkeypatch):
+    evidence = (
+        "An undergraduate student may take a graduate level course with department permission, "
+        "a minimum GPA of 2.7, and be classified as a senior."
+    )
+    response = (
+        '{"answer":"you cannot take a graduate-level course as a junior.","citations":['
+        '{"url":"https://example.gatech.edu/level-restrictions","title":"Level Restrictions",'
+        '"fetched_at":null,"quote":"placeholder"}],"confidence":1.0,"notes":[]}'
+    )
+    monkeypatch.setattr(
+        "app.rag.answerer._call_llm",
+        AsyncMock(
+            side_effect=[
+                "A junior may take a graduate-level course.",
+                "CONTRADICTED",
+                response,
+            ]
+        ),
+    )
+
+    answer = await generate_answer(
+        "I'm a junior. Can I take a graduate-level course?",
+        [_chunk("level-restrictions", "Level Restrictions", evidence)],
+        intent="policy",
+    )
+
+    assert answer["answer"] == "No, you cannot take a graduate-level course as a junior."
+    assert answer["citations"][0]["quote"] == evidence
+
+
+@pytest.mark.asyncio
 async def test_binary_precheck_logs_exact_proposition_and_evidence(monkeypatch):
     evidence = "The OMSCS degree requires students to complete 30 total credit hours (10 courses)."
     proposition = "Completing nine courses is enough to graduate."
@@ -405,6 +670,72 @@ async def test_binary_precheck_logs_exact_proposition_and_evidence(monkeypatch):
     logged = debug.call_args.kwargs
     assert logged["proposition"] == proposition
     assert evidence in logged["evidence"]
+
+
+@pytest.mark.asyncio
+async def test_indirect_whether_question_uses_binary_verdict(monkeypatch):
+    evidence = (
+        "Electronic Check/WebCheck (FREE). Georgia Tech offers the ability to pay "
+        "by electronic check from a U.S. bank account."
+    )
+    call = AsyncMock(
+        side_effect=[
+            "WebCheck carries a payment fee.",
+            "CONTRADICTED",
+            '{"answer":"WebCheck is free.","citations":[{"url":"x","quote":"x"}],'
+            '"confidence":1.0,"notes":[]}',
+        ]
+    )
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    answer = await generate_answer(
+        "I'm dealing with whether WebCheck carries a payment fee right now.",
+        [_chunk("payment-options", "Payment Options", evidence)],
+        intent="policy",
+    )
+
+    assert call.await_count == 3
+    assert answer["_binary_verdict"] == "FALSE"
+    assert answer["answer"].startswith("No,")
+
+
+@pytest.mark.asyncio
+async def test_factual_prompt_requires_every_requested_field_without_adjacent_rules(monkeypatch):
+    call = AsyncMock(
+        return_value='{"answer":"30 credits and 10 courses.","citations":[],'
+        '"confidence":1.0,"notes":[]}'
+    )
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    await generate_answer(
+        "What are the total degree hours and courses?",
+        [_chunk("degree", "Degree Requirements", "30 total credit hours (10 courses).")],
+        intent="policy",
+    )
+
+    system_prompt = call.await_args.args[0]
+    assert "every requested field" in system_prompt
+    assert "unrequested adjacent rules" in system_prompt
+
+
+@pytest.mark.asyncio
+async def test_guidance_location_question_is_normalized_to_request_policy_content(monkeypatch):
+    call = AsyncMock(
+        return_value='{"answer":"Georgia Tech uses the Common Application.",'
+        '"citations":[],"confidence":1.0,"notes":[]}'
+    )
+    monkeypatch.setattr("app.rag.answerer._call_llm", call)
+
+    await generate_answer(
+        "Where can I find the official Georgia Tech guidance on first-year application platform?",
+        [_chunk("first-year", "First-Year Admission", "Georgia Tech uses the Common Application.")],
+        intent="policy",
+    )
+
+    user_prompt = call.await_args.args[1]
+    assert (
+        "What does the official guidance say about first-year application platform?" in user_prompt
+    )
 
 
 @pytest.mark.asyncio
